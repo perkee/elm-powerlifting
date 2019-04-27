@@ -54,6 +54,10 @@ wilks sex mbw mw =
            )
 
 
+type Kilos
+    = Kilos Float
+
+
 type MassUnit
     = KG
     | LBM
@@ -71,10 +75,10 @@ type alias FloatField =
 
 
 type alias Model =
-    { mass : FloatField
-    , massUnit : MassUnit
-    , bodyMass : FloatField
-    , bodyMassUnit : MassUnit
+    { lifted : FloatField
+    , liftedUnit : MassUnit
+    , body : FloatField
+    , bodyUnit : MassUnit
     , sex : Sex
     }
 
@@ -85,10 +89,10 @@ init =
 
 
 type Msg
-    = SetMass String
-    | SetBodyMass String
-    | SetMassUnit MassUnit
-    | SetBodyMassUnit MassUnit
+    = SetLifted String
+    | SetBody String
+    | SetLiftedUnit MassUnit
+    | SetBodyUnit MassUnit
     | SetSex Sex
 
 
@@ -110,17 +114,17 @@ ffParse ff str =
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        SetMass s ->
-            { model | mass = ffParse model.mass s }
+        SetLifted s ->
+            { model | lifted = ffParse model.lifted s }
 
-        SetBodyMass s ->
-            { model | bodyMass = ffParse model.bodyMass s }
+        SetBody s ->
+            { model | body = ffParse model.body s }
 
-        SetMassUnit u ->
-            { model | massUnit = u }
+        SetLiftedUnit u ->
+            { model | liftedUnit = u }
 
-        SetBodyMassUnit u ->
-            { model | bodyMassUnit = u }
+        SetBodyUnit u ->
+            { model | bodyMUnit = u }
 
         SetSex s ->
             { model | sex = s }
@@ -239,10 +243,10 @@ view model =
             [ sexOption Male
             , sexOption Female
             ]
-        , viewInput "number" "0" model.mass.input SetMass
-        , unitSelect SetMassUnit
-        , viewInput "number" "0" model.bodyMass.input SetBodyMass
-        , unitSelect SetBodyMassUnit
+        , viewInput "number" "0" model.lifted.input SetLifted
+        , unitSelect SetLiftedUnit
+        , viewInput "number" "0" model.body.input SetBody
+        , unitSelect SetBodyUnit
         , span [] [ wilks model.sex model.mass.value model.bodyMass.value |> text ]
         ]
 
