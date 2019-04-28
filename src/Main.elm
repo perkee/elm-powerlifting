@@ -1,4 +1,4 @@
-module Main exposing (FloatField, MassUnit(..), Model, Msg(..), Sex(..), abcdef, ffParse, ffValue, init, main, mult, opt, sexDecoder, sexOption, sexToLabel, sexToValue, stringToSexDecoder, stringToUnitDecoder, unitDecoder, unitOption, unitSelect, unitToLabel, unitToValue, update, view, viewInput, viewInputFloat, wilks)
+module Main exposing (main)
 
 -- (Html, button, div, text, input, option, select)
 
@@ -13,8 +13,8 @@ main =
     Browser.sandbox { init = init, update = update, view = view }
 
 
-abcdef : Sex -> List Float
-abcdef sex =
+coefficients : Sex -> List Float
+coefficients sex =
     case sex of
         Male ->
             [ -216.0475144
@@ -40,18 +40,85 @@ mult bw i c =
     c * bw ^ toFloat i
 
 
-wilks : Sex -> Maybe Float -> Maybe Float -> String
-wilks sex mbw mw =
-    sex
-        |> abcdef
-        |> List.indexedMap (mult (Maybe.withDefault 0 mbw))
-        |> List.foldl (+) 0
-        |> (\denom ->
-                Maybe.withDefault 0 mw
-                    * 500
-                    / denom
-                    |> String.fromFloat
-           )
+type ModelInKilos
+    = Complete
+        { bodyMass : Float
+        , liftedMass : Float
+        , sex : Sex
+        }
+    | Incomplete
+
+
+massToKilos : MassUnit -> Float -> Float
+massToKilos u m =
+    case u of
+        KG ->
+            m
+
+        LBM ->
+            m / 2.204623
+
+
+modelToKilos : Model -> ModelInKilos
+modelToKilos m =
+    case m.bodyMass.value of
+        Just bodyMass ->
+            case m.liftedMass.value of
+                Just liftedMass ->
+                    Complete
+                        { bodyMass = massToKilos m.bodyUnit bodyMass
+                        , liftedMass = massToKilos m.liftedUnit liftedMass
+                        , sex = m.sex
+                        }
+
+                Nothing ->
+                    Incomplete
+
+        Nothing ->
+            Incomplete
+
+
+wilks : Model -> String
+wilks model =
+    case modelToKilos model of
+        Complete m ->
+            m.sex
+                |> coefficients
+                |> List.indexedMap (mult m.bodyMass)
+                |> List.foldl (+) 0
+                |> (\denom ->
+                        m.liftedMass
+                            * 500
+                            / denom
+                            |> String.fromFloat
+                   )
+
+        Incomplete ->
+            "Incomplete info to render a wilks score"
+
+
+deeplyNestedIrritatingWilks : Model -> String
+deeplyNestedIrritatingWilks m =
+    case m.bodyMass.value of
+        Just bodyMass ->
+            case m.liftedMass.value of
+                Just lifted ->
+                    m.sex
+                        |> coefficients
+                        |> List.indexedMap (mult bodyMass)
+                        |> List.foldl (+) 0
+                        |> (\denom ->
+                                lifted
+                                    * 500
+                                    / denom
+                                    |> String.fromFloat
+                           )
+
+                Nothing ->
+                    "no lifted!"
+
+        Nothing ->
+            "No Body mass"
 
 
 type Kilos
@@ -74,10 +141,17 @@ type alias FloatField =
     }
 
 
+initFloatField : FloatField
+initFloatField =
+    { value = Nothing
+    , input = ""
+    }
+
+
 type alias Model =
-    { lifted : FloatField
+    { liftedMass : FloatField
     , liftedUnit : MassUnit
-    , body : FloatField
+    , bodyMass : FloatField
     , bodyUnit : MassUnit
     , sex : Sex
     }
@@ -85,13 +159,13 @@ type alias Model =
 
 init : Model
 init =
-    Model (FloatField (Just 0.0) "0") LBM (FloatField (Just 0.0) "0") LBM Male
+    Model initFloatField LBM initFloatField LBM Male
 
 
 type Msg
-    = SetLifted String
-    | SetBody String
+    = SetLiftedMass String
     | SetLiftedUnit MassUnit
+    | SetBodyMass String
     | SetBodyUnit MassUnit
     | SetSex Sex
 
@@ -101,30 +175,30 @@ ffValue ff =
     ff.value |> Maybe.withDefault 0
 
 
-ffParse : FloatField -> String -> FloatField
-ffParse ff str =
+ffParse : String -> FloatField
+ffParse str =
     case String.toFloat str of
         Nothing ->
-            FloatField Nothing str
+            { value = Nothing, input = str }
 
         Just new ->
-            FloatField (Just new) str
+            { value = Just new, input = str }
 
 
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        SetLifted s ->
-            { model | lifted = ffParse model.lifted s }
-
-        SetBody s ->
-            { model | body = ffParse model.body s }
+        SetLiftedMass s ->
+            { model | liftedMass = ffParse s }
 
         SetLiftedUnit u ->
             { model | liftedUnit = u }
 
+        SetBodyMass s ->
+            { model | bodyMass = ffParse s }
+
         SetBodyUnit u ->
-            { model | bodyMUnit = u }
+            { model | bodyUnit = u }
 
         SetSex s ->
             { model | sex = s }
@@ -225,10 +299,12 @@ sexOption =
     opt sexToValue sexToLabel
 
 
-unitSelect : (MassUnit -> Msg) -> Html Msg
-unitSelect m =
+unitSelect : MassUnit -> (MassUnit -> Msg) -> Html Msg
+unitSelect u m =
     select
-        [ on "change" (Json.map m unitDecoder) ]
+        [ on "change" <| Json.map m unitDecoder
+        , value <| unitToValue u
+        ]
         [ unitOption KG
         , unitOption LBM
         ]
@@ -237,17 +313,21 @@ unitSelect m =
 view : Model -> Html Msg
 view model =
     div []
-        [ select
+        [ label [ for "sexInput" ] [ text "A " ]
+        , select
             [ on "change" (Json.map SetSex sexDecoder)
+            , id "sexInput"
             ]
             [ sexOption Male
             , sexOption Female
             ]
-        , viewInput "number" "0" model.lifted.input SetLifted
-        , unitSelect SetLiftedUnit
-        , viewInput "number" "0" model.body.input SetBody
-        , unitSelect SetBodyUnit
-        , span [] [ wilks model.sex model.mass.value model.bodyMass.value |> text ]
+        , label [ for "liftedInput" ] [ text " lifted " ]
+        , viewFloatInput "liftedInput" model.liftedMass.input SetLiftedMass
+        , unitSelect model.liftedUnit SetLiftedUnit
+        , label [ for "bodyInput" ] [ text " weighing " ]
+        , viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
+        , unitSelect model.bodyUnit SetBodyUnit
+        , div [] [ wilks model |> text ]
         ]
 
 
@@ -256,6 +336,13 @@ viewInput t p v toMsg =
     input [ type_ t, placeholder p, value v, onInput toMsg ] []
 
 
-viewInputFloat : String -> Float -> (Float -> msg) -> Html msg
-viewInputFloat p v toMsg =
-    viewInput "number" p (String.fromFloat v) (String.toFloat >> Maybe.withDefault 0.0 >> toMsg)
+viewFloatInput : String -> String -> (String -> msg) -> Html msg
+viewFloatInput id v toMsg =
+    input
+        [ Html.Attributes.id id
+        , type_ "number"
+        , placeholder "0"
+        , value v
+        , onInput toMsg
+        ]
+        []
