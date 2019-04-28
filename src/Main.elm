@@ -61,20 +61,15 @@ massToKilos u m =
 
 modelToKilos : Model -> ModelInKilos
 modelToKilos m =
-    case m.bodyMass.value of
-        Just bodyMass ->
-            case m.liftedMass.value of
-                Just liftedMass ->
-                    Complete
-                        { bodyMass = massToKilos m.bodyUnit bodyMass
-                        , liftedMass = massToKilos m.liftedUnit liftedMass
-                        , sex = m.sex
-                        }
+    case ( m.bodyMass.value, m.liftedMass.value ) of
+        ( Just bodyMass, Just liftedMass ) ->
+            Complete
+                { bodyMass = massToKilos m.bodyUnit bodyMass
+                , liftedMass = massToKilos m.liftedUnit liftedMass
+                , sex = m.sex
+                }
 
-                Nothing ->
-                    Incomplete
-
-        Nothing ->
+        ( _, _ ) ->
             Incomplete
 
 
