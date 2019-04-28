@@ -116,10 +116,6 @@ deeplyNestedIrritatingWilks m =
             "No Body mass"
 
 
-type Kilos
-    = Kilos Float
-
-
 type MassUnit
     = KG
     | LBM
@@ -199,11 +195,10 @@ update msg model =
             { model | sex = s }
 
 
-unitDecoder : Json.Decoder MassUnit
-unitDecoder =
-    -- so we try to decode the string and put the result into stringToUnitDecoder
+decoder : (String -> Json.Decoder selectableType) -> Json.Decoder selectableType
+decoder stringDecoder =
     targetValue
-        |> Json.andThen stringToUnitDecoder
+        |> Json.andThen stringDecoder
 
 
 stringToUnitDecoder : String -> Json.Decoder MassUnit
@@ -237,13 +232,6 @@ unitToLabel mu =
 
         LBM ->
             "Pounds"
-
-
-sexDecoder : Json.Decoder Sex
-sexDecoder =
-    -- so we try to decode the string and put the result into stringToSexDecoder
-    targetValue
-        |> Json.andThen stringToSexDecoder
 
 
 stringToSexDecoder : String -> Json.Decoder Sex
@@ -297,7 +285,7 @@ sexOption =
 unitSelect : MassUnit -> (MassUnit -> Msg) -> Html Msg
 unitSelect u m =
     select
-        [ on "change" <| Json.map m unitDecoder
+        [ on "change" <| Json.map m <| decoder stringToUnitDecoder
         , value <| unitToValue u
         ]
         [ unitOption KG
@@ -310,7 +298,7 @@ view model =
     div []
         [ label [ for "sexInput" ] [ text "A " ]
         , select
-            [ on "change" (Json.map SetSex sexDecoder)
+            [ on "change" <| Json.map SetSex <| decoder stringToSexDecoder
             , id "sexInput"
             ]
             [ sexOption Male
