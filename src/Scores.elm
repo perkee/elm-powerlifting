@@ -1,5 +1,6 @@
-module Scores exposing (Scores, scores, scoresToString)
+module Scores exposing (Scores, scores, scoresToPara, scoresToTable)
 
+import Html as H exposing (Html)
 import ModelInKilos
     exposing
         ( ActualModelInKilos
@@ -23,7 +24,27 @@ type alias ActualScores =
 
 
 type alias Scores =
-    Maybe ActualScores
+    Maybe
+        { bodyKilos : Float
+        , liftedKilos : Float
+        , wilks : Float
+        , allometric : Float
+        , ipfRawTotal : Float
+        }
+
+
+scoresToTable : ModelInKilos -> Html msg
+scoresToTable =
+    scores
+        >> scoresToList
+        >> listToTable
+
+
+scoresToPara : ModelInKilos -> Html msg
+scoresToPara =
+    scores
+        >> scoresToList
+        >> listToPara
 
 
 scores : ModelInKilos -> Scores
@@ -40,6 +61,65 @@ scores m =
 
         Nothing ->
             Nothing
+
+
+scoresToList : Scores -> Maybe (List ( String, String ))
+scoresToList s =
+    case s of
+        Just sc ->
+            [ ( .wilks, "Wilks" )
+            , ( .allometric, "Allometric" )
+            , ( .ipfRawTotal, "IPF (raw total)" )
+            ]
+                |> List.map
+                    (\( getter, label ) ->
+                        sc
+                            |> getter
+                            |> String.fromFloat
+                            |> (\score -> ( label, score ))
+                    )
+                |> Just
+
+        Nothing ->
+            Nothing
+
+
+listToTable : Maybe (List ( String, String )) -> Html msg
+listToTable ml =
+    case ml of
+        Just l ->
+            List.map
+                (\( label, score ) ->
+                    H.tr []
+                        [ H.td [] [ H.text label ]
+                        , H.td [] [ H.text score ]
+                        ]
+                )
+                l
+                |> H.tbody []
+                |> List.singleton
+                |> H.table []
+
+        Nothing ->
+            H.div [] [ H.text "Cannot do" ]
+
+
+listToPara : Maybe (List ( String, String )) -> Html msg
+listToPara ml =
+    case ml of
+        Just l ->
+            List.map
+                (\( label, score ) ->
+                    label ++ ": " ++ score
+                )
+                l
+                |> String.join ", "
+                |> H.text
+                |> List.singleton
+                |> H.div []
+
+        Nothing ->
+            H.div [] [ H.text "Cannot do" ]
 
 
 scoresToString : Scores -> String

@@ -8,7 +8,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
 import ModelInKilos exposing (MassUnit(..), ModelInKilos, Sex(..), massToKilos)
-import Scores exposing (scores, scoresToString)
+import Scores exposing (scores, scoresToPara, scoresToTable)
 
 
 main =
@@ -196,12 +196,19 @@ unitSelect u m =
         ]
 
 
-modelToScoresText : Model -> Html msg
-modelToScoresText =
-    modelToKilos
-        >> scores
-        >> scoresToString
-        >> text
+modelToScoresDom : Model -> Html msg
+modelToScoresDom m =
+    let
+        table =
+            m |> modelToKilos |> scoresToTable
+
+        para =
+            m |> modelToKilos |> scoresToPara
+    in
+    div []
+        [ table
+        , para
+        ]
 
 
 view : Model -> Html Msg
@@ -221,7 +228,7 @@ view model =
         , label [ for "bodyInput" ] [ text " weighing " ]
         , viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
         , unitSelect model.bodyUnit SetBodyUnit
-        , div [] [ modelToScoresText model ]
+        , modelToScoresDom model
         ]
 
 
