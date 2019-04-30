@@ -7,123 +7,12 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
+import ModelInKilos exposing (MassUnit(..), ModelInKilos, Sex(..), massToKilos)
+import Scores exposing (scores, scoresToString)
 
 
 main =
     Browser.sandbox { init = init, update = update, view = view }
-
-
-coefficients : Sex -> List Float
-coefficients sex =
-    case sex of
-        Male ->
-            [ -216.0475144
-            , 16.2606339
-            , -0.002388645
-            , -0.00113732
-            , 7.01863e-6
-            , -1.291e-8
-            ]
-
-        Female ->
-            [ 594.31747775582
-            , -27.23842536447
-            , 0.82112226871
-            , -0.00930733913
-            , 4.731582e-5
-            , -9.054e-8
-            ]
-
-
-mult : Float -> Int -> Float -> Float
-mult bw i c =
-    c * bw ^ toFloat i
-
-
-type ModelInKilos
-    = Complete
-        { bodyMass : Float
-        , liftedMass : Float
-        , sex : Sex
-        }
-    | Incomplete
-
-
-massToKilos : MassUnit -> Float -> Float
-massToKilos u m =
-    case u of
-        KG ->
-            m
-
-        LBM ->
-            m / 2.204623
-
-
-modelToKilos : Model -> ModelInKilos
-modelToKilos m =
-    case ( m.bodyMass.value, m.liftedMass.value ) of
-        ( Just bodyMass, Just liftedMass ) ->
-            Complete
-                { bodyMass = massToKilos m.bodyUnit bodyMass
-                , liftedMass = massToKilos m.liftedUnit liftedMass
-                , sex = m.sex
-                }
-
-        ( _, _ ) ->
-            Incomplete
-
-
-wilks : Model -> String
-wilks model =
-    case modelToKilos model of
-        Complete m ->
-            m.sex
-                |> coefficients
-                |> List.indexedMap (mult m.bodyMass)
-                |> List.foldl (+) 0
-                |> (\denom ->
-                        m.liftedMass
-                            * 500
-                            / denom
-                            |> String.fromFloat
-                   )
-
-        Incomplete ->
-            "Incomplete info to render a wilks score"
-
-
-deeplyNestedIrritatingWilks : Model -> String
-deeplyNestedIrritatingWilks m =
-    case m.bodyMass.value of
-        Just bodyMass ->
-            case m.liftedMass.value of
-                Just lifted ->
-                    m.sex
-                        |> coefficients
-                        |> List.indexedMap (mult bodyMass)
-                        |> List.foldl (+) 0
-                        |> (\denom ->
-                                lifted
-                                    * 500
-                                    / denom
-                                    |> String.fromFloat
-                           )
-
-                Nothing ->
-                    "no lifted!"
-
-        Nothing ->
-            "No Body mass"
-
-
-type MassUnit
-    = KG
-    | LBM
-
-
-type Sex
-    = Male
-    | Female
 
 
 type alias FloatField =
@@ -151,6 +40,20 @@ type alias Model =
 init : Model
 init =
     Model initFloatField LBM initFloatField LBM Male
+
+
+modelToKilos : Model -> ModelInKilos
+modelToKilos m =
+    case ( m.bodyMass.value, m.liftedMass.value ) of
+        ( Just bodyMass, Just liftedMass ) ->
+            Just
+                { bodyMass = massToKilos m.bodyUnit bodyMass
+                , liftedMass = massToKilos m.liftedUnit liftedMass
+                , sex = m.sex
+                }
+
+        ( _, _ ) ->
+            Nothing
 
 
 type Msg
@@ -293,6 +196,14 @@ unitSelect u m =
         ]
 
 
+modelToScoresText : Model -> Html msg
+modelToScoresText =
+    modelToKilos
+        >> scores
+        >> scoresToString
+        >> text
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -310,7 +221,7 @@ view model =
         , label [ for "bodyInput" ] [ text " weighing " ]
         , viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
         , unitSelect model.bodyUnit SetBodyUnit
-        , div [] [ wilks model |> text ]
+        , div [] [ modelToScoresText model ]
         ]
 
 
