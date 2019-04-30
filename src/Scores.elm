@@ -18,6 +18,7 @@ type alias ActualScores =
     , liftedKilos : Float
     , wilks : Float
     , allometric : Float
+    , ipfRawTotal : Float
     }
 
 
@@ -34,6 +35,7 @@ scores m =
                 , liftedKilos = model.liftedMass
                 , wilks = wilks model
                 , allometric = allometric model
+                , ipfRawTotal = ipfRawTotal model
                 }
 
         Nothing ->
@@ -44,23 +46,25 @@ scoresToString : Scores -> String
 scoresToString s =
     case s of
         Just sc ->
-            String.join ", "
-                [ sc
-                    |> .wilks
-                    |> String.fromFloat
-                    |> (++) "wilks: "
-                , sc
-                    |> .allometric
-                    |> String.fromFloat
-                    |> (++) "allometric: "
-                ]
+            [ ( .wilks, "Wilks" )
+            , ( .allometric, "Allometric" )
+            , ( .ipfRawTotal, "IPF (raw total)" )
+            ]
+                |> List.map
+                    (\( getter, label ) ->
+                        sc
+                            |> getter
+                            |> String.fromFloat
+                            |> (++) (label ++ ": ")
+                    )
+                |> String.join ", "
 
         Nothing ->
             "you gotta type stuff"
 
 
 
--- Allometric Scaling Scor
+-- Allometric Scaling Score
 
 
 allometric : ActualModelInKilos -> Float
@@ -69,11 +73,59 @@ allometric m =
 
 
 
+-- IPF
+
+
+ipfRawTotal : ActualModelInKilos -> Float
+ipfRawTotal m =
+    if abs m.liftedMass < 0.25 then
+        0
+
+    else
+        let
+            cs =
+                ipfCoefficients m.sex
+
+            scale =
+                m.bodyMass |> logBase e |> (*)
+        in
+        500
+            + 100
+            * (m.liftedMass - (scale cs.c1 - cs.c2))
+            / (scale cs.c3 - cs.c4)
+
+
+ipfCoefficients :
+    Sex
+    ->
+        { c1 : Float
+        , c2 : Float
+        , c3 : Float
+        , c4 : Float
+        }
+ipfCoefficients sex =
+    case sex of
+        Male ->
+            { c1 = 310.67
+            , c2 = 857.785
+            , c3 = 53.216
+            , c4 = 147.0835
+            }
+
+        Female ->
+            { c1 = 3125.1435
+            , c2 = 228.03
+            , c3 = 34.5246
+            , c4 = 86.8301
+            }
+
+
+
 -- Wilks
 
 
-coefficients : Sex -> List Float
-coefficients sex =
+wilksCoefficients : Sex -> List Float
+wilksCoefficients sex =
     case sex of
         Male ->
             [ -216.0475144
@@ -102,7 +154,7 @@ polynomialMultiply base index const =
 wilks : ActualModelInKilos -> Float
 wilks m =
     m.sex
-        |> coefficients
+        |> wilksCoefficients
         |> List.indexedMap (polynomialMultiply m.bodyMass)
         |> List.foldl (+) 0
         |> (\denom ->
@@ -121,7 +173,7 @@ wilks m =
                case m.liftedMass.value of
                    Just lifted ->
                        m.sex
-                           |> coefficients
+                           |> wilksCoefficients
                            |> List.indexedMap (mult bodyMass)
                            |> List.foldl (+) 0
                            |> (\denom ->
