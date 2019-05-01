@@ -14,15 +14,6 @@ import ModelInKilos
 -- Scores
 
 
-type alias ActualScores =
-    { bodyKilos : Float
-    , liftedKilos : Float
-    , wilks : Float
-    , allometric : Float
-    , ipfRawTotal : Float
-    }
-
-
 type alias Scores =
     Maybe
         { bodyKilos : Float
@@ -75,6 +66,7 @@ scoresToList s =
                     (\( getter, label ) ->
                         sc
                             |> getter
+                            |> truncate 2
                             |> String.fromFloat
                             |> (\score -> ( label, score ))
                     )
@@ -91,17 +83,26 @@ listToTable ml =
             List.map
                 (\( label, score ) ->
                     H.tr []
-                        [ H.td [] [ H.text label ]
-                        , H.td [] [ H.text score ]
+                        [ textual H.td label
+                        , textual H.td score
                         ]
                 )
                 l
                 |> H.tbody []
                 |> List.singleton
+                |> (::)
+                    (H.thead
+                        []
+                        [ H.tr []
+                            [ textual H.th "Type"
+                            , textual H.th "Score"
+                            ]
+                        ]
+                    )
                 |> H.table []
 
         Nothing ->
-            H.div [] [ H.text "Cannot do" ]
+            H.div [] [ H.text "Cannot make a table" ]
 
 
 listToPara : Maybe (List ( String, String )) -> Html msg
@@ -147,9 +148,22 @@ scoresToString s =
 -- Allometric Scaling Score
 
 
+allometricCoefficients : ActualModelInKilos -> Float
+allometricCoefficients m =
+    case m.sex of
+        Male ->
+            2.292801981
+
+        Female ->
+            3.195981761
+
+
 allometric : ActualModelInKilos -> Float
 allometric m =
-    m.bodyMass ^ (-2 / 3) * m.liftedMass
+    m.bodyMass
+        ^ (-2 / 3)
+        * m.liftedMass
+        * allometricCoefficients m
 
 
 
@@ -204,9 +218,9 @@ ipfCoefficients sex =
 -- Wilks
 
 
-wilksCoefficients : Sex -> List Float
-wilksCoefficients sex =
-    case sex of
+wilksCoefficients : ActualModelInKilos -> List Float
+wilksCoefficients m =
+    case m.sex of
         Male ->
             [ -216.0475144
             , 16.2606339
@@ -226,22 +240,31 @@ wilksCoefficients sex =
             ]
 
 
-polynomialMultiply : Float -> Int -> Float -> Float
-polynomialMultiply base index const =
-    const * base ^ toFloat index
+polynomialMultiply : ActualModelInKilos -> Int -> Float -> Float
+polynomialMultiply m index const =
+    const * m.bodyMass ^ toFloat index
 
 
 wilks : ActualModelInKilos -> Float
 wilks m =
-    m.sex
+    m
         |> wilksCoefficients
-        |> List.indexedMap (polynomialMultiply m.bodyMass)
+        |> List.indexedMap (polynomialMultiply m)
         |> List.foldl (+) 0
-        |> (\denom ->
-                m.liftedMass
-                    * 500
-                    / denom
-           )
+        |> (/) (m.liftedMass * 500)
+
+
+truncate : Int -> Float -> Float
+truncate places n =
+    let
+        factor =
+            10.0 ^ toFloat places
+    in
+    n
+        |> (*) factor
+        |> round
+        |> toFloat
+        |> (\m -> m / factor)
 
 
 
@@ -269,3 +292,18 @@ wilks m =
            Nothing ->
                "No Body mass"
 -}
+-- Nuckols
+
+
+nuckols : ActualModelInKilos -> Float
+nuckols m =
+    0
+
+
+
+-- helper
+
+
+textual : (List (H.Attribute msg) -> List (Html msg) -> Html msg) -> String -> Html msg
+textual elem s =
+    s |> H.text |> List.singleton |> elem []
