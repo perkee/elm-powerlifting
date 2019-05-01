@@ -39,7 +39,7 @@ type alias Model =
 
 init : Model
 init =
-    Model initFloatField LBM initFloatField LBM Male
+    Model initFloatField LBM initFloatField LBM Female
 
 
 modelToKilos : Model -> ModelInKilos
@@ -164,35 +164,39 @@ sexToLabel : Sex -> String
 sexToLabel s =
     case s of
         Male ->
-            "Man"
+            "man"
 
         Female ->
-            "Woman"
+            "woman"
 
 
-opt : (a -> String) -> (a -> String) -> a -> Html msg
-opt valToValue valToLabel val =
-    option [ val |> valToValue |> value ] [ val |> valToLabel |> text ]
+opt : (a -> String) -> (a -> String) -> a -> a -> Html msg
+opt valToValue valToLabel val current =
+    option
+        [ val |> valToValue |> value
+        , current == val |> selected
+        ]
+        [ val |> valToLabel |> text ]
 
 
-unitOption : MassUnit -> Html msg
+unitOption : MassUnit -> MassUnit -> Html msg
 unitOption =
     opt unitToValue unitToLabel
 
 
-sexOption : Sex -> Html msg
+sexOption : Sex -> Sex -> Html msg
 sexOption =
     opt sexToValue sexToLabel
 
 
 unitSelect : MassUnit -> (MassUnit -> Msg) -> Html Msg
-unitSelect u m =
+unitSelect unit m =
     select
         [ on "change" <| Json.map m <| decoder stringToUnitDecoder
-        , value <| unitToValue u
+        , value <| unitToValue unit
         ]
-        [ unitOption KG
-        , unitOption LBM
+        [ unitOption KG unit
+        , unitOption LBM unit
         ]
 
 
@@ -219,10 +223,10 @@ view model =
             [ on "change" <| Json.map SetSex <| decoder stringToSexDecoder
             , id "sexInput"
             ]
-            [ sexOption Male
-            , sexOption Female
+            [ sexOption Male model.sex
+            , sexOption Female model.sex
             ]
-        , label [ for "liftedInput" ] [ text " lifted " ]
+        , label [ for "liftedInput" ] [ text " totaled " ]
         , viewFloatInput "liftedInput" model.liftedMass.input SetLiftedMass
         , unitSelect model.liftedUnit SetLiftedUnit
         , label [ for "bodyInput" ] [ text " weighing " ]
