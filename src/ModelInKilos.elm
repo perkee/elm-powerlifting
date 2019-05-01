@@ -1,5 +1,6 @@
 module ModelInKilos exposing
     ( ActualModelInKilos
+    , Lift(..)
     , MassUnit(..)
     , ModelInKilos
     , Sex(..)
@@ -10,6 +11,13 @@ module ModelInKilos exposing
 type MassUnit
     = KG
     | LBM
+
+
+type Lift
+    = Squat
+    | Bench
+    | Deadlift
+    | Total
 
 
 

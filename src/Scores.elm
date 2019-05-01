@@ -148,8 +148,8 @@ scoresToString s =
 -- Allometric Scaling Score
 
 
-allometricCoefficients : ActualModelInKilos -> Float
-allometricCoefficients m =
+allometricCoefficient : ActualModelInKilos -> Float
+allometricCoefficient m =
     case m.sex of
         Male ->
             2.292801981
@@ -163,7 +163,7 @@ allometric m =
     m.bodyMass
         ^ (-2 / 3)
         * m.liftedMass
-        * allometricCoefficients m
+        * allometricCoefficient m
 
 
 
@@ -207,7 +207,7 @@ ipfCoefficients sex =
             }
 
         Female ->
-            { c1 = 3125.1435
+            { c1 = 125.1435
             , c2 = 228.03
             , c3 = 34.5246
             , c4 = 86.8301

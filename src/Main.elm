@@ -3,11 +3,12 @@ module Main exposing (main)
 -- (Html, button, div, text, input, option, select)
 
 import Browser
+import Dropdowns exposing (sexSelect, unitSelect)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
-import ModelInKilos exposing (MassUnit(..), ModelInKilos, Sex(..), massToKilos)
+import ModelInKilos exposing (Lift(..), MassUnit(..), ModelInKilos, Sex(..), massToKilos)
 import Scores exposing (scores, scoresToPara, scoresToTable)
 
 
@@ -98,108 +99,6 @@ update msg model =
             { model | sex = s }
 
 
-decoder : (String -> Json.Decoder selectableType) -> Json.Decoder selectableType
-decoder stringDecoder =
-    targetValue
-        |> Json.andThen stringDecoder
-
-
-stringToUnitDecoder : String -> Json.Decoder MassUnit
-stringToUnitDecoder s =
-    case s of
-        "KG" ->
-            Json.succeed KG
-
-        "LBM" ->
-            Json.succeed LBM
-
-        x ->
-            Json.fail ("unknown unit" ++ x)
-
-
-unitToValue : MassUnit -> String
-unitToValue mu =
-    case mu of
-        KG ->
-            "KG"
-
-        LBM ->
-            "LBM"
-
-
-unitToLabel : MassUnit -> String
-unitToLabel mu =
-    case mu of
-        KG ->
-            "Kilos"
-
-        LBM ->
-            "Pounds"
-
-
-stringToSexDecoder : String -> Json.Decoder Sex
-stringToSexDecoder s =
-    case s of
-        "M" ->
-            Json.succeed Male
-
-        "F" ->
-            Json.succeed Female
-
-        x ->
-            Json.fail ("unknown sex" ++ x)
-
-
-sexToValue : Sex -> String
-sexToValue s =
-    case s of
-        Male ->
-            "M"
-
-        Female ->
-            "F"
-
-
-sexToLabel : Sex -> String
-sexToLabel s =
-    case s of
-        Male ->
-            "man"
-
-        Female ->
-            "woman"
-
-
-opt : (a -> String) -> (a -> String) -> a -> a -> Html msg
-opt valToValue valToLabel val current =
-    option
-        [ val |> valToValue |> value
-        , current == val |> selected
-        ]
-        [ val |> valToLabel |> text ]
-
-
-unitOption : MassUnit -> MassUnit -> Html msg
-unitOption =
-    opt unitToValue unitToLabel
-
-
-sexOption : Sex -> Sex -> Html msg
-sexOption =
-    opt sexToValue sexToLabel
-
-
-unitSelect : MassUnit -> (MassUnit -> Msg) -> Html Msg
-unitSelect unit m =
-    select
-        [ on "change" <| Json.map m <| decoder stringToUnitDecoder
-        , value <| unitToValue unit
-        ]
-        [ unitOption KG unit
-        , unitOption LBM unit
-        ]
-
-
 modelToScoresDom : Model -> Html msg
 modelToScoresDom m =
     let
@@ -219,13 +118,7 @@ view : Model -> Html Msg
 view model =
     div []
         [ label [ for "sexInput" ] [ text "A " ]
-        , select
-            [ on "change" <| Json.map SetSex <| decoder stringToSexDecoder
-            , id "sexInput"
-            ]
-            [ sexOption Male model.sex
-            , sexOption Female model.sex
-            ]
+        , sexSelect model.sex SetSex
         , label [ for "liftedInput" ] [ text " totaled " ]
         , viewFloatInput "liftedInput" model.liftedMass.input SetLiftedMass
         , unitSelect model.liftedUnit SetLiftedUnit
@@ -247,7 +140,6 @@ viewFloatInput id v toMsg =
         [ Html.Attributes.id id
         , type_ "number"
         , placeholder "0"
-        , value v
         , onInput toMsg
         ]
         []
