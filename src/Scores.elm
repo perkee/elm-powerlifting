@@ -25,7 +25,7 @@ type alias Scores =
         , liftedKilos : Float
         , wilks : Float
         , allometric : Float
-        , ipfRawTotal : Float
+        , ipf : Float
         }
 
 
@@ -52,7 +52,7 @@ scores m =
                 , liftedKilos = model.liftedMass
                 , wilks = wilks model
                 , allometric = allometric model
-                , ipfRawTotal = ipfRawTotal model
+                , ipf = ipf model
                 }
 
         Nothing ->
@@ -65,7 +65,7 @@ scoresToList s =
         Just sc ->
             [ ( .wilks, "Wilks" )
             , ( .allometric, "Allometric" )
-            , ( .ipfRawTotal, "IPF (raw total)" )
+            , ( .ipf, "IPF" )
             ]
                 |> List.map
                     (\( getter, label ) ->
@@ -134,7 +134,7 @@ scoresToString s =
         Just sc ->
             [ ( .wilks, "Wilks" )
             , ( .allometric, "Allometric" )
-            , ( .ipfRawTotal, "IPF (raw total)" )
+            , ( .ipf, "IPF (raw total)" )
             ]
                 |> List.map
                     (\( getter, label ) ->
@@ -155,11 +155,29 @@ scoresToString s =
 
 allometricCoefficient : ActualModelInKilos -> Float
 allometricCoefficient m =
-    case m.sex of
-        Male ->
+    case ( m.lift, m.sex ) of
+        ( Squat, Male ) ->
+            6.487682129
+
+        ( Squat, Female ) ->
+            8.540082411
+
+        ( Bench, Male ) ->
+            8.373410442
+
+        ( Bench, Female ) ->
+            11.26896531
+
+        ( Deadlift, Male ) ->
+            5.510559406
+
+        ( Deadlift, Female ) ->
+            7.164206454
+
+        ( Total, Male ) ->
             2.292801981
 
-        Female ->
+        ( Total, Female ) ->
             3.195981761
 
 
@@ -175,15 +193,15 @@ allometric m =
 -- IPF
 
 
-ipfRawTotal : ActualModelInKilos -> Float
-ipfRawTotal m =
+ipf : ActualModelInKilos -> Float
+ipf m =
     if abs m.liftedMass < 0.25 then
         0
 
     else
         let
             cs =
-                ipfCoefficients m.lift m.sex
+                ipfCoefficients m
 
             scale =
                 m.bodyMass |> logBase e |> (*)
@@ -195,47 +213,38 @@ ipfRawTotal m =
 
 
 ipfCoefficients :
-    Lift
-    -> Sex
+    ActualModelInKilos
     ->
         { c1 : Float
         , c2 : Float
         , c3 : Float
         , c4 : Float
         }
-ipfCoefficients lift sex =
-    case lift of
-        Squat ->
-            case sex of
-                Male ->
-                    { c1 = 123.1, c2 = 363.085, c3 = 25.1667, c4 = 75.4311 }
+ipfCoefficients m =
+    case ( m.lift, m.sex ) of
+        ( Squat, Male ) ->
+            { c1 = 123.1, c2 = 363.085, c3 = 25.1667, c4 = 75.4311 }
 
-                Female ->
-                    { c1 = 50.479, c2 = 105.632, c3 = 19.1846, c4 = 56.2215 }
+        ( Squat, Female ) ->
+            { c1 = 50.479, c2 = 105.632, c3 = 19.1846, c4 = 56.2215 }
 
-        Bench ->
-            case sex of
-                Male ->
-                    { c1 = 86.4745, c2 = 259.155, c3 = 17.5785, c4 = 53.122 }
+        ( Bench, Male ) ->
+            { c1 = 86.4745, c2 = 259.155, c3 = 17.5785, c4 = 53.122 }
 
-                Female ->
-                    { c1 = 25.0485, c2 = 43.848, c3 = 6.7172, c4 = 13.952 }
+        ( Bench, Female ) ->
+            { c1 = 25.0485, c2 = 43.848, c3 = 6.7172, c4 = 13.952 }
 
-        Deadlift ->
-            case sex of
-                Male ->
-                    { c1 = 103.5355, c2 = 244.765, c3 = 15.3714, c4 = 31.5022 }
+        ( Deadlift, Male ) ->
+            { c1 = 103.5355, c2 = 244.765, c3 = 15.3714, c4 = 31.5022 }
 
-                Female ->
-                    { c1 = 47.136, c2 = 67.349, c3 = 9.1555, c4 = 13.67 }
+        ( Deadlift, Female ) ->
+            { c1 = 47.136, c2 = 67.349, c3 = 9.1555, c4 = 13.67 }
 
-        Total ->
-            case sex of
-                Male ->
-                    { c1 = 310.67, c2 = 857.785, c3 = 53.216, c4 = 147.0835 }
+        ( Total, Male ) ->
+            { c1 = 310.67, c2 = 857.785, c3 = 53.216, c4 = 147.0835 }
 
-                Female ->
-                    { c1 = 125.1435, c2 = 228.03, c3 = 34.5246, c4 = 86.8301 }
+        ( Total, Female ) ->
+            { c1 = 125.1435, c2 = 228.03, c3 = 34.5246, c4 = 86.8301 }
 
 
 
@@ -292,30 +301,6 @@ truncate places n =
 
 
 
-{-
-   deeplyNestedIrritatingWilks : Model -> String
-   deeplyNestedIrritatingWilks m =
-       case m.bodyMass.value of
-           Just bodyMass ->
-               case m.liftedMass.value of
-                   Just lifted ->
-                       m.sex
-                           |> wilksCoefficients
-                           |> List.indexedMap (mult bodyMass)
-                           |> List.foldl (+) 0
-                           |> (\denom ->
-                                   lifted
-                                       * 500
-                                       / denom
-                                       |> String.fromFloat
-                              )
-
-                   Nothing ->
-                       "no lifted!"
-
-           Nothing ->
-               "No Body mass"
--}
 -- Nuckols
 
 
