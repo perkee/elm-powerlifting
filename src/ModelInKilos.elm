@@ -20,20 +20,11 @@ type Lift
     | Total
 
 
-
--- type ModelInKilos
---     = Complete
---         { bodyMass : Float
---         , liftedMass : Float
---         , sex : Sex
---         }
---     | Incomplete
-
-
 type alias ActualModelInKilos =
     { bodyMass : Float
     , liftedMass : Float
     , sex : Sex
+    , lift : Lift
     }
 
 

@@ -4,6 +4,7 @@ import Html as H exposing (Html)
 import ModelInKilos
     exposing
         ( ActualModelInKilos
+        , Lift(..)
         , MassUnit
         , ModelInKilos
         , Sex(..)
@@ -12,6 +13,10 @@ import ModelInKilos
 
 
 -- Scores
+
+
+type alias ScoreFn =
+    ActualModelInKilos -> Float
 
 
 type alias Scores =
@@ -178,7 +183,7 @@ ipfRawTotal m =
     else
         let
             cs =
-                ipfCoefficients m.sex
+                ipfCoefficients m.lift m.sex
 
             scale =
                 m.bodyMass |> logBase e |> (*)
@@ -190,28 +195,47 @@ ipfRawTotal m =
 
 
 ipfCoefficients :
-    Sex
+    Lift
+    -> Sex
     ->
         { c1 : Float
         , c2 : Float
         , c3 : Float
         , c4 : Float
         }
-ipfCoefficients sex =
-    case sex of
-        Male ->
-            { c1 = 310.67
-            , c2 = 857.785
-            , c3 = 53.216
-            , c4 = 147.0835
-            }
+ipfCoefficients lift sex =
+    case lift of
+        Squat ->
+            case sex of
+                Male ->
+                    { c1 = 123.1, c2 = 363.085, c3 = 25.1667, c4 = 75.4311 }
 
-        Female ->
-            { c1 = 125.1435
-            , c2 = 228.03
-            , c3 = 34.5246
-            , c4 = 86.8301
-            }
+                Female ->
+                    { c1 = 50.479, c2 = 105.632, c3 = 19.1846, c4 = 56.2215 }
+
+        Bench ->
+            case sex of
+                Male ->
+                    { c1 = 86.4745, c2 = 259.155, c3 = 17.5785, c4 = 53.122 }
+
+                Female ->
+                    { c1 = 25.0485, c2 = 43.848, c3 = 6.7172, c4 = 13.952 }
+
+        Deadlift ->
+            case sex of
+                Male ->
+                    { c1 = 103.5355, c2 = 244.765, c3 = 15.3714, c4 = 31.5022 }
+
+                Female ->
+                    { c1 = 47.136, c2 = 67.349, c3 = 9.1555, c4 = 13.67 }
+
+        Total ->
+            case sex of
+                Male ->
+                    { c1 = 310.67, c2 = 857.785, c3 = 53.216, c4 = 147.0835 }
+
+                Female ->
+                    { c1 = 125.1435, c2 = 228.03, c3 = 34.5246, c4 = 86.8301 }
 
 
 

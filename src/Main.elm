@@ -52,6 +52,7 @@ modelToKilos m =
                 { bodyMass = massToKilos m.bodyUnit bodyMass
                 , liftedMass = massToKilos m.liftedUnit liftedMass
                 , sex = m.sex
+                , lift = m.lift
                 }
 
         ( _, _ ) ->
