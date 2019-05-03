@@ -1,9 +1,8 @@
-module ModelInKilos exposing
+module Feat exposing
     ( Feat
+    , Gender(..)
     , Lift(..)
     , MassUnit(..)
-    , ModelInKilos
-    , Gender(..)
     , massToKilos
     )
 
@@ -26,10 +25,6 @@ type alias Feat =
     , gender : Gender
     , lift : Lift
     }
-
-
-type alias ModelInKilos =
-    Maybe Feat
 
 
 type Gender

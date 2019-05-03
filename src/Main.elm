@@ -4,12 +4,12 @@ module Main exposing (main)
 
 import Browser
 import Dropdowns exposing (Option, typedSelect)
+import Feat exposing (Feat, Gender(..), Lift(..), MassUnit(..), massToKilos)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
-import ModelInKilos exposing (Lift(..), MassUnit(..), ModelInKilos, Gender(..), massToKilos)
-import Scores exposing (scores, scoresToPara, scoresToTable)
+import Scores exposing (scores, scoresToPara, scoresToTable, scoresToText)
 
 
 main =
@@ -36,16 +36,24 @@ type alias Model =
     , bodyUnit : MassUnit
     , gender : Gender
     , lift : Lift
+    , feats : List Feat
     }
 
 
 init : Model
 init =
-    Model initFloatField LBM initFloatField LBM Female Total
+    { liftedMass = initFloatField
+    , liftedUnit = LBM
+    , bodyMass = initFloatField
+    , bodyUnit = LBM
+    , gender = Male
+    , lift = Total
+    , feats = []
+    }
 
 
-modelToKilos : Model -> ModelInKilos
-modelToKilos m =
+modelToFeat : Model -> Maybe Feat
+modelToFeat m =
     case ( m.bodyMass.value, m.liftedMass.value ) of
         ( Just bodyMass, Just liftedMass ) ->
             Just
@@ -66,6 +74,7 @@ type Msg
     | SetBodyUnit MassUnit
     | SetGender Gender
     | SetLift Lift
+    | SaveFeat
 
 
 ffValue : FloatField -> Float
@@ -104,12 +113,29 @@ update msg model =
         SetLift l ->
             { model | lift = l }
 
+        SaveFeat ->
+            case modelToFeat model of
+                Just feat ->
+                    { model | feats = feat :: model.feats }
+
+                Nothing ->
+                    model
+
 
 modelToScoresDom : Model -> Html msg
 modelToScoresDom m =
     div []
-        [ m |> modelToKilos |> scoresToTable
-        , m |> modelToKilos |> scoresToPara
+        [ m |> modelToFeat |> scoresToTable
+        , m |> modelToFeat |> scoresToPara
+        , text "here comes the list"
+        , m.feats
+            |> List.map
+                (Just
+                    >> scoresToText
+                    >> List.singleton
+                    >> li []
+                )
+            |> ol []
         ]
 
 
@@ -144,6 +170,10 @@ view model =
         , label [ for "bodyInput" ] [ text " weighing " ]
         , viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
         , unitSelect model.bodyUnit SetBodyUnit
+        , button
+            [ onClick SaveFeat
+            ]
+            [ text "save" ]
         , modelToScoresDom model
         ]
 

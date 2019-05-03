@@ -1,14 +1,13 @@
-module Scores exposing (Scores, scores, scoresToPara, scoresToTable)
+module Scores exposing (Scores, scores, scoresToPara, scoresToTable, scoresToText)
 
-import Html as H exposing (Html)
-import ModelInKilos
+import Feat
     exposing
         ( Feat
+        , Gender(..)
         , Lift(..)
         , MassUnit
-        , ModelInKilos
-        , Gender(..)
         )
+import Html as H exposing (Html)
 
 
 
@@ -29,21 +28,27 @@ type alias Scores =
         }
 
 
-scoresToTable : ModelInKilos -> Html msg
+scoresToTable : Maybe Feat -> Html msg
 scoresToTable =
     scores
         >> scoresToList
         >> listToTable
 
 
-scoresToPara : ModelInKilos -> Html msg
+scoresToPara : Maybe Feat -> Html msg
 scoresToPara =
     scores
         >> scoresToList
         >> listToPara
 
 
-scores : ModelInKilos -> Scores
+scoresToText : Maybe Feat -> Html msg
+scoresToText =
+    scores
+        >> listToString
+
+
+scores : Maybe Feat -> Scores
 scores m =
     case m of
         Just model ->
@@ -71,8 +76,7 @@ scoresToList s =
                     (\( getter, label ) ->
                         sc
                             |> getter
-                            |> truncate 2
-                            |> String.fromFloat
+                            |> floatToString
                             |> (\score -> ( label, score ))
                     )
                 |> Just
@@ -128,25 +132,31 @@ listToPara ml =
             H.div [] [ H.text "Cannot do" ]
 
 
-scoresToString : Scores -> String
-scoresToString s =
-    case s of
-        Just sc ->
+listToString : Scores -> Html msg
+listToString =
+    Maybe.map
+        (\sc ->
             [ ( .wilks, "Wilks" )
             , ( .allometric, "Allometric" )
-            , ( .ipf, "IPF (raw total)" )
+            , ( .ipf, "IPF" )
             ]
                 |> List.map
                     (\( getter, label ) ->
                         sc
                             |> getter
-                            |> String.fromFloat
+                            |> floatToString
                             |> (++) (label ++ ": ")
                     )
                 |> String.join ", "
-
-        Nothing ->
-            "you gotta type stuff"
+                |> (++)
+                    (floatToString sc.liftedKilos
+                        ++ " @ "
+                        ++ floatToString sc.bodyKilos
+                        ++ " = "
+                    )
+        )
+        >> Maybe.withDefault "you gotta type stuff"
+        >> H.text
 
 
 
@@ -298,6 +308,11 @@ truncate places n =
         |> round
         |> toFloat
         |> (\m -> m / factor)
+
+
+floatToString : Float -> String
+floatToString =
+    truncate 2 >> String.fromFloat
 
 
 
