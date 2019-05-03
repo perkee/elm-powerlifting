@@ -7,7 +7,7 @@ import ModelInKilos
         , Lift(..)
         , MassUnit
         , ModelInKilos
-        , Sex(..)
+        , Gender(..)
         )
 
 
@@ -155,7 +155,7 @@ scoresToString s =
 
 allometricCoefficient : ActualModelInKilos -> Float
 allometricCoefficient m =
-    case ( m.lift, m.sex ) of
+    case ( m.lift, m.gender ) of
         ( Squat, Male ) ->
             6.487682129
 
@@ -221,7 +221,7 @@ ipfCoefficients :
         , c4 : Float
         }
 ipfCoefficients m =
-    case ( m.lift, m.sex ) of
+    case ( m.lift, m.gender ) of
         ( Squat, Male ) ->
             { c1 = 123.1, c2 = 363.085, c3 = 25.1667, c4 = 75.4311 }
 
@@ -253,7 +253,7 @@ ipfCoefficients m =
 
 wilksCoefficients : ActualModelInKilos -> List Float
 wilksCoefficients m =
-    case m.sex of
+    case m.gender of
         Male ->
             [ -216.0475144
             , 16.2606339

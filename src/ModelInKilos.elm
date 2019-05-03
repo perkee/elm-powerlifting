@@ -3,7 +3,7 @@ module ModelInKilos exposing
     , Lift(..)
     , MassUnit(..)
     , ModelInKilos
-    , Sex(..)
+    , Gender(..)
     , massToKilos
     )
 
@@ -23,7 +23,7 @@ type Lift
 type alias ActualModelInKilos =
     { bodyMass : Float
     , liftedMass : Float
-    , sex : Sex
+    , gender : Gender
     , lift : Lift
     }
 
@@ -32,7 +32,7 @@ type alias ModelInKilos =
     Maybe ActualModelInKilos
 
 
-type Sex
+type Gender
     = Male
     | Female
 

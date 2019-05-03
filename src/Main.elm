@@ -8,7 +8,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
-import ModelInKilos exposing (Lift(..), MassUnit(..), ModelInKilos, Sex(..), massToKilos)
+import ModelInKilos exposing (Lift(..), MassUnit(..), ModelInKilos, Gender(..), massToKilos)
 import Scores exposing (scores, scoresToPara, scoresToTable)
 
 
@@ -34,7 +34,7 @@ type alias Model =
     , liftedUnit : MassUnit
     , bodyMass : FloatField
     , bodyUnit : MassUnit
-    , sex : Sex
+    , gender : Gender
     , lift : Lift
     }
 
@@ -51,7 +51,7 @@ modelToKilos m =
             Just
                 { bodyMass = massToKilos m.bodyUnit bodyMass
                 , liftedMass = massToKilos m.liftedUnit liftedMass
-                , sex = m.sex
+                , gender = m.gender
                 , lift = m.lift
                 }
 
@@ -64,7 +64,7 @@ type Msg
     | SetLiftedUnit MassUnit
     | SetBodyMass String
     | SetBodyUnit MassUnit
-    | SetSex Sex
+    | SetGender Gender
     | SetLift Lift
 
 
@@ -98,8 +98,8 @@ update msg model =
         SetBodyUnit u ->
             { model | bodyUnit = u }
 
-        SetSex s ->
-            { model | sex = s }
+        SetGender s ->
+            { model | gender = s }
 
         SetLift l ->
             { model | lift = l }
@@ -124,13 +124,13 @@ unitSelect =
 view : Model -> Html Msg
 view model =
     div []
-        [ label [ for "sexInput" ] [ text "A " ]
+        [ label [ for "genderInput" ] [ text "A " ]
         , typedSelect
             [ Option Male "man" "M"
             , Option Female "woman" "F"
             ]
-            model.sex
-            SetSex
+            model.gender
+            SetGender
         , typedSelect
             [ Option Total "totalled" "T"
             , Option Squat "squatted" "S"
