@@ -1,5 +1,5 @@
 module ModelInKilos exposing
-    ( ActualModelInKilos
+    ( Feat
     , Lift(..)
     , MassUnit(..)
     , ModelInKilos
@@ -20,7 +20,7 @@ type Lift
     | Total
 
 
-type alias ActualModelInKilos =
+type alias Feat =
     { bodyMass : Float
     , liftedMass : Float
     , gender : Gender
@@ -29,7 +29,7 @@ type alias ActualModelInKilos =
 
 
 type alias ModelInKilos =
-    Maybe ActualModelInKilos
+    Maybe Feat
 
 
 type Gender

@@ -3,7 +3,7 @@ module Scores exposing (Scores, scores, scoresToPara, scoresToTable)
 import Html as H exposing (Html)
 import ModelInKilos
     exposing
-        ( ActualModelInKilos
+        ( Feat
         , Lift(..)
         , MassUnit
         , ModelInKilos
@@ -16,7 +16,7 @@ import ModelInKilos
 
 
 type alias ScoreFn =
-    ActualModelInKilos -> Float
+    Feat -> Float
 
 
 type alias Scores =
@@ -153,7 +153,7 @@ scoresToString s =
 -- Allometric Scaling Score
 
 
-allometricCoefficient : ActualModelInKilos -> Float
+allometricCoefficient : Feat -> Float
 allometricCoefficient m =
     case ( m.lift, m.gender ) of
         ( Squat, Male ) ->
@@ -181,7 +181,7 @@ allometricCoefficient m =
             3.195981761
 
 
-allometric : ActualModelInKilos -> Float
+allometric : Feat -> Float
 allometric m =
     m.bodyMass
         ^ (-2 / 3)
@@ -193,7 +193,7 @@ allometric m =
 -- IPF
 
 
-ipf : ActualModelInKilos -> Float
+ipf : Feat -> Float
 ipf m =
     if abs m.liftedMass < 0.25 then
         0
@@ -213,7 +213,7 @@ ipf m =
 
 
 ipfCoefficients :
-    ActualModelInKilos
+    Feat
     ->
         { c1 : Float
         , c2 : Float
@@ -251,7 +251,7 @@ ipfCoefficients m =
 -- Wilks
 
 
-wilksCoefficients : ActualModelInKilos -> List Float
+wilksCoefficients : Feat -> List Float
 wilksCoefficients m =
     case m.gender of
         Male ->
@@ -273,12 +273,12 @@ wilksCoefficients m =
             ]
 
 
-polynomialMultiply : ActualModelInKilos -> Int -> Float -> Float
+polynomialMultiply : Feat -> Int -> Float -> Float
 polynomialMultiply m index const =
     const * m.bodyMass ^ toFloat index
 
 
-wilks : ActualModelInKilos -> Float
+wilks : Feat -> Float
 wilks m =
     m
         |> wilksCoefficients
@@ -304,7 +304,7 @@ truncate places n =
 -- Nuckols
 
 
-nuckols : ActualModelInKilos -> Float
+nuckols : Feat -> Float
 nuckols m =
     0
 
