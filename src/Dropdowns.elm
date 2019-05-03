@@ -1,126 +1,69 @@
-module Dropdowns exposing (sexSelect, unitSelect)
+module Dropdowns exposing (Option, typedSelect)
 
-import Html exposing (..)
+import Dict
+import Html as H
 import Html.Attributes exposing (..)
-import Html.Events exposing (on, onClick, onInput, targetValue)
+import Html.Events exposing (on, onInput, targetValue)
 import Json.Decode as Json
-import ModelInKilos exposing (Lift(..), MassUnit(..), ModelInKilos, Sex(..), massToKilos)
 
 
-decoder : (String -> Json.Decoder selectableType) -> Json.Decoder selectableType
-decoder stringDecoder =
-    targetValue
-        |> Json.andThen stringDecoder
+type alias Option t =
+    { value : t
+    , label : String
+    , valAttr : String
+    }
 
 
-stringToUnitDecoder : String -> Json.Decoder MassUnit
-stringToUnitDecoder s =
-    case s of
-        "KG" ->
-            Json.succeed KG
+optionsToDecoder : List (Option t) -> String -> Json.Decoder t
+optionsToDecoder options val =
+    case
+        options
+            |> List.map (\option -> ( option.valAttr, option.value ))
+            |> Dict.fromList
+            |> Dict.get val
+    of
+        Just v ->
+            Json.succeed v
 
-        "LBM" ->
-            Json.succeed LBM
-
-        x ->
-            Json.fail ("unknown unit" ++ x)
-
-
-unitToValue : MassUnit -> String
-unitToValue mu =
-    case mu of
-        KG ->
-            "KG"
-
-        LBM ->
-            "LBM"
+        Nothing ->
+            Json.fail ("unknown option: " ++ val)
 
 
-unitToLabel : MassUnit -> String
-unitToLabel mu =
-    case mu of
-        KG ->
-            "kilos"
+findVal : t -> Option t -> String -> String
+findVal current option default =
+    if option.value == current then
+        option.label
 
-        LBM ->
-            "pounds"
-
-
-stringToSexDecoder : String -> Json.Decoder Sex
-stringToSexDecoder s =
-    case s of
-        "M" ->
-            Json.succeed Male
-
-        "F" ->
-            Json.succeed Female
-
-        x ->
-            Json.fail <| "unknown sex" ++ x
+    else
+        default
 
 
-sexToValue : Sex -> String
-sexToValue s =
-    case s of
-        Male ->
-            "M"
-
-        Female ->
-            "F"
+optionsToLabeler : List (Option t) -> t -> String
+optionsToLabeler options val =
+    List.foldl
+        (findVal val)
+        "unknown option"
+        options
 
 
-sexToLabel : Sex -> String
-sexToLabel s =
-    case s of
-        Male ->
-            "man"
-
-        Female ->
-            "woman"
-
-
-opt : (a -> String) -> (a -> String) -> a -> a -> Html msg
-opt valToValue valToLabel current val =
-    option
-        [ val |> valToValue |> value
-        , current == val |> selected
+typedSelect : List (Option t) -> t -> (t -> msg) -> H.Html msg
+typedSelect options current jsonMapper =
+    H.select
+        [ targetValue
+            |> Json.andThen (optionsToDecoder options)
+            |> Json.map jsonMapper
+            |> on "change"
         ]
-        [ val |> valToLabel |> text ]
+        (List.map
+            (opt current)
+            options
+        )
 
 
-unitOption : MassUnit -> MassUnit -> Html msg
-unitOption =
-    opt unitToValue unitToLabel
-
-
-sexOption : Sex -> Sex -> Html msg
-sexOption =
-    opt sexToValue sexToLabel
-
-
-onChange : (String -> Json.Decoder selectableType) -> (selectableType -> msg) -> Html.Attribute msg
-onChange stringToDecoder mapper =
-    on "change" <| Json.map mapper <| decoder stringToDecoder
-
-
-unitSelect : MassUnit -> (MassUnit -> msg) -> Html msg
-unitSelect unit m =
-    select
-        [ --on "change" <| Json.map m <| decoder stringToUnitDecoder
-          onChange stringToUnitDecoder m
+opt : t -> Option t -> H.Html msg
+opt current option =
+    H.option
+        [ option.valAttr |> value
+        , current == option.value |> selected
         ]
-        [ unitOption unit KG
-        , unitOption unit LBM
-        ]
-
-
-sexSelect : Sex -> (Sex -> msg) -> Html msg
-sexSelect sex m =
-    select
-        [ --on "change" <| Json.map m <| decoder stringToSexDecoder
-          onChange stringToSexDecoder m
-        , id "sexInput"
-        ]
-        [ sexOption sex Male
-        , sexOption sex Female
-        ]
+        [ option.label |> H.text ]

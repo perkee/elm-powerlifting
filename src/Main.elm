@@ -3,7 +3,7 @@ module Main exposing (main)
 -- (Html, button, div, text, input, option, select)
 
 import Browser
-import Dropdowns exposing (sexSelect, unitSelect)
+import Dropdowns exposing (Option, typedSelect)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
@@ -35,12 +35,13 @@ type alias Model =
     , bodyMass : FloatField
     , bodyUnit : MassUnit
     , sex : Sex
+    , lift : Lift
     }
 
 
 init : Model
 init =
-    Model initFloatField LBM initFloatField LBM Female
+    Model initFloatField LBM initFloatField LBM Female Total
 
 
 modelToKilos : Model -> ModelInKilos
@@ -63,6 +64,7 @@ type Msg
     | SetBodyMass String
     | SetBodyUnit MassUnit
     | SetSex Sex
+    | SetLift Lift
 
 
 ffValue : FloatField -> Float
@@ -98,19 +100,23 @@ update msg model =
         SetSex s ->
             { model | sex = s }
 
+        SetLift l ->
+            { model | lift = l }
+
 
 modelToScoresDom : Model -> Html msg
 modelToScoresDom m =
-    let
-        table =
-            m |> modelToKilos |> scoresToTable
-
-        para =
-            m |> modelToKilos |> scoresToPara
-    in
     div []
-        [ table
-        , para
+        [ m |> modelToKilos |> scoresToTable
+        , m |> modelToKilos |> scoresToPara
+        ]
+
+
+unitSelect : MassUnit -> (MassUnit -> Msg) -> Html Msg
+unitSelect =
+    typedSelect
+        [ Option KG "kilos" "KG"
+        , Option LBM "pounds" "LBM"
         ]
 
 
@@ -118,8 +124,20 @@ view : Model -> Html Msg
 view model =
     div []
         [ label [ for "sexInput" ] [ text "A " ]
-        , sexSelect model.sex SetSex
-        , label [ for "liftedInput" ] [ text " totaled " ]
+        , typedSelect
+            [ Option Male "man" "M"
+            , Option Female "woman" "F"
+            ]
+            model.sex
+            SetSex
+        , typedSelect
+            [ Option Total "totalled" "T"
+            , Option Squat "squatted" "S"
+            , Option Bench "benched" "B"
+            , Option Deadlift "deadlifted" "D"
+            ]
+            model.lift
+            SetLift
         , viewFloatInput "liftedInput" model.liftedMass.input SetLiftedMass
         , unitSelect model.liftedUnit SetLiftedUnit
         , label [ for "bodyInput" ] [ text " weighing " ]
