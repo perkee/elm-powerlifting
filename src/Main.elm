@@ -4,12 +4,13 @@ module Main exposing (main)
 
 import Browser
 import Dropdowns exposing (Option, typedSelect)
-import Feat exposing (Feat, Gender(..), Lift(..), MassUnit(..), massToKilos)
+import Feat exposing (Feat, Gender(..), Lift(..), MassUnit(..), massToKilos, massToPounds)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
-import Scores exposing (scores, scoresToPara, scoresToTable, scoresToText)
+import Json.Encode as JE
+import Scores exposing (Record, featToPara, featToRecord, featToTable, featToText, recordToString, scores)
 
 
 main =
@@ -36,7 +37,7 @@ type alias Model =
     , bodyUnit : MassUnit
     , gender : Gender
     , lift : Lift
-    , feats : List Feat
+    , records : List Record
     }
 
 
@@ -48,7 +49,7 @@ init =
     , bodyUnit = LBM
     , gender = Male
     , lift = Total
-    , feats = []
+    , records = []
     }
 
 
@@ -58,13 +59,25 @@ modelToFeat m =
         ( Just bodyMass, Just liftedMass ) ->
             Just
                 { bodyKilos = massToKilos m.bodyUnit bodyMass
+                , bodyPounds = massToPounds m.bodyUnit bodyMass
                 , liftedKilos = massToKilos m.liftedUnit liftedMass
+                , liftedPounds = massToPounds m.liftedUnit liftedMass
                 , gender = m.gender
                 , lift = m.lift
                 }
 
         ( _, _ ) ->
             Nothing
+
+
+canMakeFeat : Maybe Feat -> Bool
+canMakeFeat m =
+    case m of
+        Just _ ->
+            True
+
+        Nothing ->
+            False
 
 
 type Msg
@@ -74,7 +87,7 @@ type Msg
     | SetBodyUnit MassUnit
     | SetGender Gender
     | SetLift Lift
-    | SaveFeat
+    | SaveRecord
 
 
 ffValue : FloatField -> Float
@@ -113,10 +126,10 @@ update msg model =
         SetLift l ->
             { model | lift = l }
 
-        SaveFeat ->
-            case modelToFeat model of
-                Just feat ->
-                    { model | feats = feat :: model.feats }
+        SaveRecord ->
+            case model |> modelToFeat |> featToRecord of
+                Just record ->
+                    { model | records = record :: model.records }
 
                 Nothing ->
                     model
@@ -125,13 +138,12 @@ update msg model =
 modelToScoresDom : Model -> Html msg
 modelToScoresDom m =
     div []
-        [ m |> modelToFeat |> scoresToTable
-        , m |> modelToFeat |> scoresToPara
-        , text "here comes the list"
-        , m.feats
+        [ m |> modelToFeat |> featToTable
+        , m |> modelToFeat |> featToPara
+        , m.records
             |> List.map
-                (Just
-                    >> scoresToText
+                (recordToString
+                    >> text
                     >> List.singleton
                     >> li []
                 )
@@ -171,7 +183,8 @@ view model =
         , viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
         , unitSelect model.bodyUnit SetBodyUnit
         , button
-            [ onClick SaveFeat
+            [ onClick SaveRecord
+            , model |> modelToFeat |> canMakeFeat |> not |> disabled
             ]
             [ text "save" ]
         , modelToScoresDom model

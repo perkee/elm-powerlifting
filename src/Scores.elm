@@ -1,4 +1,4 @@
-module Scores exposing (Scores, scores, scoresToPara, scoresToTable, scoresToText)
+module Scores exposing (Record, featToPara, featToRecord, featToTable, featToText, recordToString, scores)
 
 import Feat
     exposing
@@ -19,144 +19,151 @@ type alias ScoreFn =
 
 
 type alias Scores =
-    Maybe
-        { bodyKilos : Float
-        , liftedKilos : Float
-        , wilks : Float
-        , allometric : Float
-        , ipf : Float
-        }
+    { wilks : Float
+    , allometric : Float
+    , ipf : Float
+    }
 
 
-scoresToTable : Maybe Feat -> Html msg
-scoresToTable =
-    scores
-        >> scoresToList
-        >> listToTable
+type alias Record =
+    { feat : Feat
+    , scores : Scores
+    }
 
 
-scoresToPara : Maybe Feat -> Html msg
-scoresToPara =
-    scores
-        >> scoresToList
-        >> listToPara
+featToTable : Maybe Feat -> Html msg
+featToTable =
+    Maybe.map
+        (scores
+            >> scoresToList
+            >> listToTable
+        )
+        >> Maybe.withDefault (H.div [] [ H.text "Cannot make a table" ])
 
 
-scoresToText : Maybe Feat -> Html msg
-scoresToText =
-    scores
-        >> listToString
+featToPara : Maybe Feat -> Html msg
+featToPara =
+    Maybe.map
+        (scores
+            >> scoresToList
+            >> listToPara
+        )
+        >> Maybe.withDefault (H.div [] [ H.text "Cannot make a paragraph" ])
 
 
-scores : Maybe Feat -> Scores
-scores m =
-    case m of
-        Just model ->
+featToText : Maybe Feat -> Html msg
+featToText =
+    (featToRecord
+        >> Maybe.map recordToString
+    )
+        >> Maybe.withDefault "Cannot make a string"
+        >> H.text
+
+
+featToRecord : Maybe Feat -> Maybe Record
+featToRecord mf =
+    case mf of
+        Just feat ->
             Just
-                { bodyKilos = model.bodyKilos
-                , liftedKilos = model.liftedKilos
-                , wilks = wilks model
-                , allometric = allometric model
-                , ipf = ipf model
+                { feat = feat
+                , scores = scores feat
                 }
 
         Nothing ->
             Nothing
 
 
-scoresToList : Scores -> Maybe (List ( String, String ))
-scoresToList s =
-    case s of
-        Just sc ->
-            [ ( .wilks, "Wilks" )
-            , ( .allometric, "Allometric" )
-            , ( .ipf, "IPF" )
-            ]
-                |> List.map
-                    (\( getter, label ) ->
-                        sc
-                            |> getter
-                            |> floatToString
-                            |> (\score -> ( label, score ))
-                    )
-                |> Just
-
-        Nothing ->
-            Nothing
+scores : Feat -> Scores
+scores feat =
+    { wilks = wilks feat
+    , allometric = allometric feat
+    , ipf = ipf feat
+    }
 
 
-listToTable : Maybe (List ( String, String )) -> Html msg
-listToTable ml =
-    case ml of
-        Just l ->
-            List.map
-                (\( label, score ) ->
-                    H.tr []
-                        [ textual H.td label
-                        , textual H.td score
-                        ]
-                )
-                l
-                |> H.tbody []
-                |> List.singleton
-                |> (::)
-                    (H.thead
-                        []
-                        [ H.tr []
-                            [ textual H.th "Type"
-                            , textual H.th "Score"
-                            ]
-                        ]
-                    )
-                |> H.table []
-
-        Nothing ->
-            H.div [] [ H.text "Cannot make a table" ]
+scoresToList : Scores -> List ( String, String )
+scoresToList sc =
+    [ ( .wilks, "Wilks" )
+    , ( .allometric, "Allometric" )
+    , ( .ipf, "IPF" )
+    ]
+        |> List.map
+            (\( getter, label ) ->
+                sc
+                    |> getter
+                    |> floatToString
+                    |> (\score -> ( label, score ))
+            )
 
 
-listToPara : Maybe (List ( String, String )) -> Html msg
-listToPara ml =
-    case ml of
-        Just l ->
-            List.map
-                (\( label, score ) ->
-                    label ++ ": " ++ score
-                )
-                l
-                |> String.join ", "
-                |> H.text
-                |> List.singleton
-                |> H.div []
-
-        Nothing ->
-            H.div [] [ H.text "Cannot do" ]
-
-
-listToString : Scores -> Html msg
-listToString =
-    Maybe.map
-        (\sc ->
-            [ ( .wilks, "Wilks" )
-            , ( .allometric, "Allometric" )
-            , ( .ipf, "IPF" )
-            ]
-                |> List.map
-                    (\( getter, label ) ->
-                        sc
-                            |> getter
-                            |> floatToString
-                            |> (++) (label ++ ": ")
-                    )
-                |> String.join ", "
-                |> (++)
-                    (floatToString sc.liftedKilos
-                        ++ " @ "
-                        ++ floatToString sc.bodyKilos
-                        ++ " = "
-                    )
+listToTable : List ( String, String ) -> Html msg
+listToTable list =
+    List.map
+        (\( label, score ) ->
+            H.tr []
+                [ textual H.td label
+                , textual H.td score
+                ]
         )
-        >> Maybe.withDefault "you gotta type stuff"
-        >> H.text
+        list
+        |> H.tbody []
+        |> List.singleton
+        |> (::)
+            (H.thead
+                []
+                [ H.tr []
+                    [ textual H.th "Type"
+                    , textual H.th "Score"
+                    ]
+                ]
+            )
+        |> H.table []
+
+
+listToPara : List ( String, String ) -> Html msg
+listToPara list =
+    List.map
+        (\( label, score ) ->
+            label ++ ": " ++ score
+        )
+        list
+        |> String.join ", "
+        |> H.text
+        |> List.singleton
+        |> H.div []
+
+
+unitSeparatorSpace : String
+unitSeparatorSpace =
+    String.fromChar '\u{200A}'
+
+
+recordToString : Record -> String
+recordToString record =
+    [ ( .wilks, "Wilks" )
+    , ( .allometric, "Allometric" )
+    , ( .ipf, "IPF" )
+    ]
+        |> List.map
+            (\( getter, label ) ->
+                record.scores
+                    |> getter
+                    |> floatToString
+                    |> (++) (label ++ ": ")
+            )
+        |> String.join ", "
+        |> (++)
+            (floatToString record.feat.liftedKilos
+                ++ " @ "
+                ++ floatToString record.feat.bodyKilos
+                ++ unitSeparatorSpace
+                ++ "kg ("
+                ++ floatToString record.feat.liftedPounds
+                ++ " @ "
+                ++ floatToString record.feat.bodyPounds
+                ++ unitSeparatorSpace
+                ++ "lb) = "
+            )
 
 
 

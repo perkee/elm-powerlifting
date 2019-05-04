@@ -4,6 +4,7 @@ module Feat exposing
     , Lift(..)
     , MassUnit(..)
     , massToKilos
+    , massToPounds
     )
 
 
@@ -21,7 +22,9 @@ type Lift
 
 type alias Feat =
     { bodyKilos : Float
+    , bodyPounds : Float
     , liftedKilos : Float
+    , liftedPounds : Float
     , gender : Gender
     , lift : Lift
     }
@@ -32,6 +35,11 @@ type Gender
     | Female
 
 
+poundsPerKilo : Float
+poundsPerKilo =
+    0.45359237
+
+
 massToKilos : MassUnit -> Float -> Float
 massToKilos u m =
     case u of
@@ -39,4 +47,14 @@ massToKilos u m =
             m
 
         LBM ->
-            m / 2.204623
+            m * poundsPerKilo
+
+
+massToPounds : MassUnit -> Float -> Float
+massToPounds u m =
+    case u of
+        KG ->
+            m / poundsPerKilo
+
+        LBM ->
+            m
