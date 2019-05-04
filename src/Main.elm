@@ -57,8 +57,8 @@ modelToFeat m =
     case ( m.bodyMass.value, m.liftedMass.value ) of
         ( Just bodyMass, Just liftedMass ) ->
             Just
-                { bodyMass = massToKilos m.bodyUnit bodyMass
-                , liftedMass = massToKilos m.liftedUnit liftedMass
+                { bodyKilos = massToKilos m.bodyUnit bodyMass
+                , liftedKilos = massToKilos m.liftedUnit liftedMass
                 , gender = m.gender
                 , lift = m.lift
                 }

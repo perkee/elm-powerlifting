@@ -20,8 +20,8 @@ type Lift
 
 
 type alias Feat =
-    { bodyMass : Float
-    , liftedMass : Float
+    { bodyKilos : Float
+    , liftedKilos : Float
     , gender : Gender
     , lift : Lift
     }

@@ -53,8 +53,8 @@ scores m =
     case m of
         Just model ->
             Just
-                { bodyKilos = model.bodyMass
-                , liftedKilos = model.liftedMass
+                { bodyKilos = model.bodyKilos
+                , liftedKilos = model.liftedKilos
                 , wilks = wilks model
                 , allometric = allometric model
                 , ipf = ipf model
@@ -193,9 +193,9 @@ allometricCoefficient m =
 
 allometric : Feat -> Float
 allometric m =
-    m.bodyMass
+    m.bodyKilos
         ^ (-2 / 3)
-        * m.liftedMass
+        * m.liftedKilos
         * allometricCoefficient m
 
 
@@ -205,7 +205,7 @@ allometric m =
 
 ipf : Feat -> Float
 ipf m =
-    if abs m.liftedMass < 0.25 then
+    if abs m.liftedKilos < 0.25 then
         0
 
     else
@@ -214,11 +214,11 @@ ipf m =
                 ipfCoefficients m
 
             scale =
-                m.bodyMass |> logBase e |> (*)
+                m.bodyKilos |> logBase e |> (*)
         in
         500
             + 100
-            * (m.liftedMass - (scale cs.c1 - cs.c2))
+            * (m.liftedKilos - (scale cs.c1 - cs.c2))
             / (scale cs.c3 - cs.c4)
 
 
@@ -285,7 +285,7 @@ wilksCoefficients m =
 
 polynomialMultiply : Feat -> Int -> Float -> Float
 polynomialMultiply m index const =
-    const * m.bodyMass ^ toFloat index
+    const * m.bodyKilos ^ toFloat index
 
 
 wilks : Feat -> Float
@@ -294,7 +294,7 @@ wilks m =
         |> wilksCoefficients
         |> List.indexedMap (polynomialMultiply m)
         |> List.foldl (+) 0
-        |> (/) (m.liftedMass * 500)
+        |> (/) (m.liftedKilos * 500)
 
 
 truncate : Int -> Float -> Float
