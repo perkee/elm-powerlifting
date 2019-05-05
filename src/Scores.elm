@@ -1,4 +1,12 @@
-module Scores exposing (Record, featToPara, featToRecord, featToTable, featToText, recordToString, scores)
+module Scores exposing
+    ( Record
+    , featToRecord
+    , featToScores
+    , recordToPara
+    , recordToString
+    , recordToTable
+    , recordToText
+    )
 
 import Feat
     exposing
@@ -8,6 +16,7 @@ import Feat
         , MassUnit
         )
 import Html as H exposing (Html)
+import Renderer exposing (rowsToHeadedTable, textual)
 
 
 
@@ -31,31 +40,42 @@ type alias Record =
     }
 
 
-featToTable : Maybe Feat -> Html msg
-featToTable =
-    Maybe.map
-        (scores
-            >> scoresToList
-            >> listToTable
-        )
-        >> Maybe.withDefault (H.div [] [ H.text "Cannot make a table" ])
+recordToTableRows : Record -> List (Html msg)
+recordToTableRows record =
+    [ featToStatsList record.feat
+    , featToMassesList record.feat
+    , scoresToScoreList record.scores
+    ]
+        |> List.concat
+        |> listToRows
 
 
-featToPara : Maybe Feat -> Html msg
-featToPara =
+recordToTable : Maybe Record -> Html msg
+recordToTable mr =
+    case mr of
+        Just record ->
+            record
+                |> recordToTableRows
+                |> rowsToHeadedTable [ "Label", "Score" ]
+
+        Nothing ->
+            H.div [] [ H.text "Cannot make a table" ]
+
+
+recordToPara : Maybe Record -> Html msg
+recordToPara =
     Maybe.map
-        (scores
-            >> scoresToList
+        (.feat
+            >> featToScores
+            >> scoresToScoreList
             >> listToPara
         )
         >> Maybe.withDefault (H.div [] [ H.text "Cannot make a paragraph" ])
 
 
-featToText : Maybe Feat -> Html msg
-featToText =
-    (featToRecord
-        >> Maybe.map recordToString
-    )
+recordToText : Maybe Record -> Html msg
+recordToText =
+    Maybe.map recordToString
         >> Maybe.withDefault "Cannot make a string"
         >> H.text
 
@@ -66,38 +86,81 @@ featToRecord mf =
         Just feat ->
             Just
                 { feat = feat
-                , scores = scores feat
+                , scores = featToScores feat
                 }
 
         Nothing ->
             Nothing
 
 
-scores : Feat -> Scores
-scores feat =
+featToScores : Feat -> Scores
+featToScores feat =
     { wilks = wilks feat
     , allometric = allometric feat
     , ipf = ipf feat
     }
 
 
-scoresToList : Scores -> List ( String, String )
-scoresToList sc =
+scoresToScoreList : Scores -> List ( String, String )
+scoresToScoreList scores =
     [ ( .wilks, "Wilks" )
     , ( .allometric, "Allometric" )
     , ( .ipf, "IPF" )
     ]
         |> List.map
             (\( getter, label ) ->
-                sc
+                scores
                     |> getter
                     |> floatToString
                     |> (\score -> ( label, score ))
             )
 
 
-listToTable : List ( String, String ) -> Html msg
-listToTable list =
+featToMassesList : Feat -> List ( String, String )
+featToMassesList feat =
+    [ ( .bodyKilos, "Body mass (kg)" )
+    , ( .bodyPounds, "Body mass (lb)" )
+    , ( .liftedKilos, "Lifted mass (kg)" )
+    , ( .liftedPounds, "Lifted mass (lb)" )
+    ]
+        |> List.map
+            (\( getter, label ) ->
+                feat
+                    |> getter
+                    |> floatToString
+                    |> (\score -> ( label, score ))
+            )
+
+
+featToStatsList : Feat -> List ( String, String )
+featToStatsList feat =
+    [ ( "Gender"
+      , case feat.gender of
+            Male ->
+                "Male"
+
+            Female ->
+                "Female"
+      )
+    , ( "Lift"
+      , case feat.lift of
+            Squat ->
+                "Squat"
+
+            Bench ->
+                "Bench"
+
+            Deadlift ->
+                "Deadlift"
+
+            Total ->
+                "Total"
+      )
+    ]
+
+
+listToRows : List ( String, String ) -> List (Html msg)
+listToRows =
     List.map
         (\( label, score ) ->
             H.tr []
@@ -105,14 +168,19 @@ listToTable list =
                 , textual H.td score
                 ]
         )
-        list
+
+
+listToTable : List ( String, String ) -> Html msg
+listToTable list =
+    list
+        |> listToRows
         |> H.tbody []
         |> List.singleton
         |> (::)
             (H.thead
                 []
                 [ H.tr []
-                    [ textual H.th "Type"
+                    [ textual H.th "Label"
                     , textual H.th "Score"
                     ]
                 ]
@@ -329,12 +397,3 @@ floatToString =
 nuckols : Feat -> Float
 nuckols m =
     0
-
-
-
--- helper
-
-
-textual : (List (H.Attribute msg) -> List (Html msg) -> Html msg) -> String -> Html msg
-textual elem s =
-    s |> H.text |> List.singleton |> elem []
