@@ -8,6 +8,7 @@ module Scores exposing
     , recordToText
     )
 
+import Array
 import Feat
     exposing
         ( Feat
@@ -23,15 +24,23 @@ import Renderer exposing (rowsToHeadedTable, textual)
 -- Scores
 
 
-type alias ScoreFn =
-    Feat -> Float
-
-
-type alias Scores =
+type alias OldScores =
     { wilks : Float
     , allometric : Float
     , ipf : Float
     }
+
+
+type Score
+    = Wilks Float
+    | Allometric Float
+    | Ipf Float
+    | McCulloch Float
+    | NoScore
+
+
+type alias Scores =
+    List Score
 
 
 type alias Record =
@@ -40,11 +49,44 @@ type alias Record =
     }
 
 
+scoreToPair : Score -> Maybe ( String, String )
+scoreToPair score =
+    case score of
+        Wilks s ->
+            Just ( "Wilks", floatToString s )
+
+        Allometric s ->
+            Just ( "Allometric", floatToString s )
+
+        Ipf s ->
+            Just ( "IPF", floatToString s )
+
+        McCulloch s ->
+            Just ( "McCulloch", floatToString s )
+
+        NoScore ->
+            Nothing
+
+
+scoresToPairs : List Score -> List ( String, String )
+scoresToPairs =
+    List.foldr
+        (\score pairs ->
+            case scoreToPair score of
+                Just pair ->
+                    pair :: pairs
+
+                Nothing ->
+                    pairs
+        )
+        []
+
+
 recordToTableRows : Record -> List (Html msg)
 recordToTableRows record =
     [ featToStatsList record.feat
     , featToMassesList record.feat
-    , scoresToScoreList record.scores
+    , scoresToPairs record.scores
     ]
         |> List.concat
         |> listToRows
@@ -67,7 +109,7 @@ recordToPara =
     Maybe.map
         (.feat
             >> featToScores
-            >> scoresToScoreList
+            >> scoresToPairs
             >> listToPara
         )
         >> Maybe.withDefault (H.div [] [ H.text "Cannot make a paragraph" ])
@@ -93,27 +135,14 @@ featToRecord mf =
             Nothing
 
 
-featToScores : Feat -> Scores
+featToScores : Feat -> List Score
 featToScores feat =
-    { wilks = wilks feat
-    , allometric = allometric feat
-    , ipf = ipf feat
-    }
-
-
-scoresToScoreList : Scores -> List ( String, String )
-scoresToScoreList scores =
-    [ ( .wilks, "Wilks" )
-    , ( .allometric, "Allometric" )
-    , ( .ipf, "IPF" )
+    [ wilks
+    , allometric
+    , ipf
+    , mcCulloch
     ]
-        |> List.map
-            (\( getter, label ) ->
-                scores
-                    |> getter
-                    |> floatToString
-                    |> (\score -> ( label, score ))
-            )
+        |> List.map (\fn -> fn feat)
 
 
 featToMassesList : Feat -> List ( String, String )
@@ -208,17 +237,9 @@ unitSeparatorSpace =
 
 recordToString : Record -> String
 recordToString record =
-    [ ( .wilks, "Wilks" )
-    , ( .allometric, "Allometric" )
-    , ( .ipf, "IPF" )
-    ]
-        |> List.map
-            (\( getter, label ) ->
-                record.scores
-                    |> getter
-                    |> floatToString
-                    |> (++) (label ++ ": ")
-            )
+    record.scores
+        |> scoresToPairs
+        |> List.map (\( label, score ) -> label ++ ": " ++ score)
         |> String.join ", "
         |> (++)
             (floatToString record.feat.liftedKilos
@@ -266,22 +287,23 @@ allometricCoefficient m =
             3.195981761
 
 
-allometric : Feat -> Float
+allometric : Feat -> Score
 allometric m =
     m.bodyKilos
         ^ (-2 / 3)
         * m.liftedKilos
         * allometricCoefficient m
+        |> Allometric
 
 
 
 -- IPF
 
 
-ipf : Feat -> Float
+ipf : Feat -> Score
 ipf m =
     if abs m.liftedKilos < 0.25 then
-        0
+        Ipf 0
 
     else
         let
@@ -295,6 +317,7 @@ ipf m =
             + 100
             * (m.liftedKilos - (scale cs.c1 - cs.c2))
             / (scale cs.c3 - cs.c4)
+            |> Ipf
 
 
 ipfCoefficients :
@@ -363,13 +386,14 @@ polynomialMultiply m index const =
     const * m.bodyKilos ^ toFloat index
 
 
-wilks : Feat -> Float
+wilks : Feat -> Score
 wilks m =
     m
         |> wilksCoefficients
         |> List.indexedMap (polynomialMultiply m)
         |> List.foldl (+) 0
         |> (/) (m.liftedKilos * 500)
+        |> Wilks
 
 
 truncate : Int -> Float -> Float
@@ -397,3 +421,86 @@ floatToString =
 nuckols : Feat -> Float
 nuckols m =
     0
+
+
+
+-- McCulloch
+
+
+mcCulloch : Feat -> Score
+mcCulloch feat =
+    case ( Maybe.map mcCullochFactor feat.age, wilks feat ) of
+        ( Just scale, Wilks score ) ->
+            score * scale |> McCulloch
+
+        ( _, _ ) ->
+            NoScore
+
+
+mcCullochFactor : Float -> Float
+mcCullochFactor age =
+    let
+        intAge =
+            round age - 40
+    in
+    if intAge <= 0 then
+        1
+
+    else
+        Array.get intAge
+            >> Maybe.withDefault 2.549
+        <|
+            Array.fromList
+                [ 1
+                , 1.01
+                , 1.02
+                , 1.031
+                , 1.043
+                , 1.055
+                , 1.068
+                , 1.082
+                , 1.097
+                , 1.113
+                , 1.13
+                , 1.147
+                , 1.165
+                , 1.184
+                , 1.204
+                , 1.225
+                , 1.246
+                , 1.268
+                , 1.291
+                , 1.113
+                , 1.315
+                , 1.34
+                , 1.366
+                , 1.393
+                , 1.421
+                , 1.45
+                , 1.48
+                , 1.511
+                , 1.543
+                , 1.576
+                , 1.61
+                , 1.645
+                , 1.681
+                , 1.718
+                , 1.756
+                , 1.795
+                , 1.835
+                , 1.876
+                , 1.918
+                , 1.961
+                , 2.005
+                , 2.05
+                , 2.096
+                , 2.143
+                , 2.19
+                , 2.238
+                , 2.287
+                , 2.337
+                , 2.388
+                , 2.44
+                , 2.494
+                , 2.549
+                ]

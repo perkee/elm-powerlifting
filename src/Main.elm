@@ -46,6 +46,7 @@ type alias Model =
     , bodyUnit : MassUnit
     , gender : Gender
     , lift : Lift
+    , age : FloatField
     , records : Array SavedRecord
     }
 
@@ -58,6 +59,7 @@ init =
     , bodyUnit = LBM
     , gender = Male
     , lift = Total
+    , age = initFloatField
     , records = Array.empty
     }
 
@@ -73,6 +75,7 @@ modelToFeat m =
                 , liftedPounds = massToPounds m.liftedUnit liftedMass
                 , gender = m.gender
                 , lift = m.lift
+                , age = m.age.value
                 }
 
         ( _, _ ) ->
@@ -101,6 +104,7 @@ type Msg
     | SetBodyUnit MassUnit
     | SetGender Gender
     | SetLift Lift
+    | SetAge String
     | SaveRecord
     | SetRecordNote Int String
 
@@ -155,6 +159,9 @@ update msg model =
 
         SetLift l ->
             { model | lift = l }
+
+        SetAge s ->
+            { model | age = ffParse s }
 
         SaveRecord ->
             case model |> modelToFeat |> featToRecord of
@@ -218,6 +225,11 @@ view model =
         , label [ for "bodyInput" ] [ text " weighing " ]
         , viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
         , unitSelect model.bodyUnit SetBodyUnit
+        , label [ for "ageInput" ]
+            [ text " at "
+            , viewFloatInput "ageInput" model.bodyMass.input SetAge
+            , text " years old."
+            ]
         , button
             [ onClick SaveRecord
             , model |> modelToFeat |> canMakeFeat |> not |> disabled

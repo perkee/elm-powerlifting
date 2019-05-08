@@ -27,6 +27,7 @@ type alias Feat =
     , liftedPounds : Float
     , gender : Gender
     , lift : Lift
+    , age : Maybe Float
     }
 
 
