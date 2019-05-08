@@ -2,10 +2,10 @@ module Scores exposing
     ( Record
     , featToRecord
     , featToScores
+    , featToString
+    , recordToCells
     , recordToPara
-    , recordToString
     , recordToTable
-    , recordToText
     )
 
 import Array
@@ -17,6 +17,7 @@ import Feat
         , MassUnit
         )
 import Html as H exposing (Html)
+import Library exposing (thrush)
 import Renderer exposing (rowsToHeadedTable, textual)
 
 
@@ -24,18 +25,12 @@ import Renderer exposing (rowsToHeadedTable, textual)
 -- Scores
 
 
-type alias OldScores =
-    { wilks : Float
-    , allometric : Float
-    , ipf : Float
-    }
-
-
 type Score
     = Wilks Float
-    | Allometric Float
+    | ScaledAllometric Float
     | Ipf Float
     | McCulloch Float
+    | Allometric Float
     | NoScore
 
 
@@ -45,8 +40,78 @@ type alias Scores =
 
 type alias Record =
     { feat : Feat
-    , scores : Scores
+    , wilks : Maybe Float
+    , scaledAllometric : Maybe Float
+    , allometric : Maybe Float
+    , ipf : Maybe Float
+    , mcCulloch : Maybe Float
     }
+
+
+featToRecord : Feat -> Record
+featToRecord feat =
+    feat
+        |> featToScores
+        |> List.foldr
+            scoreToRecord
+            { feat = feat
+            , wilks = Nothing
+            , scaledAllometric = Nothing
+            , allometric = Nothing
+            , ipf = Nothing
+            , mcCulloch = Nothing
+            }
+
+
+maybeFloatToString : Maybe Float -> String
+maybeFloatToString f =
+    case f of
+        Just float ->
+            floatToString float
+
+        Nothing ->
+            "—"
+
+
+recordToCells : Record -> List (Html msg)
+recordToCells record =
+    [ [ .feat >> .liftedKilos
+      , .feat >> .bodyKilos
+      , .feat >> .liftedPounds
+      , .feat >> .bodyPounds
+      ]
+        |> List.map (thrush record >> floatToString >> H.text)
+    , [ .wilks
+      , .scaledAllometric
+      , .allometric
+      , .ipf
+      , .mcCulloch
+      ]
+        |> List.map (thrush record >> maybeFloatToString >> H.text)
+    ]
+        |> List.concat
+
+
+scoreToRecord : Score -> Record -> Record
+scoreToRecord score record =
+    case score of
+        Wilks s ->
+            { record | wilks = Just s }
+
+        ScaledAllometric s ->
+            { record | scaledAllometric = Just s }
+
+        Allometric s ->
+            { record | allometric = Just s }
+
+        Ipf s ->
+            { record | ipf = Just s }
+
+        McCulloch s ->
+            { record | mcCulloch = Just s }
+
+        NoScore ->
+            record
 
 
 scoreToPair : Score -> Maybe ( String, String )
@@ -54,6 +119,9 @@ scoreToPair score =
     case score of
         Wilks s ->
             Just ( "Wilks", floatToString s )
+
+        ScaledAllometric s ->
+            Just ( "Scaled Allometric", floatToString s )
 
         Allometric s ->
             Just ( "Allometric", floatToString s )
@@ -86,7 +154,7 @@ recordToTableRows : Record -> List (Html msg)
 recordToTableRows record =
     [ featToStatsList record.feat
     , featToMassesList record.feat
-    , scoresToPairs record.scores
+    , record.feat |> featToScores |> scoresToPairs
     ]
         |> List.concat
         |> listToRows
@@ -115,29 +183,10 @@ recordToPara =
         >> Maybe.withDefault (H.div [] [ H.text "Cannot make a paragraph" ])
 
 
-recordToText : Maybe Record -> Html msg
-recordToText =
-    Maybe.map recordToString
-        >> Maybe.withDefault "Cannot make a string"
-        >> H.text
-
-
-featToRecord : Maybe Feat -> Maybe Record
-featToRecord mf =
-    case mf of
-        Just feat ->
-            Just
-                { feat = feat
-                , scores = featToScores feat
-                }
-
-        Nothing ->
-            Nothing
-
-
 featToScores : Feat -> List Score
 featToScores feat =
     [ wilks
+    , scaledAllometric
     , allometric
     , ipf
     , mcCulloch
@@ -170,6 +219,9 @@ featToStatsList feat =
 
             Female ->
                 "Female"
+
+            GNC ->
+                "Other"
       )
     , ( "Lift"
       , case feat.lift of
@@ -235,21 +287,22 @@ unitSeparatorSpace =
     String.fromChar '\u{200A}'
 
 
-recordToString : Record -> String
-recordToString record =
-    record.scores
+featToString : Feat -> String
+featToString feat =
+    feat
+        |> featToScores
         |> scoresToPairs
         |> List.map (\( label, score ) -> label ++ ": " ++ score)
         |> String.join ", "
         |> (++)
-            (floatToString record.feat.liftedKilos
+            (floatToString feat.liftedKilos
                 ++ " @ "
-                ++ floatToString record.feat.bodyKilos
+                ++ floatToString feat.bodyKilos
                 ++ unitSeparatorSpace
                 ++ "kg ("
-                ++ floatToString record.feat.liftedPounds
+                ++ floatToString feat.liftedPounds
                 ++ " @ "
-                ++ floatToString record.feat.bodyPounds
+                ++ floatToString feat.bodyPounds
                 ++ unitSeparatorSpace
                 ++ "lb) = "
             )
@@ -257,34 +310,7 @@ recordToString record =
 
 
 -- Allometric Scaling Score
-
-
-allometricCoefficient : Feat -> Float
-allometricCoefficient m =
-    case ( m.lift, m.gender ) of
-        ( Squat, Male ) ->
-            6.487682129
-
-        ( Squat, Female ) ->
-            8.540082411
-
-        ( Bench, Male ) ->
-            8.373410442
-
-        ( Bench, Female ) ->
-            11.26896531
-
-        ( Deadlift, Male ) ->
-            5.510559406
-
-        ( Deadlift, Female ) ->
-            7.164206454
-
-        ( Total, Male ) ->
-            2.292801981
-
-        ( Total, Female ) ->
-            3.195981761
+-- Unscaled Allometric
 
 
 allometric : Feat -> Score
@@ -292,8 +318,54 @@ allometric m =
     m.bodyKilos
         ^ (-2 / 3)
         * m.liftedKilos
-        * allometricCoefficient m
         |> Allometric
+
+
+
+-- Scaled Allometric
+
+
+allometricCoefficient : Feat -> Maybe Float
+allometricCoefficient m =
+    case ( m.lift, m.gender ) of
+        ( _, GNC ) ->
+            Nothing
+
+        ( Squat, Male ) ->
+            Just 6.487682129
+
+        ( Squat, Female ) ->
+            Just 8.540082411
+
+        ( Bench, Male ) ->
+            Just 8.373410442
+
+        ( Bench, Female ) ->
+            Just 11.26896531
+
+        ( Deadlift, Male ) ->
+            Just 5.510559406
+
+        ( Deadlift, Female ) ->
+            Just 7.164206454
+
+        ( Total, Male ) ->
+            Just 2.292801981
+
+        ( Total, Female ) ->
+            Just 3.195981761
+
+
+scaledAllometric : Feat -> Score
+scaledAllometric m =
+    case ( allometricCoefficient m, allometric m ) of
+        ( Just coefficient, Allometric unscaled ) ->
+            unscaled
+                * coefficient
+                |> ScaledAllometric
+
+        ( _, _ ) ->
+            NoScore
 
 
 
@@ -307,78 +379,89 @@ ipf m =
 
     else
         let
-            cs =
-                ipfCoefficients m
-
             scale =
                 m.bodyKilos |> logBase e |> (*)
         in
-        500
-            + 100
-            * (m.liftedKilos - (scale cs.c1 - cs.c2))
-            / (scale cs.c3 - cs.c4)
-            |> Ipf
+        case ipfCoefficients m of
+            Just cs ->
+                500
+                    + 100
+                    * (m.liftedKilos - (scale cs.c1 - cs.c2))
+                    / (scale cs.c3 - cs.c4)
+                    |> Ipf
+
+            Nothing ->
+                NoScore
 
 
 ipfCoefficients :
     Feat
     ->
-        { c1 : Float
-        , c2 : Float
-        , c3 : Float
-        , c4 : Float
-        }
+        Maybe
+            { c1 : Float
+            , c2 : Float
+            , c3 : Float
+            , c4 : Float
+            }
 ipfCoefficients m =
     case ( m.lift, m.gender ) of
+        ( _, GNC ) ->
+            Nothing
+
         ( Squat, Male ) ->
-            { c1 = 123.1, c2 = 363.085, c3 = 25.1667, c4 = 75.4311 }
+            Just { c1 = 123.1, c2 = 363.085, c3 = 25.1667, c4 = 75.4311 }
 
         ( Squat, Female ) ->
-            { c1 = 50.479, c2 = 105.632, c3 = 19.1846, c4 = 56.2215 }
+            Just { c1 = 50.479, c2 = 105.632, c3 = 19.1846, c4 = 56.2215 }
 
         ( Bench, Male ) ->
-            { c1 = 86.4745, c2 = 259.155, c3 = 17.5785, c4 = 53.122 }
+            Just { c1 = 86.4745, c2 = 259.155, c3 = 17.5785, c4 = 53.122 }
 
         ( Bench, Female ) ->
-            { c1 = 25.0485, c2 = 43.848, c3 = 6.7172, c4 = 13.952 }
+            Just { c1 = 25.0485, c2 = 43.848, c3 = 6.7172, c4 = 13.952 }
 
         ( Deadlift, Male ) ->
-            { c1 = 103.5355, c2 = 244.765, c3 = 15.3714, c4 = 31.5022 }
+            Just { c1 = 103.5355, c2 = 244.765, c3 = 15.3714, c4 = 31.5022 }
 
         ( Deadlift, Female ) ->
-            { c1 = 47.136, c2 = 67.349, c3 = 9.1555, c4 = 13.67 }
+            Just { c1 = 47.136, c2 = 67.349, c3 = 9.1555, c4 = 13.67 }
 
         ( Total, Male ) ->
-            { c1 = 310.67, c2 = 857.785, c3 = 53.216, c4 = 147.0835 }
+            Just { c1 = 310.67, c2 = 857.785, c3 = 53.216, c4 = 147.0835 }
 
         ( Total, Female ) ->
-            { c1 = 125.1435, c2 = 228.03, c3 = 34.5246, c4 = 86.8301 }
+            Just { c1 = 125.1435, c2 = 228.03, c3 = 34.5246, c4 = 86.8301 }
 
 
 
 -- Wilks
 
 
-wilksCoefficients : Feat -> List Float
+wilksCoefficients : Feat -> Maybe (List Float)
 wilksCoefficients m =
     case m.gender of
         Male ->
-            [ -216.0475144
-            , 16.2606339
-            , -0.002388645
-            , -0.00113732
-            , 7.01863e-6
-            , -1.291e-8
-            ]
+            Just
+                [ -216.0475144
+                , 16.2606339
+                , -0.002388645
+                , -0.00113732
+                , 7.01863e-6
+                , -1.291e-8
+                ]
 
         Female ->
-            [ 594.31747775582
-            , -27.23842536447
-            , 0.82112226871
-            , -0.00930733913
-            , 4.731582e-5
-            , -9.054e-8
-            ]
+            Just
+                [ 594.31747775582
+                , -27.23842536447
+                , 0.82112226871
+                , -0.00930733913
+                , 4.731582e-5
+                , -9.054e-8
+                ]
+
+        GNC ->
+            Nothing
 
 
 polynomialMultiply : Feat -> Int -> Float -> Float
@@ -388,12 +471,16 @@ polynomialMultiply m index const =
 
 wilks : Feat -> Score
 wilks m =
-    m
-        |> wilksCoefficients
-        |> List.indexedMap (polynomialMultiply m)
-        |> List.foldl (+) 0
-        |> (/) (m.liftedKilos * 500)
-        |> Wilks
+    case wilksCoefficients m of
+        Just coefficients ->
+            coefficients
+                |> List.indexedMap (polynomialMultiply m)
+                |> List.foldl (+) 0
+                |> (/) (m.liftedKilos * 500)
+                |> Wilks
+
+        Nothing ->
+            NoScore
 
 
 truncate : Int -> Float -> Float

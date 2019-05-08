@@ -11,8 +11,17 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (on, onClick, onInput, targetValue)
 import Json.Decode as Json
 import Json.Encode as JE
-import Renderer exposing (rowsToHeadedTable, textual)
-import Scores exposing (Record, featToRecord, recordToPara, recordToString, recordToTable, recordToText)
+import Library exposing (thrush, updateArrayAt)
+import Renderer exposing (htmlsToRow, rowsToHeadedTable, textual)
+import Scores
+    exposing
+        ( Record
+        , featToRecord
+        , featToString
+        , recordToCells
+        , recordToPara
+        , recordToTable
+        )
 
 
 main =
@@ -25,8 +34,8 @@ type alias FloatField =
     }
 
 
-type alias SavedRecord =
-    { record : Record
+type alias SavedFeat =
+    { feat : Feat
     , index : Int
     , note : String
     }
@@ -47,7 +56,7 @@ type alias Model =
     , gender : Gender
     , lift : Lift
     , age : FloatField
-    , records : Array SavedRecord
+    , feats : Array SavedFeat
     }
 
 
@@ -57,10 +66,10 @@ init =
     , liftedUnit = LBM
     , bodyMass = initFloatField
     , bodyUnit = LBM
-    , gender = Male
+    , gender = GNC
     , lift = Total
     , age = initFloatField
-    , records = Array.empty
+    , feats = Array.empty
     }
 
 
@@ -83,8 +92,8 @@ modelToFeat m =
 
 
 modelToRecord : Model -> Maybe Record
-modelToRecord =
-    modelToFeat >> featToRecord
+modelToRecord model =
+    model |> modelToFeat |> Maybe.map featToRecord
 
 
 canMakeFeat : Maybe Feat -> Bool
@@ -105,8 +114,8 @@ type Msg
     | SetGender Gender
     | SetLift Lift
     | SetAge String
-    | SaveRecord
-    | SetRecordNote Int String
+    | SaveFeat
+    | SetNote Int String
 
 
 ffValue : FloatField -> Float
@@ -124,19 +133,9 @@ ffParse str =
             { value = Just new, input = str }
 
 
-updateArrayAt : Int -> (a -> a) -> Array a -> Array a
-updateArrayAt index fn array =
-    case Array.get index array of
-        Just value ->
-            Array.set index (fn value) array
-
-        Nothing ->
-            array
-
-
-setNoteOnSavedRecord : String -> SavedRecord -> SavedRecord
-setNoteOnSavedRecord note record =
-    { record | note = note }
+setNoteOnSavedFeat : String -> SavedFeat -> SavedFeat
+setNoteOnSavedFeat note feat =
+    { feat | note = note }
 
 
 update : Msg -> Model -> Model
@@ -163,16 +162,16 @@ update msg model =
         SetAge s ->
             { model | age = ffParse s }
 
-        SaveRecord ->
-            case model |> modelToFeat |> featToRecord of
-                Just record ->
-                    { model | records = Array.push (SavedRecord record (Array.length model.records) "") model.records }
+        SaveFeat ->
+            case model |> modelToFeat of
+                Just feat ->
+                    { model | feats = Array.push (SavedFeat feat (Array.length model.feats) "") model.feats }
 
                 Nothing ->
                     model
 
-        SetRecordNote index note ->
-            { model | records = updateArrayAt index (setNoteOnSavedRecord note) model.records }
+        SetNote index note ->
+            { model | feats = updateArrayAt index (setNoteOnSavedFeat note) model.feats }
 
 
 modelToScoresDom : Model -> Html Msg
@@ -180,17 +179,17 @@ modelToScoresDom m =
     div []
         [ m |> modelToRecord |> recordToTable
         , m |> modelToRecord |> recordToPara
-        , m.records
+        , m.feats
             |> Array.map
-                (.record
-                    >> recordToString
+                (.feat
+                    >> featToString
                     >> text
                     >> List.singleton
                     >> li []
                 )
             >> Array.toList
             |> ol []
-        , m.records |> savedRecordsToTable
+        , m.feats |> savedFeatsToTable
         ]
 
 
@@ -209,6 +208,7 @@ view model =
         , typedSelect
             [ Option Male "man" "M"
             , Option Female "woman" "F"
+            , Option GNC "lifter" "GNC"
             ]
             model.gender
             SetGender
@@ -231,17 +231,12 @@ view model =
             , text " years old."
             ]
         , button
-            [ onClick SaveRecord
+            [ onClick SaveFeat
             , model |> modelToFeat |> canMakeFeat |> not |> disabled
             ]
             [ text "save" ]
         , modelToScoresDom model
         ]
-
-
-viewInput : String -> String -> String -> (String -> msg) -> Html msg
-viewInput t p v toMsg =
-    input [ type_ t, placeholder p, value v, onInput toMsg ] []
 
 
 viewFloatInput : String -> String -> (String -> msg) -> Html msg
@@ -255,29 +250,20 @@ viewFloatInput id v toMsg =
         []
 
 
-htmlsToRow : List (Html msg) -> Html msg
-htmlsToRow =
-    List.map (List.singleton >> td [])
-        >> tr []
-
-
-thrush : a -> (a -> b) -> b
-thrush input fn =
-    fn input
-
-
-savedRecordsToTable : Array SavedRecord -> Html Msg
-savedRecordsToTable =
-    Array.indexedMap savedRecordToRow
+savedFeatsToTable : Array SavedFeat -> Html Msg
+savedFeatsToTable =
+    Array.indexedMap savedFeatToRow
         >> Array.toList
-        >> rowsToHeadedTable [ "Index", "String", "Note" ]
+        >> rowsToHeadedTable [ "Index", "Note", "Lift (kg)", "BW (kg)", "Lift (lb)", "BW (lb)", "Wilks", "Scaled Allometric", "Allometric", "IPF", "McCulloch" ]
 
 
-savedRecordToRow : Int -> SavedRecord -> Html Msg
-savedRecordToRow index savedRecord =
-    [ .index >> String.fromInt >> text
-    , .note >> (\v -> input [ type_ "text", placeholder "Note", value v, onInput (SetRecordNote index) ] [])
-    , .record >> recordToString >> text
+savedFeatToRow : Int -> SavedFeat -> Html Msg
+savedFeatToRow index savedFeat =
+    [ [ .index >> String.fromInt >> text
+      , .note >> (\v -> input [ type_ "text", placeholder "Note", value v, onInput (SetNote index) ] [])
+      ]
+        |> List.map (thrush savedFeat)
+    , savedFeat.feat |> featToRecord |> recordToCells
     ]
-        |> List.map (thrush savedRecord)
+        |> List.concat
         |> htmlsToRow

@@ -34,6 +34,7 @@ type alias Feat =
 type Gender
     = Male
     | Female
+    | GNC
 
 
 poundsPerKilo : Float
