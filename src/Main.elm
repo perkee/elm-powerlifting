@@ -4,14 +4,15 @@ module Main exposing (main)
 
 import Array exposing (Array)
 import Browser
+import Column exposing (Column, columnToRecordToText, columnToToggleLabel, initColumns)
 import Dropdowns exposing (Option, typedSelect)
-import Feat exposing (Feat, Gender(..), Lift(..), MassUnit(..), massToKilos, massToPounds)
+import Feat exposing (Feat, Gender(..), Lift(..), MassUnit(..), genderToString, massToKilos, massToPounds)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (on, onClick, onInput, targetValue)
+import Html.Events exposing (on, onCheck, onClick, onInput, targetValue)
 import Json.Decode as Json
 import Json.Encode as JE
-import Library exposing (thrush, updateArrayAt)
+import Library exposing (filterListByList, thrush, updateArrayAt)
 import Renderer exposing (htmlsToRow, rowsToHeadedTable, textual)
 import Scores
     exposing
@@ -57,6 +58,7 @@ type alias Model =
     , lift : Lift
     , age : FloatField
     , feats : Array SavedFeat
+    , columns : List Column
     }
 
 
@@ -70,6 +72,7 @@ init =
     , lift = Total
     , age = initFloatField
     , feats = Array.empty
+    , columns = initColumns
     }
 
 
@@ -116,6 +119,7 @@ type Msg
     | SetAge String
     | SaveFeat
     | SetNote Int String
+    | ToggleColumn Column Bool
 
 
 ffValue : FloatField -> Float
@@ -173,6 +177,32 @@ update msg model =
         SetNote index note ->
             { model | feats = updateArrayAt index (setNoteOnSavedFeat note) model.feats }
 
+        ToggleColumn col checked ->
+            let
+                newColumns =
+                    if checked then
+                        col :: model.columns
+
+                    else
+                        List.filter ((/=) col) model.columns
+            in
+            { model | columns = newColumns }
+
+
+columnToToggle : Model -> Column -> Html Msg
+columnToToggle model col =
+    label
+        [ col |> columnToToggleLabel |> for
+        ]
+        [ col |> columnToToggleLabel |> text
+        , input
+            [ type_ "checkbox"
+            , checked <| List.member col model.columns
+            , onCheck <| ToggleColumn col
+            ]
+            []
+        ]
+
 
 modelToScoresDom : Model -> Html Msg
 modelToScoresDom m =
@@ -189,7 +219,7 @@ modelToScoresDom m =
                 )
             >> Array.toList
             |> ol []
-        , m.feats |> savedFeatsToTable
+        , m.feats |> savedFeatsToTable (filterListByList m.columns initColumns)
         ]
 
 
@@ -235,6 +265,13 @@ view model =
             , model |> modelToFeat |> canMakeFeat |> not |> disabled
             ]
             [ text "save" ]
+        , div []
+            (text
+                "toggle columns"
+                :: (initColumns
+                        |> List.map (columnToToggle model)
+                   )
+            )
         , modelToScoresDom model
         ]
 
@@ -250,20 +287,26 @@ viewFloatInput id v toMsg =
         []
 
 
-savedFeatsToTable : Array SavedFeat -> Html Msg
-savedFeatsToTable =
-    Array.indexedMap savedFeatToRow
+savedFeatsToTable : List Column -> Array SavedFeat -> Html Msg
+savedFeatsToTable cols =
+    Array.indexedMap (savedFeatToRow cols)
         >> Array.toList
-        >> rowsToHeadedTable [ "Index", "Note", "Lift (kg)", "BW (kg)", "Lift (lb)", "BW (lb)", "Wilks", "Scaled Allometric", "Allometric", "IPF", "McCulloch" ]
+        >> rowsToHeadedTable
+            ("Index"
+                :: "Note"
+                :: List.map
+                    columnToToggleLabel
+                    cols
+            )
 
 
-savedFeatToRow : Int -> SavedFeat -> Html Msg
-savedFeatToRow index savedFeat =
+savedFeatToRow : List Column -> Int -> SavedFeat -> Html Msg
+savedFeatToRow cols index savedFeat =
     [ [ .index >> String.fromInt >> text
       , .note >> (\v -> input [ type_ "text", placeholder "Note", value v, onInput (SetNote index) ] [])
       ]
         |> List.map (thrush savedFeat)
-    , savedFeat.feat |> featToRecord |> recordToCells
+    , (savedFeat.feat |> featToRecord |> thrush |> List.map) (List.map columnToRecordToText cols)
     ]
         |> List.concat
         |> htmlsToRow

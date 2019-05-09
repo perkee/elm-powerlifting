@@ -18,7 +18,7 @@ import Feat
         )
 import Html as H exposing (Html)
 import Library exposing (thrush)
-import Renderer exposing (rowsToHeadedTable, textual)
+import Renderer exposing (floatToString, maybeFloatToString, rowsToHeadedTable, textual)
 
 
 
@@ -61,16 +61,6 @@ featToRecord feat =
             , ipf = Nothing
             , mcCulloch = Nothing
             }
-
-
-maybeFloatToString : Maybe Float -> String
-maybeFloatToString f =
-    case f of
-        Just float ->
-            floatToString float
-
-        Nothing ->
-            "—"
 
 
 recordToCells : Record -> List (Html msg)
@@ -191,7 +181,7 @@ featToScores feat =
     , ipf
     , mcCulloch
     ]
-        |> List.map (\fn -> fn feat)
+        |> List.map (thrush feat)
 
 
 featToMassesList : Feat -> List ( String, String )
@@ -481,24 +471,6 @@ wilks m =
 
         Nothing ->
             NoScore
-
-
-truncate : Int -> Float -> Float
-truncate places n =
-    let
-        factor =
-            10.0 ^ toFloat places
-    in
-    n
-        |> (*) factor
-        |> round
-        |> toFloat
-        |> (\m -> m / factor)
-
-
-floatToString : Float -> String
-floatToString =
-    truncate 2 >> String.fromFloat
 
 
 

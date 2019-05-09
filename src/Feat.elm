@@ -3,6 +3,8 @@ module Feat exposing
     , Gender(..)
     , Lift(..)
     , MassUnit(..)
+    , genderToString
+    , liftToString
     , massToKilos
     , massToPounds
     )
@@ -35,6 +37,35 @@ type Gender
     = Male
     | Female
     | GNC
+
+
+genderToString : Gender -> String
+genderToString gender =
+    case gender of
+        Male ->
+            "Male"
+
+        Female ->
+            "Female"
+
+        GNC ->
+            "Other"
+
+
+liftToString : Lift -> String
+liftToString lift =
+    case lift of
+        Squat ->
+            "Squat"
+
+        Bench ->
+            "Bench"
+
+        Deadlift ->
+            "Deadlift"
+
+        Total ->
+            "Total"
 
 
 poundsPerKilo : Float

@@ -1,6 +1,7 @@
-module Renderer exposing (htmlsToRow, rowsToHeadedTable, textual)
+module Renderer exposing (floatToString, htmlsToRow, maybeFloatToString, rowsToHeadedTable, textual)
 
 import Html as H exposing (Html)
+import Library exposing (truncate)
 
 
 
@@ -19,14 +20,34 @@ htmlsToRow =
 
 
 rowsToHeadedTable : List String -> List (Html msg) -> Html msg
-rowsToHeadedTable titles =
-    H.tbody []
-        >> List.singleton
-        >> (titles
-                |> List.map (textual H.th)
-                |> H.tr []
-                |> List.singleton
-                |> H.thead []
-                |> (::)
-           )
-        >> H.table []
+rowsToHeadedTable titles rows =
+    if List.isEmpty rows then
+        H.span [] []
+
+    else
+        rows
+            |> H.tbody []
+            >> List.singleton
+            >> (titles
+                    |> List.map (textual H.th)
+                    |> H.tr []
+                    |> List.singleton
+                    |> H.thead []
+                    |> (::)
+               )
+            >> H.table []
+
+
+maybeFloatToString : Maybe Float -> String
+maybeFloatToString f =
+    case f of
+        Just float ->
+            floatToString float
+
+        Nothing ->
+            "—"
+
+
+floatToString : Float -> String
+floatToString =
+    truncate 2 >> String.fromFloat
