@@ -76,36 +76,37 @@ columnToToggleLabel column =
 
 columnToRecordToText : Column -> Record -> Html msg
 columnToRecordToText column =
-    case column of
-        Gender ->
-            .feat >> .gender >> genderToString >> H.text
+    (<<) H.text <|
+        case column of
+            Gender ->
+                .feat >> .gender >> genderToString
 
-        Lift ->
-            .feat >> .lift >> liftToString >> H.text
+            Lift ->
+                .feat >> .lift >> liftToString
 
-        LiftedKilos ->
-            .feat >> .liftedKilos >> floatToString >> H.text
+            LiftedKilos ->
+                .feat >> .liftedKilos >> floatToString
 
-        BodyKilos ->
-            .feat >> .bodyKilos >> floatToString >> H.text
+            BodyKilos ->
+                .feat >> .bodyKilos >> floatToString
 
-        LiftedPounds ->
-            .feat >> .liftedPounds >> floatToString >> H.text
+            LiftedPounds ->
+                .feat >> .liftedPounds >> floatToString
 
-        BodyPounds ->
-            .feat >> .bodyPounds >> floatToString >> H.text
+            BodyPounds ->
+                .feat >> .bodyPounds >> floatToString
 
-        Wilks ->
-            .wilks >> maybeFloatToString >> H.text
+            Wilks ->
+                .wilks >> maybeFloatToString
 
-        ScaledAllometric ->
-            .scaledAllometric >> maybeFloatToString >> H.text
+            ScaledAllometric ->
+                .scaledAllometric >> maybeFloatToString
 
-        Allometric ->
-            .allometric >> maybeFloatToString >> H.text
+            Allometric ->
+                .allometric >> maybeFloatToString
 
-        IPF ->
-            .ipf >> maybeFloatToString >> H.text
+            IPF ->
+                .ipf >> maybeFloatToString
 
-        McCulloch ->
-            .mcCulloch >> maybeFloatToString >> H.text
+            McCulloch ->
+                .mcCulloch >> maybeFloatToString

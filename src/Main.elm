@@ -6,7 +6,7 @@ import Array exposing (Array)
 import Browser
 import Column exposing (Column, columnToRecordToText, columnToToggleLabel, initColumns)
 import Dropdowns exposing (Option, typedSelect)
-import Feat exposing (Feat, Gender(..), Lift(..), MassUnit(..), genderToString, massToKilos, massToPounds)
+import Feat exposing (Equipment(..), Feat, Gender(..), Lift(..), MassUnit(..), genderToString, massToKilos, massToPounds)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onCheck, onClick, onInput, targetValue)
@@ -59,6 +59,7 @@ type alias Model =
     , age : FloatField
     , feats : Array SavedFeat
     , columns : List Column
+    , equipment : Equipment
     }
 
 
@@ -73,6 +74,7 @@ init =
     , age = initFloatField
     , feats = Array.empty
     , columns = initColumns
+    , equipment = Raw
     }
 
 
@@ -120,6 +122,7 @@ type Msg
     | SaveFeat
     | SetNote Int String
     | ToggleColumn Column Bool
+    | SetEquipment Equipment
 
 
 ffValue : FloatField -> Float
@@ -188,6 +191,9 @@ update msg model =
             in
             { model | columns = newColumns }
 
+        SetEquipment equipment ->
+            { model | equipment = equipment }
+
 
 columnToToggle : Model -> Column -> Html Msg
 columnToToggle model col =
@@ -242,6 +248,12 @@ view model =
             ]
             model.gender
             SetGender
+        , typedSelect
+            [ Option Raw "raw" "R"
+            , Option SinglePly "single ply" "SP"
+            ]
+            model.equipment
+            SetEquipment
         , typedSelect
             [ Option Total "totalled" "T"
             , Option Squat "squatted" "S"

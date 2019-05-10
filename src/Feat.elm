@@ -1,5 +1,6 @@
 module Feat exposing
-    ( Feat
+    ( Equipment(..)
+    , Feat
     , Gender(..)
     , Lift(..)
     , MassUnit(..)
@@ -37,6 +38,11 @@ type Gender
     = Male
     | Female
     | GNC
+
+
+type Equipment
+    = Raw
+    | SinglePly
 
 
 genderToString : Gender -> String
