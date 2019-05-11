@@ -9,6 +9,7 @@ module Scores exposing
     )
 
 import Array
+import Bootstrap.Table as Table
 import Feat
     exposing
         ( Feat
@@ -140,7 +141,7 @@ scoresToPairs =
         []
 
 
-recordToTableRows : Record -> List (Html msg)
+recordToTableRows : Record -> List (Table.Row msg)
 recordToTableRows record =
     [ featToStatsList record.feat
     , featToMassesList record.feat
@@ -230,33 +231,15 @@ featToStatsList feat =
     ]
 
 
-listToRows : List ( String, String ) -> List (Html msg)
+listToRows : List ( String, String ) -> List (Table.Row msg)
 listToRows =
     List.map
         (\( label, score ) ->
-            H.tr []
-                [ textual H.td label
-                , textual H.td score
+            Table.tr []
+                [ label |> H.text >> List.singleton |> Table.td []
+                , score |> H.text >> List.singleton |> Table.td []
                 ]
         )
-
-
-listToTable : List ( String, String ) -> Html msg
-listToTable list =
-    list
-        |> listToRows
-        |> H.tbody []
-        |> List.singleton
-        |> (::)
-            (H.thead
-                []
-                [ H.tr []
-                    [ textual H.th "Label"
-                    , textual H.th "Score"
-                    ]
-                ]
-            )
-        |> H.table []
 
 
 listToPara : List ( String, String ) -> Html msg

@@ -1,8 +1,20 @@
 module Main exposing (main)
 
 -- (Html, button, div, text, input, option, select)
+-- imports used
 
 import Array exposing (Array)
+import Bootstrap.Button as Button
+import Bootstrap.CDN as CDN
+import Bootstrap.Form as Form
+import Bootstrap.Form.Checkbox as Checkbox
+import Bootstrap.Form.Fieldset as Fieldset
+import Bootstrap.Form.Input as Input
+import Bootstrap.Form.Select as Select
+import Bootstrap.Grid as Grid
+import Bootstrap.Grid.Col as Col
+import Bootstrap.Grid.Row as Row
+import Bootstrap.Table as Table
 import Browser
 import Column exposing (Column, columnToRecordToText, columnToToggleLabel, initColumns)
 import Dropdowns exposing (Option, typedSelect)
@@ -113,16 +125,16 @@ canMakeFeat m =
 
 type Msg
     = SetLiftedMass String
-    | SetLiftedUnit MassUnit
+    | SetLiftedUnit (Maybe MassUnit)
     | SetBodyMass String
-    | SetBodyUnit MassUnit
-    | SetGender Gender
-    | SetLift Lift
+    | SetBodyUnit (Maybe MassUnit)
+    | SetGender (Maybe Gender)
+    | SetLift (Maybe Lift)
     | SetAge String
     | SaveFeat
     | SetNote Int String
     | ToggleColumn Column Bool
-    | SetEquipment Equipment
+    | SetEquipment (Maybe Equipment)
 
 
 ffValue : FloatField -> Float
@@ -151,20 +163,40 @@ update msg model =
         SetLiftedMass s ->
             { model | liftedMass = ffParse s }
 
-        SetLiftedUnit u ->
-            { model | liftedUnit = u }
+        SetLiftedUnit mu ->
+            case mu of
+                Just u ->
+                    { model | liftedUnit = u }
+
+                Nothing ->
+                    model
 
         SetBodyMass s ->
             { model | bodyMass = ffParse s }
 
-        SetBodyUnit u ->
-            { model | bodyUnit = u }
+        SetBodyUnit mu ->
+            case mu of
+                Just u ->
+                    { model | bodyUnit = u }
 
-        SetGender s ->
-            { model | gender = s }
+                Nothing ->
+                    model
 
-        SetLift l ->
-            { model | lift = l }
+        SetGender mg ->
+            case mg of
+                Just g ->
+                    { model | gender = g }
+
+                Nothing ->
+                    model
+
+        SetLift ml ->
+            case ml of
+                Just l ->
+                    { model | lift = l }
+
+                Nothing ->
+                    model
 
         SetAge s ->
             { model | age = ffParse s }
@@ -191,112 +223,170 @@ update msg model =
             in
             { model | columns = newColumns }
 
-        SetEquipment equipment ->
-            { model | equipment = equipment }
+        SetEquipment me ->
+            case me of
+                Just e ->
+                    { model | equipment = e }
+
+                Nothing ->
+                    model
 
 
 columnToToggle : Model -> Column -> Html Msg
 columnToToggle model col =
-    label
-        [ col |> columnToToggleLabel |> for
+    Checkbox.checkbox
+        [ col
+            |> columnToToggleLabel
+            |> Checkbox.id
+        , Checkbox.onCheck <|
+            ToggleColumn col
+        , Checkbox.checked <| List.member col model.columns
+        , Checkbox.inline
         ]
-        [ col |> columnToToggleLabel |> text
-        , input
-            [ type_ "checkbox"
-            , checked <| List.member col model.columns
-            , onCheck <| ToggleColumn col
-            ]
-            []
-        ]
+        (col |> columnToToggleLabel)
 
 
 modelToScoresDom : Model -> Html Msg
 modelToScoresDom m =
     div []
         [ m |> modelToRecord |> recordToTable
-        , m |> modelToRecord |> recordToPara
-        , m.feats
-            |> Array.map
-                (.feat
-                    >> featToString
-                    >> text
-                    >> List.singleton
-                    >> li []
-                )
-            >> Array.toList
-            |> ol []
         , m.feats |> savedFeatsToTable (filterListByList m.columns initColumns)
         ]
 
 
-unitSelect : MassUnit -> (MassUnit -> Msg) -> Html Msg
+unitSelect : MassUnit -> (Maybe MassUnit -> Msg) -> Html Msg
 unitSelect =
-    typedSelect
+    typedSelect []
         [ Option KG "kilos" "KG"
         , Option LBM "pounds" "LBM"
+        ]
+
+
+saveButton : Bool -> Html Msg
+saveButton canSave =
+    Button.button
+        [ Button.onClick SaveFeat
+        , if canSave then
+            Button.success
+
+          else
+            Button.secondary
+        , Button.block
+        , canSave |> not |> Button.disabled
+        ]
+        [ (if canSave then
+            "Record"
+
+           else
+            "Type first!"
+          )
+            |> text
+        ]
+
+
+lifterForm : Model -> Html Msg
+lifterForm model =
+    Form.form []
+        [ h2 [] [ text "Lift input" ]
+        , Form.row []
+            [ Form.colLabel [ Col.md2 ] [ text "Gender" ]
+            , Form.col [ Col.md4 ]
+                [ typedSelect []
+                    [ Option Male "man" "M"
+                    , Option Female "woman" "F"
+                    , Option GNC "lifter" "GNC"
+                    ]
+                    model.gender
+                    SetGender
+                ]
+            , Form.colLabel [ Col.md2 ] [ text "Event" ]
+            , Form.col [ Col.md4 ]
+                [ typedSelect []
+                    [ Option Total "totalled" "T"
+                    , Option Squat "squatted" "S"
+                    , Option Bench "benched" "B"
+                    , Option Deadlift "deadlifted" "D"
+                    ]
+                    model.lift
+                    SetLift
+                ]
+            ]
+        , Form.row []
+            [ Form.colLabel [ Col.md2 ] [ text "Lifted weight" ]
+            , Form.col [ Col.md2 ]
+                [ viewFloatInput "liftedInput" model.liftedMass.input SetLiftedMass
+                ]
+            , Form.col [ Col.md2 ]
+                [ unitSelect model.liftedUnit SetLiftedUnit
+                ]
+            , Form.colLabel [ Col.md2 ] [ text "Bodyweight" ]
+            , Form.col [ Col.md2 ]
+                [ viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
+                ]
+            , Form.col [ Col.md2 ]
+                [ unitSelect model.bodyUnit SetBodyUnit
+                ]
+            ]
+        , Form.row []
+            [ Form.colLabel [ Col.md2 ] [ text "Equipment" ]
+            , Form.col [ Col.md4 ]
+                [ typedSelect [ Select.disabled True ]
+                    [ Option Raw "raw" "R"
+                    , Option SinglePly "single ply" "SP"
+                    ]
+                    model.equipment
+                    SetEquipment
+                ]
+            , Form.colLabel [ Col.md2 ] [ text "Age" ]
+            , Form.col [ Col.md2 ]
+                [ viewFloatInput "ageInput" model.bodyMass.input SetAge ]
+            , Form.col [ Col.md2 ]
+                [ model |> modelToFeat |> canMakeFeat |> saveButton ]
+            ]
         ]
 
 
 view : Model -> Html Msg
 view model =
     div []
-        [ label [ for "genderInput" ] [ text "A " ]
-        , typedSelect
-            [ Option Male "man" "M"
-            , Option Female "woman" "F"
-            , Option GNC "lifter" "GNC"
+        [ Grid.container []
+            [ CDN.stylesheet -- creates an inline style node with the Bootstrap CSS
+            , h1 [] [ text "Every Score Calculator" ]
+            , lifterForm model
+            , Grid.row []
+                [ Grid.col [ Col.sm12 ]
+                    [ model |> modelToRecord |> recordToTable ]
+                ]
+            , Form.form []
+                [ h2 []
+                    [ text "Display columns" ]
+                , Form.row
+                    []
+                    (initColumns
+                        |> List.map
+                            (columnToToggle model
+                                >> List.singleton
+                                >> Form.col [ Col.sm4, Col.md4 ]
+                            )
+                    )
+                ]
             ]
-            model.gender
-            SetGender
-        , typedSelect
-            [ Option Raw "raw" "R"
-            , Option SinglePly "single ply" "SP"
+        , Grid.containerFluid []
+            [ Grid.row []
+                [ Grid.col [ Col.sm12 ]
+                    [ model.feats |> savedFeatsToTable (filterListByList model.columns initColumns) ]
+                ]
             ]
-            model.equipment
-            SetEquipment
-        , typedSelect
-            [ Option Total "totalled" "T"
-            , Option Squat "squatted" "S"
-            , Option Bench "benched" "B"
-            , Option Deadlift "deadlifted" "D"
-            ]
-            model.lift
-            SetLift
-        , viewFloatInput "liftedInput" model.liftedMass.input SetLiftedMass
-        , unitSelect model.liftedUnit SetLiftedUnit
-        , label [ for "bodyInput" ] [ text " weighing " ]
-        , viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
-        , unitSelect model.bodyUnit SetBodyUnit
-        , label [ for "ageInput" ]
-            [ text " at "
-            , viewFloatInput "ageInput" model.bodyMass.input SetAge
-            , text " years old."
-            ]
-        , button
-            [ onClick SaveFeat
-            , model |> modelToFeat |> canMakeFeat |> not |> disabled
-            ]
-            [ text "save" ]
-        , div []
-            (text
-                "toggle columns"
-                :: (initColumns
-                        |> List.map (columnToToggle model)
-                   )
-            )
-        , modelToScoresDom model
         ]
 
 
 viewFloatInput : String -> String -> (String -> msg) -> Html msg
 viewFloatInput id v toMsg =
-    input
-        [ Html.Attributes.id id
-        , type_ "number"
-        , placeholder "0"
-        , onInput toMsg
+    Input.number
+        [ Input.id id
+        , Input.placeholder "0"
+        , Input.onInput toMsg
         ]
-        []
 
 
 savedFeatsToTable : List Column -> Array SavedFeat -> Html Msg
@@ -312,10 +402,10 @@ savedFeatsToTable cols =
             )
 
 
-savedFeatToRow : List Column -> Int -> SavedFeat -> Html Msg
+savedFeatToRow : List Column -> Int -> SavedFeat -> Table.Row Msg
 savedFeatToRow cols index savedFeat =
     [ [ .index >> String.fromInt >> text
-      , .note >> (\v -> input [ type_ "text", placeholder "Note", value v, onInput (SetNote index) ] [])
+      , .note >> (\v -> Input.text [ Input.placeholder "Note", Input.value v, Input.onInput (SetNote index) ])
       ]
         |> List.map (thrush savedFeat)
     , (savedFeat.feat |> featToRecord |> thrush |> List.map) (List.map columnToRecordToText cols)

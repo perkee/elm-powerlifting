@@ -1,5 +1,6 @@
 module Dropdowns exposing (Option, typedSelect)
 
+import Bootstrap.Form.Select as Select
 import Dict
 import Html as H
 import Html.Attributes exposing (..)
@@ -12,6 +13,14 @@ type alias Option t =
     , label : String
     , valAttr : String
     }
+
+
+optionsToMessenger : List (Option t) -> String -> Maybe t
+optionsToMessenger options val =
+    options
+        |> List.map (\option -> ( option.valAttr, option.value ))
+        |> Dict.fromList
+        |> Dict.get val
 
 
 optionsToDecoder : List (Option t) -> String -> Json.Decoder t
@@ -46,23 +55,21 @@ optionsToLabeler options val =
         options
 
 
-typedSelect : List (Option t) -> t -> (t -> msg) -> H.Html msg
-typedSelect options current jsonMapper =
-    H.select
-        [ targetValue
-            |> Json.andThen (optionsToDecoder options)
-            |> Json.map jsonMapper
-            |> on "change"
-        ]
+typedSelect : List (Select.Option msg) -> List (Option t) -> t -> (Maybe t -> msg) -> H.Html msg
+typedSelect attrs options current jsonMapper =
+    Select.select
+        (Select.onChange (optionsToMessenger options >> jsonMapper)
+            :: attrs
+        )
         (List.map
             (opt current)
             options
         )
 
 
-opt : t -> Option t -> H.Html msg
+opt : t -> Option t -> Select.Item msg
 opt current option =
-    H.option
+    Select.item
         [ option.valAttr |> value
         , current == option.value |> selected
         ]
