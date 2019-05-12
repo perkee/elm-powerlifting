@@ -284,64 +284,107 @@ saveButton canSave =
         ]
 
 
+fakeRow : List any -> List other -> List other
+fakeRow options children =
+    children
+
+
 lifterForm : Model -> Html Msg
 lifterForm model =
     Form.form []
         [ h2 [] [ text "Lift input" ]
         , Form.row []
-            [ Form.colLabel [ Col.md2 ] [ text "Gender" ]
-            , Form.col [ Col.md4 ]
-                [ typedSelect []
-                    [ Option Male "man" "M"
-                    , Option Female "woman" "F"
-                    , Option GNC "lifter" "GNC"
+            [ Form.col [ Col.xs12, Col.md6 ]
+                [ Form.row []
+                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Gender" ]
+                    , Form.col [ Col.xs8, Col.sm9 ]
+                        [ typedSelect []
+                            [ Option Male "man" "M"
+                            , Option Female "woman" "F"
+                            , Option GNC "lifter" "GNC"
+                            ]
+                            model.gender
+                            SetGender
+                        ]
                     ]
-                    model.gender
-                    SetGender
                 ]
-            , Form.colLabel [ Col.md2 ] [ text "Event" ]
-            , Form.col [ Col.md4 ]
-                [ typedSelect []
-                    [ Option Total "totalled" "T"
-                    , Option Squat "squatted" "S"
-                    , Option Bench "benched" "B"
-                    , Option Deadlift "deadlifted" "D"
+            , Form.col [ Col.xs12, Col.md6 ]
+                [ Form.row []
+                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Event" ]
+                    , Form.col [ Col.xs8, Col.sm9 ]
+                        [ typedSelect []
+                            [ Option Total "totalled" "T"
+                            , Option Squat "squatted" "S"
+                            , Option Bench "benched" "B"
+                            , Option Deadlift "deadlifted" "D"
+                            ]
+                            model.lift
+                            SetLift
+                        ]
                     ]
-                    model.lift
-                    SetLift
                 ]
             ]
         , Form.row []
-            [ Form.colLabel [ Col.md2 ] [ text "Lifted weight" ]
-            , Form.col [ Col.md2 ]
-                [ viewFloatInput "liftedInput" model.liftedMass.input SetLiftedMass
+            [ Form.col [ Col.xs12, Col.md6 ]
+                [ Form.row []
+                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Lifted weight" ]
+                    , Form.col [ Col.xs8, Col.sm9 ]
+                        [ Form.row []
+                            [ Form.col [ Col.xs6, Col.sm6 ]
+                                [ viewFloatInput "liftedInput" model.liftedMass.input SetLiftedMass
+                                ]
+                            , Form.col [ Col.xs6, Col.sm6 ]
+                                [ unitSelect model.liftedUnit SetLiftedUnit
+                                ]
+                            ]
+                        ]
+                    ]
                 ]
-            , Form.col [ Col.md2 ]
-                [ unitSelect model.liftedUnit SetLiftedUnit
-                ]
-            , Form.colLabel [ Col.md2 ] [ text "Bodyweight" ]
-            , Form.col [ Col.md2 ]
-                [ viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
-                ]
-            , Form.col [ Col.md2 ]
-                [ unitSelect model.bodyUnit SetBodyUnit
+            , Form.col [ Col.xs12, Col.md6 ]
+                [ Form.row []
+                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Bodyweight" ]
+                    , Form.col [ Col.xs8, Col.sm9 ]
+                        [ Form.row []
+                            [ Form.col [ Col.xs6, Col.sm6 ]
+                                [ viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
+                                ]
+                            , Form.col [ Col.xs6, Col.sm6 ]
+                                [ unitSelect model.bodyUnit SetBodyUnit
+                                ]
+                            ]
+                        ]
+                    ]
                 ]
             ]
         , Form.row []
-            [ Form.colLabel [ Col.md2 ] [ text "Equipment" ]
-            , Form.col [ Col.md4 ]
-                [ typedSelect [ Select.disabled True ]
-                    [ Option Raw "raw" "R"
-                    , Option SinglePly "single ply" "SP"
+            [ Form.col [ Col.xs12, Col.md6 ]
+                [ Form.row []
+                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Equipment" ]
+                    , Form.col [ Col.xs8, Col.sm9 ]
+                        [ typedSelect [ Select.disabled True ]
+                            [ Option Raw "raw" "R"
+                            , Option SinglePly "single ply" "SP"
+                            ]
+                            model.equipment
+                            SetEquipment
+                        ]
                     ]
-                    model.equipment
-                    SetEquipment
                 ]
-            , Form.colLabel [ Col.md2 ] [ text "Age" ]
-            , Form.col [ Col.md2 ]
-                [ viewFloatInput "ageInput" model.bodyMass.input SetAge ]
-            , Form.col [ Col.md2 ]
-                [ model |> modelToFeat |> canMakeFeat |> saveButton ]
+            , Form.col [ Col.xs12, Col.md6 ]
+                [ Form.row []
+                    [ Form.col [ Col.xs12, Col.sm7 ]
+                        [ Form.row []
+                            [ Form.colLabel [ Col.xs4, Col.sm5 ] [ text "Age" ]
+                            , Form.col [ Col.xs8, Col.sm7 ]
+                                [ viewFloatInput "ageInput" model.bodyMass.input SetAge
+                                ]
+                            ]
+                        ]
+                    , Form.col [ Col.xs12, Col.sm5 ]
+                        [ model |> modelToFeat |> canMakeFeat |> saveButton
+                        ]
+                    ]
+                ]
             ]
         ]
 
@@ -366,7 +409,7 @@ view model =
                         |> List.map
                             (columnToToggle model
                                 >> List.singleton
-                                >> Form.col [ Col.sm4, Col.md4 ]
+                                >> Form.col [ Col.xs6, Col.sm4, Col.md3, Col.lg3 ]
                             )
                     )
                 ]
@@ -386,6 +429,7 @@ viewFloatInput id v toMsg =
         [ Input.id id
         , Input.placeholder "0"
         , Input.onInput toMsg
+        , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
         ]
 
 

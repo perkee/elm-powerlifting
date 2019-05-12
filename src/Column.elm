@@ -30,10 +30,10 @@ initColumns =
     , LiftedPounds
     , BodyPounds
     , Wilks
-    , ScaledAllometric
     , Allometric
     , IPF
     , McCulloch
+    , ScaledAllometric
     ]
 
 
