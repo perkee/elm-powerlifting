@@ -27,7 +27,7 @@ rowsToHeadedTable titles rows =
 
     else
         Table.table
-            { options = [ Table.striped, Table.hover ]
+            { options = [ Table.striped, Table.hover, Table.small ]
             , thead =
                 Table.simpleThead
                     (titles |> List.map (H.text >> List.singleton >> Table.th []))

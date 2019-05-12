@@ -6,10 +6,12 @@ module Main exposing (main)
 import Array exposing (Array)
 import Bootstrap.Button as Button
 import Bootstrap.CDN as CDN
+import Bootstrap.Dropdown as Dropdown
 import Bootstrap.Form as Form
 import Bootstrap.Form.Checkbox as Checkbox
 import Bootstrap.Form.Fieldset as Fieldset
 import Bootstrap.Form.Input as Input
+import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Form.Select as Select
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
@@ -38,7 +40,12 @@ import Scores
 
 
 main =
-    Browser.sandbox { init = init, update = update, view = view }
+    Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.batch [ Dropdown.subscriptions model.liftedUnitState SetLiftedUnitState ]
 
 
 type alias FloatField =
@@ -64,8 +71,10 @@ initFloatField =
 type alias Model =
     { liftedMass : FloatField
     , liftedUnit : MassUnit
+    , liftedUnitState : Dropdown.State
     , bodyMass : FloatField
     , bodyUnit : MassUnit
+    , bodyUnitState : Dropdown.State
     , gender : Gender
     , lift : Lift
     , age : FloatField
@@ -75,19 +84,23 @@ type alias Model =
     }
 
 
-init : Model
-init =
-    { liftedMass = initFloatField
-    , liftedUnit = LBM
-    , bodyMass = initFloatField
-    , bodyUnit = LBM
-    , gender = GNC
-    , lift = Total
-    , age = initFloatField
-    , feats = Array.empty
-    , columns = initColumns
-    , equipment = Raw
-    }
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( { liftedMass = initFloatField
+      , liftedUnit = LBM
+      , liftedUnitState = Dropdown.initialState
+      , bodyMass = initFloatField
+      , bodyUnit = LBM
+      , bodyUnitState = Dropdown.initialState
+      , gender = GNC
+      , lift = Total
+      , age = initFloatField
+      , feats = Array.empty
+      , columns = initColumns
+      , equipment = Raw
+      }
+    , Cmd.none
+    )
 
 
 modelToFeat : Model -> Maybe Feat
@@ -126,8 +139,10 @@ canMakeFeat m =
 type Msg
     = SetLiftedMass String
     | SetLiftedUnit (Maybe MassUnit)
+    | SetLiftedUnitState Dropdown.State
     | SetBodyMass String
     | SetBodyUnit (Maybe MassUnit)
+    | SetBodyUnitState Dropdown.State
     | SetGender (Maybe Gender)
     | SetLift (Maybe Lift)
     | SetAge String
@@ -157,9 +172,9 @@ setNoteOnSavedFeat note feat =
     { feat | note = note }
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
+    ( case msg of
         SetLiftedMass s ->
             { model | liftedMass = ffParse s }
 
@@ -171,6 +186,9 @@ update msg model =
                 Nothing ->
                     model
 
+        SetLiftedUnitState state ->
+            { model | liftedUnitState = state }
+
         SetBodyMass s ->
             { model | bodyMass = ffParse s }
 
@@ -181,6 +199,9 @@ update msg model =
 
                 Nothing ->
                     model
+
+        SetBodyUnitState state ->
+            { model | bodyUnitState = state }
 
         SetGender mg ->
             case mg of
@@ -230,6 +251,8 @@ update msg model =
 
                 Nothing ->
                     model
+    , Cmd.none
+    )
 
 
 columnToToggle : Model -> Column -> Html Msg
@@ -289,6 +312,30 @@ fakeRow options children =
     children
 
 
+unitDropDown : Dropdown.State -> (Dropdown.State -> Msg) -> MassUnit -> (Maybe MassUnit -> Msg) -> InputGroup.Addon Msg
+unitDropDown state stateMsg massUnit unitMsg =
+    InputGroup.dropdown
+        state
+        { options = []
+        , toggleMsg = stateMsg
+        , toggleButton =
+            Dropdown.toggle [ Button.primary ]
+                [ (case massUnit of
+                    KG ->
+                        "Kilos"
+
+                    LBM ->
+                        "Pounds"
+                  )
+                    |> text
+                ]
+        , items =
+            [ Dropdown.buttonItem [ KG |> Just |> unitMsg |> onClick ] [ text "Kilos" ]
+            , Dropdown.buttonItem [ LBM |> Just |> unitMsg |> onClick ] [ text "Pounds" ]
+            ]
+        }
+
+
 lifterForm : Model -> Html Msg
 lifterForm model =
     Form.form []
@@ -330,11 +377,22 @@ lifterForm model =
                     [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Lifted weight" ]
                     , Form.col [ Col.xs8, Col.sm9 ]
                         [ Form.row []
-                            [ Form.col [ Col.xs6, Col.sm6 ]
-                                [ viewFloatInput "liftedInput" model.liftedMass.input SetLiftedMass
-                                ]
-                            , Form.col [ Col.xs6, Col.sm6 ]
-                                [ unitSelect model.liftedUnit SetLiftedUnit
+                            [ Form.col [ Col.xs12 ]
+                                [ InputGroup.config
+                                    (InputGroup.number
+                                        [ Input.placeholder "0"
+                                        , Input.onInput SetLiftedMass
+                                        , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
+                                        ]
+                                    )
+                                    |> InputGroup.successors
+                                        [ unitDropDown
+                                            model.liftedUnitState
+                                            SetLiftedUnitState
+                                            model.liftedUnit
+                                            SetLiftedUnit
+                                        ]
+                                    |> InputGroup.view
                                 ]
                             ]
                         ]
@@ -345,11 +403,22 @@ lifterForm model =
                     [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Bodyweight" ]
                     , Form.col [ Col.xs8, Col.sm9 ]
                         [ Form.row []
-                            [ Form.col [ Col.xs6, Col.sm6 ]
-                                [ viewFloatInput "bodyInput" model.bodyMass.input SetBodyMass
-                                ]
-                            , Form.col [ Col.xs6, Col.sm6 ]
-                                [ unitSelect model.bodyUnit SetBodyUnit
+                            [ Form.col [ Col.xs12 ]
+                                [ InputGroup.config
+                                    (InputGroup.number
+                                        [ Input.placeholder "0"
+                                        , Input.onInput SetBodyMass
+                                        , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
+                                        ]
+                                    )
+                                    |> InputGroup.successors
+                                        [ unitDropDown
+                                            model.bodyUnitState
+                                            SetBodyUnitState
+                                            model.bodyUnit
+                                            SetBodyUnit
+                                        ]
+                                    |> InputGroup.view
                                 ]
                             ]
                         ]
