@@ -4,6 +4,7 @@ module Main exposing (main)
 -- imports used
 
 import Array exposing (Array)
+import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
 import Bootstrap.CDN as CDN
 import Bootstrap.Dropdown as Dropdown
@@ -32,10 +33,6 @@ import Scores
     exposing
         ( Record
         , featToRecord
-        , featToString
-        , recordToCells
-        , recordToPara
-        , recordToTable
         )
 
 
@@ -138,10 +135,10 @@ canMakeFeat m =
 
 type Msg
     = SetLiftedMass String
-    | SetLiftedUnit (Maybe MassUnit)
+    | SetLiftedUnit MassUnit
     | SetLiftedUnitState Dropdown.State
     | SetBodyMass String
-    | SetBodyUnit (Maybe MassUnit)
+    | SetBodyUnit MassUnit
     | SetBodyUnitState Dropdown.State
     | SetGender (Maybe Gender)
     | SetLift (Maybe Lift)
@@ -178,13 +175,8 @@ update msg model =
         SetLiftedMass s ->
             { model | liftedMass = ffParse s }
 
-        SetLiftedUnit mu ->
-            case mu of
-                Just u ->
-                    { model | liftedUnit = u }
-
-                Nothing ->
-                    model
+        SetLiftedUnit u ->
+            { model | liftedUnit = u }
 
         SetLiftedUnitState state ->
             { model | liftedUnitState = state }
@@ -192,13 +184,8 @@ update msg model =
         SetBodyMass s ->
             { model | bodyMass = ffParse s }
 
-        SetBodyUnit mu ->
-            case mu of
-                Just u ->
-                    { model | bodyUnit = u }
-
-                Nothing ->
-                    model
+        SetBodyUnit u ->
+            { model | bodyUnit = u }
 
         SetBodyUnitState state ->
             { model | bodyUnitState = state }
@@ -269,22 +256,6 @@ columnToToggle model col =
         (col |> columnToToggleLabel)
 
 
-modelToScoresDom : Model -> Html Msg
-modelToScoresDom m =
-    div []
-        [ m |> modelToRecord |> recordToTable
-        , m.feats |> savedFeatsToTable (filterListByList m.columns initColumns)
-        ]
-
-
-unitSelect : MassUnit -> (Maybe MassUnit -> Msg) -> Html Msg
-unitSelect =
-    typedSelect []
-        [ Option KG "kilos" "KG"
-        , Option LBM "pounds" "LBM"
-        ]
-
-
 saveButton : Bool -> Html Msg
 saveButton canSave =
     Button.button
@@ -296,42 +267,32 @@ saveButton canSave =
             Button.secondary
         , Button.block
         , canSave |> not |> Button.disabled
+        , Button.small
         ]
-        [ (if canSave then
-            "Record"
-
-           else
-            "Type first!"
-          )
-            |> text
+        [ text "Add to Table"
         ]
 
 
-fakeRow : List any -> List other -> List other
-fakeRow options children =
-    children
-
-
-unitDropDown : Dropdown.State -> (Dropdown.State -> Msg) -> MassUnit -> (Maybe MassUnit -> Msg) -> InputGroup.Addon Msg
+unitDropDown : Dropdown.State -> (Dropdown.State -> Msg) -> MassUnit -> (MassUnit -> Msg) -> InputGroup.Addon Msg
 unitDropDown state stateMsg massUnit unitMsg =
     InputGroup.dropdown
         state
         { options = []
         , toggleMsg = stateMsg
         , toggleButton =
-            Dropdown.toggle [ Button.primary ]
-                [ (case massUnit of
-                    KG ->
-                        "Kilos"
+            (case massUnit of
+                KG ->
+                    "Kilos"
 
-                    LBM ->
-                        "Pounds"
-                  )
-                    |> text
-                ]
+                LBM ->
+                    "Pounds"
+            )
+                |> text
+                |> List.singleton
+                |> Dropdown.toggle [ Button.primary, Button.small ]
         , items =
-            [ Dropdown.buttonItem [ KG |> Just |> unitMsg |> onClick ] [ text "Kilos" ]
-            , Dropdown.buttonItem [ LBM |> Just |> unitMsg |> onClick ] [ text "Pounds" ]
+            [ Dropdown.buttonItem [ KG |> unitMsg |> onClick ] [ text "Kilos" ]
+            , Dropdown.buttonItem [ LBM |> unitMsg |> onClick ] [ text "Pounds" ]
             ]
         }
 
@@ -345,7 +306,7 @@ lifterForm model =
                 [ Form.row []
                     [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Gender" ]
                     , Form.col [ Col.xs8, Col.sm9 ]
-                        [ typedSelect []
+                        [ typedSelect [ Select.small ]
                             [ Option Male "man" "M"
                             , Option Female "woman" "F"
                             , Option GNC "lifter" "GNC"
@@ -359,7 +320,7 @@ lifterForm model =
                 [ Form.row []
                     [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Event" ]
                     , Form.col [ Col.xs8, Col.sm9 ]
-                        [ typedSelect []
+                        [ typedSelect [ Select.small ]
                             [ Option Total "totalled" "T"
                             , Option Squat "squatted" "S"
                             , Option Bench "benched" "B"
@@ -392,6 +353,7 @@ lifterForm model =
                                             model.liftedUnit
                                             SetLiftedUnit
                                         ]
+                                    |> InputGroup.small
                                     |> InputGroup.view
                                 ]
                             ]
@@ -418,6 +380,7 @@ lifterForm model =
                                             model.bodyUnit
                                             SetBodyUnit
                                         ]
+                                    |> InputGroup.small
                                     |> InputGroup.view
                                 ]
                             ]
@@ -426,30 +389,36 @@ lifterForm model =
                 ]
             ]
         , Form.row []
+            -- [ Form.col [ Col.xs12, Col.md6 ]
+            --     [ Form.row []
+            --         [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Equipment" ]
+            --         , Form.col [ Col.xs8, Col.sm9 ]
+            --             [ typedSelect [ Select.disabled True, Select.small ]
+            --                 [ Option Raw "raw" "R"
+            --                 , Option SinglePly "single ply" "SP"
+            --                 ]
+            --                 model.equipment
+            --                 SetEquipment
+            --             ]
+            --         ]
+            --     ]
             [ Form.col [ Col.xs12, Col.md6 ]
                 [ Form.row []
-                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Equipment" ]
-                    , Form.col [ Col.xs8, Col.sm9 ]
-                        [ typedSelect [ Select.disabled True ]
-                            [ Option Raw "raw" "R"
-                            , Option SinglePly "single ply" "SP"
-                            ]
-                            model.equipment
-                            SetEquipment
-                        ]
-                    ]
-                ]
-            , Form.col [ Col.xs12, Col.md6 ]
-                [ Form.row []
-                    [ Form.col [ Col.xs12, Col.sm7 ]
+                    [ Form.col [ Col.xs7, Col.sm7 ]
                         [ Form.row []
-                            [ Form.colLabel [ Col.xs4, Col.sm5 ] [ text "Age" ]
-                            , Form.col [ Col.xs8, Col.sm7 ]
-                                [ viewFloatInput "ageInput" model.bodyMass.input SetAge
+                            [ Form.colLabel [ Col.xs7, Col.sm5 ] [ text "Age" ]
+                            , Form.col [ Col.xs5, Col.sm7 ]
+                                [ Input.number
+                                    [ Input.placeholder "0"
+                                    , Input.onInput SetAge
+                                    , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
+                                    , Input.value model.age.input
+                                    , Input.small
+                                    ]
                                 ]
                             ]
                         ]
-                    , Form.col [ Col.xs12, Col.sm5 ]
+                    , Form.col [ Col.xs5, Col.sm5 ]
                         [ model |> modelToFeat |> canMakeFeat |> saveButton
                         ]
                     ]
@@ -462,12 +431,19 @@ view : Model -> Html Msg
 view model =
     div []
         [ Grid.container []
-            [ CDN.stylesheet -- creates an inline style node with the Bootstrap CSS
+            [ CDN.stylesheet
             , h1 [] [ text "Every Score Calculator" ]
             , lifterForm model
+            , h2 [] [ text "Current Score" ]
             , Grid.row []
-                [ Grid.col [ Col.sm12 ]
-                    [ model |> modelToRecord |> recordToTable ]
+                [ Grid.col [ Col.xs12 ]
+                    [ case model |> modelToFeat of
+                        Just feat ->
+                            featToTable initColumns feat
+
+                        Nothing ->
+                            Alert.simpleInfo [] [ text "Enter data to see all scores" ]
+                    ]
                 ]
             , Form.form []
                 [ h2 []
@@ -489,16 +465,6 @@ view model =
                     [ model.feats |> savedFeatsToTable (filterListByList model.columns initColumns) ]
                 ]
             ]
-        ]
-
-
-viewFloatInput : String -> String -> (String -> msg) -> Html msg
-viewFloatInput id v toMsg =
-    Input.number
-        [ Input.id id
-        , Input.placeholder "0"
-        , Input.onInput toMsg
-        , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
         ]
 
 
@@ -525,3 +491,17 @@ savedFeatToRow cols index savedFeat =
     ]
         |> List.concat
         |> htmlsToRow
+
+
+featToTable : List Column -> Feat -> Html Msg
+featToTable cols feat =
+    (feat |> featToRecord |> thrush |> List.map) (List.map columnToRecordToText cols)
+        |> List.map2
+            (\label value ->
+                Table.tr []
+                    [ label |> columnToToggleLabel |> text |> List.singleton |> Table.td []
+                    , value |> List.singleton |> Table.td []
+                    ]
+            )
+            cols
+        |> rowsToHeadedTable [ "Label", "Value" ]

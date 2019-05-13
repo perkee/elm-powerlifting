@@ -2,10 +2,6 @@ module Scores exposing
     ( Record
     , featToRecord
     , featToScores
-    , featToString
-    , recordToCells
-    , recordToPara
-    , recordToTable
     )
 
 import Array
@@ -64,25 +60,6 @@ featToRecord feat =
             }
 
 
-recordToCells : Record -> List (Html msg)
-recordToCells record =
-    [ [ .feat >> .liftedKilos
-      , .feat >> .bodyKilos
-      , .feat >> .liftedPounds
-      , .feat >> .bodyPounds
-      ]
-        |> List.map (thrush record >> floatToString >> H.text)
-    , [ .wilks
-      , .scaledAllometric
-      , .allometric
-      , .ipf
-      , .mcCulloch
-      ]
-        |> List.map (thrush record >> maybeFloatToString >> H.text)
-    ]
-        |> List.concat
-
-
 scoreToRecord : Score -> Record -> Record
 scoreToRecord score record =
     case score of
@@ -105,75 +82,6 @@ scoreToRecord score record =
             record
 
 
-scoreToPair : Score -> Maybe ( String, String )
-scoreToPair score =
-    case score of
-        Wilks s ->
-            Just ( "Wilks", floatToString s )
-
-        ScaledAllometric s ->
-            Just ( "Scaled Allometric", floatToString s )
-
-        Allometric s ->
-            Just ( "Allometric", floatToString s )
-
-        Ipf s ->
-            Just ( "IPF", floatToString s )
-
-        McCulloch s ->
-            Just ( "McCulloch", floatToString s )
-
-        NoScore ->
-            Nothing
-
-
-scoresToPairs : List Score -> List ( String, String )
-scoresToPairs =
-    List.foldr
-        (\score pairs ->
-            case scoreToPair score of
-                Just pair ->
-                    pair :: pairs
-
-                Nothing ->
-                    pairs
-        )
-        []
-
-
-recordToTableRows : Record -> List (Table.Row msg)
-recordToTableRows record =
-    [ featToStatsList record.feat
-    , featToMassesList record.feat
-    , record.feat |> featToScores |> scoresToPairs
-    ]
-        |> List.concat
-        |> listToRows
-
-
-recordToTable : Maybe Record -> Html msg
-recordToTable mr =
-    case mr of
-        Just record ->
-            record
-                |> recordToTableRows
-                |> rowsToHeadedTable [ "Label", "Score" ]
-
-        Nothing ->
-            H.div [] [ H.text "Cannot make a table" ]
-
-
-recordToPara : Maybe Record -> Html msg
-recordToPara =
-    Maybe.map
-        (.feat
-            >> featToScores
-            >> scoresToPairs
-            >> listToPara
-        )
-        >> Maybe.withDefault (H.div [] [ H.text "Cannot make a paragraph" ])
-
-
 featToScores : Feat -> List Score
 featToScores feat =
     [ wilks
@@ -183,102 +91,6 @@ featToScores feat =
     , mcCulloch
     ]
         |> List.map (thrush feat)
-
-
-featToMassesList : Feat -> List ( String, String )
-featToMassesList feat =
-    [ ( .bodyKilos, "Body mass (kg)" )
-    , ( .bodyPounds, "Body mass (lb)" )
-    , ( .liftedKilos, "Lifted mass (kg)" )
-    , ( .liftedPounds, "Lifted mass (lb)" )
-    ]
-        |> List.map
-            (\( getter, label ) ->
-                feat
-                    |> getter
-                    |> floatToString
-                    |> (\score -> ( label, score ))
-            )
-
-
-featToStatsList : Feat -> List ( String, String )
-featToStatsList feat =
-    [ ( "Gender"
-      , case feat.gender of
-            Male ->
-                "Male"
-
-            Female ->
-                "Female"
-
-            GNC ->
-                "Other"
-      )
-    , ( "Lift"
-      , case feat.lift of
-            Squat ->
-                "Squat"
-
-            Bench ->
-                "Bench"
-
-            Deadlift ->
-                "Deadlift"
-
-            Total ->
-                "Total"
-      )
-    ]
-
-
-listToRows : List ( String, String ) -> List (Table.Row msg)
-listToRows =
-    List.map
-        (\( label, score ) ->
-            Table.tr []
-                [ label |> H.text >> List.singleton |> Table.td []
-                , score |> H.text >> List.singleton |> Table.td []
-                ]
-        )
-
-
-listToPara : List ( String, String ) -> Html msg
-listToPara list =
-    List.map
-        (\( label, score ) ->
-            label ++ ": " ++ score
-        )
-        list
-        |> String.join ", "
-        |> H.text
-        |> List.singleton
-        |> H.div []
-
-
-unitSeparatorSpace : String
-unitSeparatorSpace =
-    String.fromChar '\u{200A}'
-
-
-featToString : Feat -> String
-featToString feat =
-    feat
-        |> featToScores
-        |> scoresToPairs
-        |> List.map (\( label, score ) -> label ++ ": " ++ score)
-        |> String.join ", "
-        |> (++)
-            (floatToString feat.liftedKilos
-                ++ " @ "
-                ++ floatToString feat.bodyKilos
-                ++ unitSeparatorSpace
-                ++ "kg ("
-                ++ floatToString feat.liftedPounds
-                ++ " @ "
-                ++ floatToString feat.bodyPounds
-                ++ unitSeparatorSpace
-                ++ "lb) = "
-            )
 
 
 
@@ -454,15 +266,6 @@ wilks m =
 
         Nothing ->
             NoScore
-
-
-
--- Nuckols
-
-
-nuckols : Feat -> Float
-nuckols m =
-    0
 
 
 
