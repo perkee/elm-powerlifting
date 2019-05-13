@@ -4,9 +4,10 @@ module Main exposing (main)
 -- imports used
 
 import Array exposing (Array)
+import Bootstrap.Accordion as Accordion
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
-import Bootstrap.CDN as CDN
+import Bootstrap.Card.Block as Block
 import Bootstrap.Dropdown as Dropdown
 import Bootstrap.Form as Form
 import Bootstrap.Form.Checkbox as Checkbox
@@ -42,7 +43,10 @@ main =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch [ Dropdown.subscriptions model.liftedUnitState SetLiftedUnitState ]
+    Sub.batch
+        [ Dropdown.subscriptions model.liftedUnitState SetLiftedUnitState
+        , Accordion.subscriptions model.tableAccordionState SetTableAccordion
+        ]
 
 
 type alias FloatField =
@@ -78,6 +82,7 @@ type alias Model =
     , feats : Array SavedFeat
     , columns : List Column
     , equipment : Equipment
+    , tableAccordionState : Accordion.State
     }
 
 
@@ -95,6 +100,7 @@ init _ =
       , feats = Array.empty
       , columns = initColumns
       , equipment = Raw
+      , tableAccordionState = Accordion.initialState
       }
     , Cmd.none
     )
@@ -147,6 +153,7 @@ type Msg
     | SetNote Int String
     | ToggleColumn Column Bool
     | SetEquipment (Maybe Equipment)
+    | SetTableAccordion Accordion.State
 
 
 ffValue : FloatField -> Float
@@ -238,6 +245,9 @@ update msg model =
 
                 Nothing ->
                     model
+
+        SetTableAccordion state ->
+            { model | tableAccordionState = state }
     , Cmd.none
     )
 
@@ -301,7 +311,7 @@ lifterForm : Model -> Html Msg
 lifterForm model =
     Form.form []
         [ h2 [] [ text "Lift input" ]
-        , Form.row []
+        , Form.row [ Row.attrs [ class " mb-0" ] ]
             [ Form.col [ Col.xs12, Col.md6 ]
                 [ Form.row []
                     [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Gender" ]
@@ -332,31 +342,27 @@ lifterForm model =
                     ]
                 ]
             ]
-        , Form.row []
+        , Form.row [ Row.attrs [ class " mb-0" ] ]
             [ Form.col [ Col.xs12, Col.md6 ]
                 [ Form.row []
                     [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Lifted weight" ]
                     , Form.col [ Col.xs8, Col.sm9 ]
-                        [ Form.row []
-                            [ Form.col [ Col.xs12 ]
-                                [ InputGroup.config
-                                    (InputGroup.number
-                                        [ Input.placeholder "0"
-                                        , Input.onInput SetLiftedMass
-                                        , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
-                                        ]
-                                    )
-                                    |> InputGroup.successors
-                                        [ unitDropDown
-                                            model.liftedUnitState
-                                            SetLiftedUnitState
-                                            model.liftedUnit
-                                            SetLiftedUnit
-                                        ]
-                                    |> InputGroup.small
-                                    |> InputGroup.view
+                        [ InputGroup.config
+                            (InputGroup.number
+                                [ Input.placeholder "0"
+                                , Input.onInput SetLiftedMass
+                                , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
                                 ]
-                            ]
+                            )
+                            |> InputGroup.successors
+                                [ unitDropDown
+                                    model.liftedUnitState
+                                    SetLiftedUnitState
+                                    model.liftedUnit
+                                    SetLiftedUnit
+                                ]
+                            |> InputGroup.small
+                            |> InputGroup.view
                         ]
                     ]
                 ]
@@ -364,31 +370,27 @@ lifterForm model =
                 [ Form.row []
                     [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Bodyweight" ]
                     , Form.col [ Col.xs8, Col.sm9 ]
-                        [ Form.row []
-                            [ Form.col [ Col.xs12 ]
-                                [ InputGroup.config
-                                    (InputGroup.number
-                                        [ Input.placeholder "0"
-                                        , Input.onInput SetBodyMass
-                                        , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
-                                        ]
-                                    )
-                                    |> InputGroup.successors
-                                        [ unitDropDown
-                                            model.bodyUnitState
-                                            SetBodyUnitState
-                                            model.bodyUnit
-                                            SetBodyUnit
-                                        ]
-                                    |> InputGroup.small
-                                    |> InputGroup.view
+                        [ InputGroup.config
+                            (InputGroup.number
+                                [ Input.placeholder "0"
+                                , Input.onInput SetBodyMass
+                                , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
                                 ]
-                            ]
+                            )
+                            |> InputGroup.successors
+                                [ unitDropDown
+                                    model.bodyUnitState
+                                    SetBodyUnitState
+                                    model.bodyUnit
+                                    SetBodyUnit
+                                ]
+                            |> InputGroup.small
+                            |> InputGroup.view
                         ]
                     ]
                 ]
             ]
-        , Form.row []
+        , Form.row [ Row.attrs [ class " mb-0" ] ]
             -- [ Form.col [ Col.xs12, Col.md6 ]
             --     [ Form.row []
             --         [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Equipment" ]
@@ -431,8 +433,7 @@ view : Model -> Html Msg
 view model =
     div []
         [ Grid.container []
-            [ CDN.stylesheet
-            , h1 [] [ text "Every Score Calculator" ]
+            [ h1 [] [ text "Every Score Calculator" ]
             , lifterForm model
             , h2 [] [ text "Current Score" ]
             , Grid.row []
@@ -448,15 +449,46 @@ view model =
             , Form.form []
                 [ h2 []
                     [ text "Display columns" ]
-                , Form.row
-                    []
-                    (initColumns
-                        |> List.map
-                            (columnToToggle model
-                                >> List.singleton
-                                >> Form.col [ Col.xs6, Col.sm4, Col.md3, Col.lg3 ]
-                            )
-                    )
+                , Accordion.config SetTableAccordion
+                    |> Accordion.withAnimation
+                    |> Accordion.cards
+                        [ Accordion.card
+                            { id = "table-column-toggles"
+                            , options = []
+                            , header =
+                                Accordion.toggle [] [ text "Table Options" ]
+                                    |> Accordion.headerH2 []
+                                    |> Accordion.prependHeader
+                                        [ span
+                                            [ (if Accordion.isOpen "table-column-toggles" model.tableAccordionState then
+                                                "fa fa-chevron-down"
+
+                                               else
+                                                "fa fa-chevron-up"
+                                              )
+                                                |> class
+                                            ]
+                                            []
+                                        ]
+                            , blocks =
+                                [ Accordion.block []
+                                    [ Block.titleH4 [] [ text "Toggle Columns" ]
+                                    , Block.text []
+                                        [ Form.row
+                                            []
+                                            (initColumns
+                                                |> List.map
+                                                    (columnToToggle model
+                                                        >> List.singleton
+                                                        >> Form.col [ Col.xs6, Col.sm4, Col.md3, Col.lg3 ]
+                                                    )
+                                            )
+                                        ]
+                                    ]
+                                ]
+                            }
+                        ]
+                    |> Accordion.view model.tableAccordionState
                 ]
             ]
         , Grid.containerFluid []
