@@ -46,6 +46,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Dropdown.subscriptions model.liftedUnitState SetLiftedUnitState
+        , Dropdown.subscriptions model.bodyUnitState SetBodyUnitState
         , Accordion.subscriptions model.tableAccordionState SetTableAccordion
         , Accordion.subscriptions model.currentAccordionState SetCurrentAccordion
         ]
