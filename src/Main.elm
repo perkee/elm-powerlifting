@@ -7,6 +7,7 @@ import Array exposing (Array)
 import Bootstrap.Accordion as Accordion
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
+import Bootstrap.Card as Card
 import Bootstrap.Card.Block as Block
 import Bootstrap.Dropdown as Dropdown
 import Bootstrap.Form as Form
@@ -46,6 +47,7 @@ subscriptions model =
     Sub.batch
         [ Dropdown.subscriptions model.liftedUnitState SetLiftedUnitState
         , Accordion.subscriptions model.tableAccordionState SetTableAccordion
+        , Accordion.subscriptions model.currentAccordionState SetCurrentAccordion
         ]
 
 
@@ -80,8 +82,10 @@ type alias Model =
     , lift : Lift
     , age : FloatField
     , feats : Array SavedFeat
-    , columns : List Column
+    , currentColumns : List Column
+    , tableColumns : List Column
     , equipment : Equipment
+    , currentAccordionState : Accordion.State
     , tableAccordionState : Accordion.State
     }
 
@@ -98,9 +102,11 @@ init _ =
       , lift = Total
       , age = initFloatField
       , feats = Array.empty
-      , columns = initColumns
+      , currentColumns = initColumns
+      , tableColumns = initColumns
       , equipment = Raw
       , tableAccordionState = Accordion.initialState
+      , currentAccordionState = Accordion.initialState
       }
     , Cmd.none
     )
@@ -151,9 +157,11 @@ type Msg
     | SetAge String
     | SaveFeat
     | SetNote Int String
-    | ToggleColumn Column Bool
+    | ToggleTableColumn Column Bool
+    | ToggleCurrentColumn Column Bool
     | SetEquipment (Maybe Equipment)
     | SetTableAccordion Accordion.State
+    | SetCurrentAccordion Accordion.State
 
 
 ffValue : FloatField -> Float
@@ -227,16 +235,27 @@ update msg model =
         SetNote index note ->
             { model | feats = updateArrayAt index (setNoteOnSavedFeat note) model.feats }
 
-        ToggleColumn col checked ->
+        ToggleTableColumn col checked ->
             let
                 newColumns =
                     if checked then
-                        col :: model.columns
+                        col :: model.tableColumns
 
                     else
-                        List.filter ((/=) col) model.columns
+                        List.filter ((/=) col) model.tableColumns
             in
-            { model | columns = newColumns }
+            { model | tableColumns = newColumns }
+
+        ToggleCurrentColumn col checked ->
+            let
+                newColumns =
+                    if checked then
+                        col :: model.currentColumns
+
+                    else
+                        List.filter ((/=) col) model.currentColumns
+            in
+            { model | currentColumns = newColumns }
 
         SetEquipment me ->
             case me of
@@ -248,19 +267,23 @@ update msg model =
 
         SetTableAccordion state ->
             { model | tableAccordionState = state }
+
+        SetCurrentAccordion state ->
+            { model | currentAccordionState = state }
     , Cmd.none
     )
 
 
-columnToToggle : Model -> Column -> Html Msg
-columnToToggle model col =
+columnToToggle : String -> (Column -> Bool -> Msg) -> List Column -> Column -> Html Msg
+columnToToggle prefix msg columns col =
     Checkbox.checkbox
         [ col
             |> columnToToggleLabel
+            |> (++) prefix
             |> Checkbox.id
         , Checkbox.onCheck <|
-            ToggleColumn col
-        , Checkbox.checked <| List.member col model.columns
+            msg col
+        , Checkbox.checked <| List.member col columns
         , Checkbox.inline
         ]
         (col |> columnToToggleLabel)
@@ -317,9 +340,9 @@ lifterForm model =
                     [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Gender" ]
                     , Form.col [ Col.xs8, Col.sm9 ]
                         [ typedSelect [ Select.small ]
-                            [ Option Male "man" "M"
-                            , Option Female "woman" "F"
-                            , Option GNC "lifter" "GNC"
+                            [ Option Male "Male" "M"
+                            , Option Female "Female" "F"
+                            , Option GNC "—" "GNC"
                             ]
                             model.gender
                             SetGender
@@ -331,10 +354,10 @@ lifterForm model =
                     [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Event" ]
                     , Form.col [ Col.xs8, Col.sm9 ]
                         [ typedSelect [ Select.small ]
-                            [ Option Total "totalled" "T"
-                            , Option Squat "squatted" "S"
-                            , Option Bench "benched" "B"
-                            , Option Deadlift "deadlifted" "D"
+                            [ Option Total "Total" "T"
+                            , Option Squat "Squat" "S"
+                            , Option Bench "Bench" "B"
+                            , Option Deadlift "Deadlift" "D"
                             ]
                             model.lift
                             SetLift
@@ -429,6 +452,52 @@ lifterForm model =
         ]
 
 
+accordion : Accordion.State -> (Accordion.State -> Msg) -> String -> List Column -> (Column -> Bool -> Msg) -> String -> Html Msg
+accordion state toggleAccordionMsg id columns toggleColumnMsg title =
+    Accordion.config toggleAccordionMsg
+        |> Accordion.withAnimation
+        |> Accordion.cards
+            [ Accordion.card
+                { id = id
+                , options = []
+                , header =
+                    Accordion.toggle [ class "btn-block" ]
+                        [ span
+                            [ (if Accordion.isOpen id state then
+                                "fa fa-chevron-down"
+
+                               else
+                                "fa fa-chevron-up"
+                              )
+                                |> class
+                            , style "float" "left"
+                            , style "padding" ".125em 0 0 0"
+                            ]
+                            []
+                        , text title
+                        ]
+                        |> Accordion.header [ style "padding" "0" ]
+                , blocks =
+                    [ Accordion.block []
+                        [ Block.titleH4 [] [ text "Toggle Fields" ]
+                        , Block.text []
+                            [ Form.row
+                                []
+                                (initColumns
+                                    |> List.map
+                                        (columnToToggle id toggleColumnMsg columns
+                                            >> List.singleton
+                                            >> Form.col [ Col.xs6, Col.sm4, Col.md3, Col.lg3 ]
+                                        )
+                                )
+                            ]
+                        ]
+                    ]
+                }
+            ]
+        |> Accordion.view state
+
+
 view : Model -> Html Msg
 view model =
     div []
@@ -438,63 +507,39 @@ view model =
             , h2 [] [ text "Current Score" ]
             , Grid.row []
                 [ Grid.col [ Col.xs12 ]
-                    [ case model |> modelToFeat of
+                    (case model |> modelToFeat of
                         Just feat ->
-                            featToTable initColumns feat
+                            [ accordion
+                                model.currentAccordionState
+                                SetCurrentAccordion
+                                "current-column-toggles"
+                                model.currentColumns
+                                ToggleCurrentColumn
+                                "Current Scores Options"
+                            , featToTable model.currentColumns feat
+                            ]
 
                         Nothing ->
-                            Alert.simpleInfo [] [ text "Enter data to see all scores" ]
-                    ]
+                            [ Alert.simpleInfo [] [ text "Enter data to see all scores for a lift" ] ]
+                    )
                 ]
-            , Form.form []
-                [ h2 []
-                    [ text "Display columns" ]
-                , Accordion.config SetTableAccordion
-                    |> Accordion.withAnimation
-                    |> Accordion.cards
-                        [ Accordion.card
-                            { id = "table-column-toggles"
-                            , options = []
-                            , header =
-                                Accordion.toggle [] [ text "Table Options" ]
-                                    |> Accordion.headerH2 []
-                                    |> Accordion.prependHeader
-                                        [ span
-                                            [ (if Accordion.isOpen "table-column-toggles" model.tableAccordionState then
-                                                "fa fa-chevron-down"
+            , h2 [] [ text "Scores Table" ]
+            , if Array.isEmpty model.feats then
+                Alert.simpleInfo [] [ text "Add scores to the table to compare" ]
 
-                                               else
-                                                "fa fa-chevron-up"
-                                              )
-                                                |> class
-                                            ]
-                                            []
-                                        ]
-                            , blocks =
-                                [ Accordion.block []
-                                    [ Block.titleH4 [] [ text "Toggle Columns" ]
-                                    , Block.text []
-                                        [ Form.row
-                                            []
-                                            (initColumns
-                                                |> List.map
-                                                    (columnToToggle model
-                                                        >> List.singleton
-                                                        >> Form.col [ Col.xs6, Col.sm4, Col.md3, Col.lg3 ]
-                                                    )
-                                            )
-                                        ]
-                                    ]
-                                ]
-                            }
-                        ]
-                    |> Accordion.view model.tableAccordionState
-                ]
+              else
+                accordion
+                    model.tableAccordionState
+                    SetTableAccordion
+                    "table-column-toggles"
+                    model.tableColumns
+                    ToggleTableColumn
+                    "Table Options"
             ]
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [ Col.sm12 ]
-                    [ model.feats |> savedFeatsToTable (filterListByList model.columns initColumns) ]
+                    [ model.feats |> savedFeatsToTable (filterListByList model.tableColumns initColumns) ]
                 ]
             ]
         ]
@@ -516,7 +561,15 @@ savedFeatsToTable cols =
 savedFeatToRow : List Column -> Int -> SavedFeat -> Table.Row Msg
 savedFeatToRow cols index savedFeat =
     [ [ .index >> String.fromInt >> text
-      , .note >> (\v -> Input.text [ Input.placeholder "Note", Input.value v, Input.onInput (SetNote index) ])
+      , .note
+            >> (\v ->
+                    Input.text
+                        [ Input.placeholder "Note"
+                        , Input.value v
+                        , Input.onInput (SetNote index)
+                        , Input.attrs [ style "min-width" "7em" ]
+                        ]
+               )
       ]
         |> List.map (thrush savedFeat)
     , (savedFeat.feat |> featToRecord |> thrush |> List.map) (List.map columnToRecordToText cols)
