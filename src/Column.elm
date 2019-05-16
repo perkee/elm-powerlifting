@@ -1,7 +1,17 @@
-module Column exposing (Column(..), columnToRecordToText, columnToToggleLabel, initColumns)
+module Column exposing
+    ( Column(..)
+    , allColumns
+    , columnToRecordToText
+    , columnToRecordToTextWithMaxes
+    , columnToToggleLabel
+    , initCurrentColumns
+    , initTableColumns
+    )
 
+import Bootstrap.Progress as Progress
 import Feat exposing (genderToString, liftToString)
 import Html as H exposing (Html)
+import Html.Attributes as HA
 import Library exposing (thrush)
 import Renderer exposing (floatToString, maybeFloatToString, rowsToHeadedTable, textual)
 import Scores exposing (Record)
@@ -21,8 +31,8 @@ type Column
     | Lift
 
 
-initColumns : List Column
-initColumns =
+allColumns : List Column
+allColumns =
     [ Gender
     , Lift
     , LiftedKilos
@@ -34,6 +44,35 @@ initColumns =
     , IPF
     , McCulloch
     , ScaledAllometric
+    ]
+
+
+initCurrentColumns : List Column
+initCurrentColumns =
+    [ Gender
+    , Lift
+    , LiftedKilos
+    , BodyKilos
+    , LiftedPounds
+    , BodyPounds
+    , Wilks
+    , Allometric
+    , IPF
+    , McCulloch
+    , ScaledAllometric
+    ]
+
+
+initTableColumns : List Column
+initTableColumns =
+    [ Gender
+    , Lift
+    , LiftedKilos
+    , BodyKilos
+    , Wilks
+    , IPF
+    , ScaledAllometric
+    , Allometric
     ]
 
 
@@ -72,6 +111,61 @@ columnToToggleLabel column =
 
         McCulloch ->
             "McCulloch"
+
+
+floatToProgress : Float -> Float -> Html msg
+floatToProgress max val =
+    Progress.progress
+        [ (val / max * 100) |> Progress.value
+        , val |> floatToString |> Progress.label
+        ]
+
+
+maybeFloatToProgress : Maybe Float -> Maybe Float -> Html msg
+maybeFloatToProgress maybeMax maybeVal =
+    case ( maybeMax, maybeVal ) of
+        ( Just max, Just val ) ->
+            floatToProgress max val
+
+        ( _, anyVal ) ->
+            maybeFloatToString anyVal |> H.text
+
+
+columnToRecordToTextWithMaxes : Record -> Column -> Record -> Html msg
+columnToRecordToTextWithMaxes maxes column =
+    case column of
+        Gender ->
+            .feat >> .gender >> genderToString >> H.text
+
+        Lift ->
+            .feat >> .lift >> liftToString >> H.text
+
+        LiftedKilos ->
+            .feat >> .liftedKilos >> floatToProgress maxes.feat.liftedKilos
+
+        BodyKilos ->
+            .feat >> .bodyKilos >> floatToProgress maxes.feat.bodyKilos
+
+        LiftedPounds ->
+            .feat >> .liftedPounds >> floatToProgress maxes.feat.liftedPounds
+
+        BodyPounds ->
+            .feat >> .bodyPounds >> floatToProgress maxes.feat.bodyPounds
+
+        Wilks ->
+            .wilks >> maybeFloatToProgress maxes.wilks
+
+        ScaledAllometric ->
+            .scaledAllometric >> maybeFloatToProgress maxes.scaledAllometric
+
+        Allometric ->
+            .allometric >> maybeFloatToProgress maxes.allometric
+
+        IPF ->
+            .ipf >> maybeFloatToProgress maxes.ipf
+
+        McCulloch ->
+            .mcCulloch >> maybeFloatToProgress maxes.mcCulloch
 
 
 columnToRecordToText : Column -> Record -> Html msg

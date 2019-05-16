@@ -21,7 +21,16 @@ import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
 import Bootstrap.Table as Table
 import Browser
-import Column exposing (Column, columnToRecordToText, columnToToggleLabel, initColumns)
+import Column
+    exposing
+        ( Column
+        , allColumns
+        , columnToRecordToText
+        , columnToRecordToTextWithMaxes
+        , columnToToggleLabel
+        , initCurrentColumns
+        , initTableColumns
+        )
 import Dropdowns exposing (Option, typedSelect)
 import Feat exposing (Equipment(..), Feat, Gender(..), Lift(..), MassUnit(..), genderToString, massToKilos, massToPounds)
 import Html exposing (..)
@@ -35,6 +44,7 @@ import Scores
     exposing
         ( Record
         , featToRecord
+        , maxRecord
         )
 
 
@@ -103,8 +113,8 @@ init _ =
       , lift = Total
       , age = initFloatField
       , feats = Array.empty
-      , currentColumns = initColumns
-      , tableColumns = initColumns
+      , currentColumns = initCurrentColumns
+      , tableColumns = initTableColumns
       , equipment = Raw
       , tableAccordionState = Accordion.initialState
       , currentAccordionState = Accordion.initialState
@@ -484,7 +494,7 @@ accordion state toggleAccordionMsg id columns toggleColumnMsg title =
                         , Block.text []
                             [ Form.row
                                 []
-                                (initColumns
+                                (allColumns
                                     |> List.map
                                         (columnToToggle id toggleColumnMsg columns
                                             >> List.singleton
@@ -540,15 +550,20 @@ view model =
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [ Col.sm12 ]
-                    [ model.feats |> savedFeatsToTable (filterListByList model.tableColumns initColumns) ]
+                    [ model.feats |> savedFeatsToTable (filterListByList model.tableColumns allColumns) ]
                 ]
             ]
         ]
 
 
 savedFeatsToTable : List Column -> Array SavedFeat -> Html Msg
-savedFeatsToTable cols =
-    Array.indexedMap (savedFeatToRow cols)
+savedFeatsToTable cols savedFeats =
+    let
+        maxes =
+            savedFeats |> Array.toList |> List.map (.feat >> featToRecord) |> maxRecord
+    in
+    savedFeats
+        |> Array.indexedMap (savedFeatToRow cols maxes)
         >> Array.toList
         >> rowsToHeadedTable
             ("Index"
@@ -559,8 +574,8 @@ savedFeatsToTable cols =
             )
 
 
-savedFeatToRow : List Column -> Int -> SavedFeat -> Table.Row Msg
-savedFeatToRow cols index savedFeat =
+savedFeatToRow : List Column -> Record -> Int -> SavedFeat -> Table.Row Msg
+savedFeatToRow cols maxes index savedFeat =
     [ [ .index >> String.fromInt >> text
       , .note
             >> (\v ->
@@ -573,7 +588,7 @@ savedFeatToRow cols index savedFeat =
                )
       ]
         |> List.map (thrush savedFeat)
-    , (savedFeat.feat |> featToRecord |> thrush |> List.map) (List.map columnToRecordToText cols)
+    , (savedFeat.feat |> featToRecord |> thrush |> List.map) (List.map (columnToRecordToTextWithMaxes maxes) cols)
     ]
         |> List.concat
         |> htmlsToRow

@@ -2,6 +2,7 @@ module Scores exposing
     ( Record
     , featToRecord
     , featToScores
+    , maxRecord
     )
 
 import Array
@@ -32,7 +33,12 @@ type Score
 
 
 type alias Scores =
-    List Score
+    { wilks : Maybe Float
+    , scaledAllometric : Maybe Float
+    , allometric : Maybe Float
+    , ipf : Maybe Float
+    , mcCulloch : Maybe Float
+    }
 
 
 type alias Record =
@@ -91,6 +97,61 @@ featToScores feat =
     , mcCulloch
     ]
         |> List.map (thrush feat)
+
+
+maybeMax : Maybe Float -> Maybe Float -> Maybe Float
+maybeMax current new =
+    case ( current, new ) of
+        ( Just c, Just n ) ->
+            Just (max c n)
+
+        ( Nothing, Just n ) ->
+            Just n
+
+        ( x, Nothing ) ->
+            x
+
+
+maxFeat : Feat -> Feat -> Feat
+maxFeat current new =
+    { bodyKilos = max current.bodyKilos new.bodyKilos
+    , bodyPounds = max current.bodyPounds new.bodyPounds
+    , liftedKilos = max current.liftedKilos new.liftedKilos
+    , liftedPounds = max current.liftedPounds new.liftedPounds
+    , gender = GNC
+    , lift = Total
+    , age = maybeMax current.age new.age
+    }
+
+
+maxRecord : List Record -> Record
+maxRecord =
+    List.foldl
+        (\maxes record ->
+            { maxes
+                | wilks = maybeMax maxes.wilks record.wilks
+                , scaledAllometric = maybeMax maxes.scaledAllometric record.scaledAllometric
+                , allometric = maybeMax maxes.allometric record.allometric
+                , ipf = maybeMax maxes.ipf record.ipf
+                , mcCulloch = maybeMax maxes.mcCulloch record.mcCulloch
+                , feat = maxFeat maxes.feat record.feat
+            }
+        )
+        { feat =
+            { bodyKilos = -1 / 0
+            , bodyPounds = -1 / 0
+            , liftedKilos = -1 / 0
+            , liftedPounds = -1 / 0
+            , gender = GNC
+            , lift = Total
+            , age = Nothing
+            }
+        , wilks = Nothing
+        , scaledAllometric = Nothing
+        , allometric = Nothing
+        , ipf = Nothing
+        , mcCulloch = Nothing
+        }
 
 
 
