@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Multiple score calculator by @perkee</title>
+  <title>Powerlifting score calculator by @perkee</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/elm-runtime/0.8.0.3/elm-runtime.min.js" integrity="sha256-yQpjZ3rJmpdBZ5JdBrHNjTVP8G+52xqmFiseMV/HDdM=" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.8.2/css/all.min.css" integrity="sha256-BtbhCIbtfeVWGsqxk1vOHEYXS6qcvQvLMZqjtpWUEx8=" crossorigin="anonymous" />
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
@@ -12,6 +12,32 @@
     .progress {
       height: 100%;
       min-height: 2em;
+    }
+    .table .body-cell--index {
+      vertical-align: middle;
+      text-align: center;
+      font-size: 1.2em;
+    }
+    .body-cell--note,
+    .title-cell--note{
+      min-width: 7em;
+      max-width: 12em;
+    }
+    .note-input {
+      min-width: 7em;
+      max-width: 12em;
+      width: 100%;
+    }
+    .body-cell--wilks,
+    .body-cell--allo,
+    .body-cell--ipf,
+    .body-cell--cs-allo
+    .body-cell--mcculloch {
+      min-width: 7em;
+    }
+    .progress-bar {
+      text-align: left;
+      padding: 0 0 0 .75em;
     }
   </style>
 </head>

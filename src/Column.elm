@@ -1,6 +1,7 @@
 module Column exposing
     ( Column(..)
     , allColumns
+    , columnToColumnLabel
     , columnToRecordToText
     , columnToRecordToTextWithMaxes
     , columnToToggleLabel
@@ -74,6 +75,29 @@ initTableColumns =
     , ScaledAllometric
     , Allometric
     ]
+
+
+unitSeparatorSpace =
+    String.fromChar '\u{200A}'
+
+
+columnToColumnLabel : Column -> String
+columnToColumnLabel column =
+    case column of
+        BodyKilos ->
+            "BW" ++ unitSeparatorSpace ++ "(kg)"
+
+        BodyPounds ->
+            "BW" ++ unitSeparatorSpace ++ "(lb)"
+
+        ScaledAllometric ->
+            "Sc. Allo."
+
+        Allometric ->
+            "Allo."
+
+        x ->
+            columnToToggleLabel x
 
 
 columnToToggleLabel : Column -> String

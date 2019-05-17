@@ -2,7 +2,8 @@ module Renderer exposing (floatToString, htmlsToRow, maybeFloatToString, rowsToH
 
 import Bootstrap.Table as Table
 import Html as H exposing (Html)
-import Library exposing (truncate)
+import Html.Attributes as HA
+import Library exposing (stringToAttr, truncate)
 
 
 
@@ -20,6 +21,17 @@ htmlsToRow =
         >> Table.tr []
 
 
+stringToHeaderCell : String -> Table.Cell msg
+stringToHeaderCell title =
+    let
+        class =
+            title
+                |> stringToAttr
+                |> (++) "title-cell--"
+    in
+    title |> H.text |> List.singleton |> Table.th [ Table.cellAttr (HA.class class) ]
+
+
 rowsToHeadedTable : List String -> List (Table.Row msg) -> Html msg
 rowsToHeadedTable titles rows =
     if List.isEmpty rows then
@@ -30,7 +42,7 @@ rowsToHeadedTable titles rows =
             { options = [ Table.striped, Table.hover, Table.small ]
             , thead =
                 Table.simpleThead
-                    (titles |> List.map (H.text >> List.singleton >> Table.th []))
+                    (titles |> List.map stringToHeaderCell)
             , tbody = Table.tbody [] rows
             }
 

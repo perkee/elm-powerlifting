@@ -25,6 +25,7 @@ import Column
     exposing
         ( Column
         , allColumns
+        , columnToColumnLabel
         , columnToRecordToText
         , columnToRecordToTextWithMaxes
         , columnToToggleLabel
@@ -38,7 +39,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (on, onCheck, onClick, onInput, targetValue)
 import Json.Decode as Json
 import Json.Encode as JE
-import Library exposing (filterListByList, thrush, updateArrayAt)
+import Library exposing (filterListByList, stringToAttr, thrush, updateArrayAt)
 import Renderer exposing (htmlsToRow, rowsToHeadedTable, textual)
 import Scores
     exposing
@@ -101,18 +102,60 @@ type alias Model =
     }
 
 
+someFeats : Array SavedFeat
+someFeats =
+    Array.fromList
+        [ { index = 0
+          , note = "first"
+          , feat =
+                { bodyKilos = 100
+                , bodyPounds = 220
+                , liftedKilos = 400
+                , liftedPounds = 881
+                , gender = Male
+                , lift = Total
+                , age = Just 40
+                }
+          }
+        , { index = 2
+          , note = "second"
+          , feat =
+                { bodyKilos = 70
+                , bodyPounds = 154
+                , liftedKilos = 500
+                , liftedPounds = 1101
+                , gender = Male
+                , lift = Total
+                , age = Just 45
+                }
+          }
+        , { index = 3
+          , note = "third"
+          , feat =
+                { bodyKilos = 60
+                , bodyPounds = 132
+                , liftedKilos = 505
+                , liftedPounds = 1112
+                , gender = Male
+                , lift = Total
+                , age = Just 50
+                }
+          }
+        ]
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { liftedMass = initFloatField
-      , liftedUnit = LBM
+      , liftedUnit = KG
       , liftedUnitState = Dropdown.initialState
       , bodyMass = initFloatField
-      , bodyUnit = LBM
+      , bodyUnit = KG
       , bodyUnitState = Dropdown.initialState
       , gender = GNC
       , lift = Total
       , age = initFloatField
-      , feats = Array.empty
+      , feats = Array.empty -- someFeats
       , currentColumns = initCurrentColumns
       , tableColumns = initTableColumns
       , equipment = Raw
@@ -173,11 +216,6 @@ type Msg
     | SetEquipment (Maybe Equipment)
     | SetTableAccordion Accordion.State
     | SetCurrentAccordion Accordion.State
-
-
-ffValue : FloatField -> Float
-ffValue ff =
-    ff.value |> Maybe.withDefault 0
 
 
 ffParse : String -> FloatField
@@ -569,29 +607,45 @@ savedFeatsToTable cols savedFeats =
             ("Index"
                 :: "Note"
                 :: List.map
-                    columnToToggleLabel
+                    columnToColumnLabel
                     cols
             )
 
 
+classToHtmlToCell : String -> Html Msg -> Table.Cell Msg
+classToHtmlToCell className =
+    List.singleton >> Table.td [ className |> stringToAttr |> class |> Table.cellAttr ]
+
+
+columnToFloatToCell : Record -> Column -> Record -> Table.Cell Msg
+columnToFloatToCell maxes col =
+    columnToRecordToTextWithMaxes maxes col >> classToHtmlToCell (col |> columnToColumnLabel |> (++) "body-cell--")
+
+
 savedFeatToRow : List Column -> Record -> Int -> SavedFeat -> Table.Row Msg
 savedFeatToRow cols maxes index savedFeat =
-    [ [ .index >> String.fromInt >> text
+    [ [ .index >> String.fromInt >> text >> classToHtmlToCell "body-cell--index"
       , .note
             >> (\v ->
                     Input.text
                         [ Input.placeholder "Note"
                         , Input.value v
                         , Input.onInput (SetNote index)
-                        , Input.attrs [ style "min-width" "7em" ]
+                        , Input.attrs [ class "note-input" ]
                         ]
                )
+            >> classToHtmlToCell "body-cell--note"
       ]
         |> List.map (thrush savedFeat)
-    , (savedFeat.feat |> featToRecord |> thrush |> List.map) (List.map (columnToRecordToTextWithMaxes maxes) cols)
+    , (savedFeat.feat
+        |> featToRecord
+        |> thrush
+        |> List.map
+      )
+        (List.map (columnToFloatToCell maxes) cols)
     ]
         |> List.concat
-        |> htmlsToRow
+        |> Table.tr []
 
 
 featToTable : List Column -> Feat -> Html Msg

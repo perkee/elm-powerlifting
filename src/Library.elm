@@ -1,6 +1,7 @@
-module Library exposing (filterListByList, thrush, truncate, updateArrayAt)
+module Library exposing (filterListByList, replace, stringToAttr, thrush, truncate, updateArrayAt)
 
 import Array exposing (Array)
+import Regex
 import Set exposing (Set)
 
 
@@ -44,3 +45,15 @@ truncate places n =
 filterListByList : List a -> List a -> List a
 filterListByList filter list =
     List.filter (\element -> List.member element filter) list
+
+
+replace : String -> String -> String -> String
+replace regex replacement =
+    Regex.replace (Maybe.withDefault Regex.never <| Regex.fromString regex) (\_ -> replacement)
+
+
+stringToAttr : String -> String
+stringToAttr =
+    replace "[)._]" ""
+        >> replace "(\\s\\(?)" "-"
+        >> String.toLower
