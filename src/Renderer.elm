@@ -32,7 +32,7 @@ stringToHeaderCell title =
     title |> H.text |> List.singleton |> Table.th [ Table.cellAttr (HA.class class) ]
 
 
-rowsToHeadedTable : List String -> List (Table.Row msg) -> Html msg
+rowsToHeadedTable : List String -> List ( String, Table.Row msg ) -> Html msg
 rowsToHeadedTable titles rows =
     if List.isEmpty rows then
         H.span [] []
@@ -43,7 +43,7 @@ rowsToHeadedTable titles rows =
             , thead =
                 Table.simpleThead
                     (titles |> List.map stringToHeaderCell)
-            , tbody = Table.tbody [] rows
+            , tbody = Table.keyedTBody [] rows
             }
 
 

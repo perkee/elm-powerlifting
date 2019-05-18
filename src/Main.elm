@@ -19,6 +19,7 @@ import Bootstrap.Form.Select as Select
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
+import Bootstrap.Modal as Modal
 import Bootstrap.Table as Table
 import Browser
 import Column
@@ -39,7 +40,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (on, onCheck, onClick, onInput, targetValue)
 import Json.Decode as Json
 import Json.Encode as JE
-import Library exposing (filterListByList, stringToAttr, thrush, updateArrayAt)
+import Library exposing (filterListByList, removeAt, stringToAttr, thrush, updateArrayAt)
 import Renderer exposing (htmlsToRow, rowsToHeadedTable, textual)
 import Scores
     exposing
@@ -60,6 +61,7 @@ subscriptions model =
         , Dropdown.subscriptions model.bodyUnitState SetBodyUnitState
         , Accordion.subscriptions model.tableAccordionState SetTableAccordion
         , Accordion.subscriptions model.currentAccordionState SetCurrentAccordion
+        , Modal.subscriptions model.deleteConfirmVisibility AnimateDeleteModal
         ]
 
 
@@ -73,6 +75,7 @@ type alias SavedFeat =
     { feat : Feat
     , index : Int
     , note : String
+    , key : Int
     }
 
 
@@ -94,11 +97,14 @@ type alias Model =
     , lift : Lift
     , age : FloatField
     , feats : Array SavedFeat
+    , featKey : Int
     , currentColumns : List Column
     , tableColumns : List Column
     , equipment : Equipment
     , currentAccordionState : Accordion.State
     , tableAccordionState : Accordion.State
+    , deleteConfirmVisibility : Modal.Visibility
+    , idxToDelete : Maybe Int
     }
 
 
@@ -106,6 +112,7 @@ someFeats : Array SavedFeat
 someFeats =
     Array.fromList
         [ { index = 0
+          , key = -3
           , note = "first"
           , feat =
                 { bodyKilos = 100
@@ -117,7 +124,8 @@ someFeats =
                 , age = Just 40
                 }
           }
-        , { index = 2
+        , { index = 1
+          , key = -2
           , note = "second"
           , feat =
                 { bodyKilos = 70
@@ -129,7 +137,8 @@ someFeats =
                 , age = Just 45
                 }
           }
-        , { index = 3
+        , { index = 2
+          , key = -1
           , note = "third"
           , feat =
                 { bodyKilos = 60
@@ -155,12 +164,15 @@ init _ =
       , gender = GNC
       , lift = Total
       , age = initFloatField
-      , feats = Array.empty -- someFeats
+      , feats = Array.empty -- someFeats --
+      , featKey = 0
       , currentColumns = initCurrentColumns
       , tableColumns = initTableColumns
       , equipment = Raw
       , tableAccordionState = Accordion.initialState
       , currentAccordionState = Accordion.initialState
+      , deleteConfirmVisibility = Modal.hidden
+      , idxToDelete = Nothing
       }
     , Cmd.none
     )
@@ -200,7 +212,8 @@ canMakeFeat m =
 
 
 type Msg
-    = SetLiftedMass String
+    = NoMsg
+    | SetLiftedMass String
     | SetLiftedUnit MassUnit
     | SetLiftedUnitState Dropdown.State
     | SetBodyMass String
@@ -211,11 +224,16 @@ type Msg
     | SetAge String
     | SaveFeat
     | SetNote Int String
+    | DeleteRow Int
     | ToggleTableColumn Column Bool
     | ToggleCurrentColumn Column Bool
     | SetEquipment (Maybe Equipment)
     | SetTableAccordion Accordion.State
     | SetCurrentAccordion Accordion.State
+    | AnimateDeleteModal Modal.Visibility
+    | AskDelete Int
+    | CancelDelete
+    | ConfirmDelete
 
 
 ffParse : String -> FloatField
@@ -236,6 +254,9 @@ setNoteOnSavedFeat note feat =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     ( case msg of
+        NoMsg ->
+            model
+
         SetLiftedMass s ->
             { model | liftedMass = ffParse s }
 
@@ -276,13 +297,19 @@ update msg model =
         SaveFeat ->
             case model |> modelToFeat of
                 Just feat ->
-                    { model | feats = Array.push (SavedFeat feat (Array.length model.feats) "") model.feats }
+                    { model
+                        | feats = Array.push (SavedFeat feat (Array.length model.feats) "" model.featKey) model.feats
+                        , featKey = model.featKey + 1
+                    }
 
                 Nothing ->
                     model
 
         SetNote index note ->
             { model | feats = updateArrayAt index (setNoteOnSavedFeat note) model.feats }
+
+        DeleteRow idx ->
+            { model | feats = removeAt model.feats idx }
 
         ToggleTableColumn col checked ->
             let
@@ -319,6 +346,35 @@ update msg model =
 
         SetCurrentAccordion state ->
             { model | currentAccordionState = state }
+
+        CancelDelete ->
+            { model
+                | deleteConfirmVisibility = Modal.hidden
+                , idxToDelete = Nothing
+            }
+
+        ConfirmDelete ->
+            { model
+                | deleteConfirmVisibility = Modal.hidden
+                , feats =
+                    case model.idxToDelete of
+                        Just idx ->
+                            removeAt model.feats idx
+
+                        Nothing ->
+                            model.feats
+                , idxToDelete = Nothing
+            }
+
+        AskDelete idx ->
+            { model
+                | deleteConfirmVisibility = Modal.shown
+                , idxToDelete = Just idx
+            }
+
+        AnimateDeleteModal visibility ->
+            -- Just fadein
+            { model | deleteConfirmVisibility = visibility }
     , Cmd.none
     )
 
@@ -591,6 +647,43 @@ view model =
                     [ model.feats |> savedFeatsToTable (filterListByList model.tableColumns allColumns) ]
                 ]
             ]
+        , Modal.config CancelDelete
+            |> Modal.withAnimation AnimateDeleteModal
+            |> Modal.large
+            |> Modal.h3 [] [ text "Confirm delete" ]
+            |> Modal.body []
+                [ Grid.containerFluid []
+                    [ Grid.row []
+                        [ Grid.col
+                            [ Col.xs12 ]
+                            [ "Are you sure you want to delete the entry at row "
+                                ++ (case model.idxToDelete of
+                                        Just idx ->
+                                            String.fromInt idx
+
+                                        Nothing ->
+                                            "whaaaa???"
+                                   )
+                                |> text
+                            ]
+                        ]
+                    ]
+                ]
+            |> Modal.footer []
+                [ Button.button
+                    [ Button.outlineDanger
+
+                    -- todo: animate this on confirm. Gets into an infinite loop rn. Kinda impresseive!
+                    , Button.attrs [ onClick <| ConfirmDelete ]
+                    ]
+                    [ text "Yes, Delete this row" ]
+                , Button.button
+                    [ Button.outlineSuccess
+                    , Button.attrs [ onClick <| CancelDelete ]
+                    ]
+                    [ text "Nevermind" ]
+                ]
+            |> Modal.view model.deleteConfirmVisibility
         ]
 
 
@@ -603,13 +696,16 @@ savedFeatsToTable cols savedFeats =
     savedFeats
         |> Array.indexedMap (savedFeatToRow cols maxes)
         >> Array.toList
-        >> rowsToHeadedTable
-            ("Index"
-                :: "Note"
-                :: List.map
-                    columnToColumnLabel
-                    cols
-            )
+        >> ([ [ "Index" ]
+            , [ "Note" ]
+            , List.map
+                columnToColumnLabel
+                cols
+            , [ "Delete" ]
+            ]
+                |> List.concat
+                |> rowsToHeadedTable
+           )
 
 
 classToHtmlToCell : String -> Html Msg -> Table.Cell Msg
@@ -622,7 +718,7 @@ columnToFloatToCell maxes col =
     columnToRecordToTextWithMaxes maxes col >> classToHtmlToCell (col |> columnToColumnLabel |> (++) "body-cell--")
 
 
-savedFeatToRow : List Column -> Record -> Int -> SavedFeat -> Table.Row Msg
+savedFeatToRow : List Column -> Record -> Int -> SavedFeat -> ( String, Table.Row Msg )
 savedFeatToRow cols maxes index savedFeat =
     [ [ .index >> String.fromInt >> text >> classToHtmlToCell "body-cell--index"
       , .note
@@ -643,9 +739,21 @@ savedFeatToRow cols maxes index savedFeat =
         |> List.map
       )
         (List.map (columnToFloatToCell maxes) cols)
+    , Button.button
+        [ Button.outlineDanger
+
+        -- , index |> DeleteRow |> Button.onClick
+        , AskDelete index |> Button.onClick
+        ]
+        [ span [ class "fa fa-trash" ] []
+        ]
+        |> List.singleton
+        |> Table.td [ "body-cell--delete" |> class |> Table.cellAttr ]
+        |> List.singleton
     ]
         |> List.concat
         |> Table.tr []
+        |> (\row -> ( savedFeat.key |> String.fromInt, row ))
 
 
 featToTable : List Column -> Feat -> Html Msg
@@ -653,10 +761,12 @@ featToTable cols feat =
     (feat |> featToRecord |> thrush |> List.map) (List.map columnToRecordToText cols)
         |> List.map2
             (\label value ->
-                Table.tr []
+                ( label |> columnToToggleLabel
+                , Table.tr []
                     [ label |> columnToToggleLabel |> text |> List.singleton |> Table.td []
                     , value |> List.singleton |> Table.td []
                     ]
+                )
             )
             cols
         |> rowsToHeadedTable [ "Label", "Value" ]

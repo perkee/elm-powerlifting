@@ -1,4 +1,12 @@
-module Library exposing (filterListByList, replace, stringToAttr, thrush, truncate, updateArrayAt)
+module Library exposing
+    ( filterListByList
+    , removeAt
+    , replace
+    , stringToAttr
+    , thrush
+    , truncate
+    , updateArrayAt
+    )
 
 import Array exposing (Array)
 import Regex
@@ -57,3 +65,10 @@ stringToAttr =
     replace "[)._]" ""
         >> replace "(\\s\\(?)" "-"
         >> String.toLower
+
+
+removeAt : Array any -> Int -> Array any
+removeAt array idx =
+    array
+        |> Array.slice (idx + 1) (Array.length array)
+        |> Array.append (array |> Array.slice 0 idx)
