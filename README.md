@@ -1,5 +1,8 @@
-Been running this with `elm-live src/Main.elm --open -- --debug` seems to work ok
+The new way:
 
-Now with index.html (to provide meta viewport) I run it with
++ Dev: `yarn run dev`
++ Build `yarn run build`
 
-```elm-live src/Main.elm --open --start-page=public/index.html -- --output=public/elm.js --debug```
+
+The old way:
+```elm-live src/Main.elm --open --start-page=index.html -- --output=elm.js --debug```

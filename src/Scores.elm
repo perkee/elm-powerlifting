@@ -16,7 +16,7 @@ import Feat
         )
 import Html as H exposing (Html)
 import Library exposing (thrush)
-import Renderer exposing (floatToString, maybeFloatToString, rowsToHeadedTable, textual)
+import Renderer exposing (floatToString, maybeFloatToString, rowsToHeadedTable)
 
 
 

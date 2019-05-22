@@ -1,4 +1,4 @@
-module Renderer exposing (floatToString, htmlsToRow, maybeFloatToString, rowsToHeadedTable, textual)
+module Renderer exposing (FloatField, floatToString, initFloatField, maybeFloatToString, rowsToHeadedTable, stringToFloatField, stringToHeaderCell)
 
 import Bootstrap.Table as Table
 import Html as H exposing (Html)
@@ -10,29 +10,21 @@ import Library exposing (stringToAttr, truncate)
 -- helper
 
 
-textual : (List (H.Attribute msg) -> List (Html msg) -> Html msg) -> String -> Html msg
-textual elem s =
-    s |> H.text |> List.singleton |> elem []
-
-
-htmlsToRow : List (Html msg) -> Table.Row msg
-htmlsToRow =
-    List.map (List.singleton >> Table.td [])
-        >> Table.tr []
-
-
-stringToHeaderCell : String -> Table.Cell msg
-stringToHeaderCell title =
+stringToHeaderCell : ( String, Html msg ) -> Table.Cell msg
+stringToHeaderCell ( title, icon ) =
     let
         class =
             title
                 |> stringToAttr
                 |> (++) "title-cell--"
     in
-    title |> H.text |> List.singleton |> Table.th [ Table.cellAttr (HA.class class) ]
+    Table.th [ Table.cellAttr (HA.class class) ]
+        [ title |> H.text
+        , icon
+        ]
 
 
-rowsToHeadedTable : List String -> List ( String, Table.Row msg ) -> Html msg
+rowsToHeadedTable : List ( String, Html msg ) -> List ( String, Table.Row msg ) -> Html msg
 rowsToHeadedTable titles rows =
     if List.isEmpty rows then
         H.span [] []
@@ -60,3 +52,30 @@ maybeFloatToString f =
 floatToString : Float -> String
 floatToString =
     truncate 2 >> String.fromFloat
+
+
+
+-- Float Fields
+
+
+type alias FloatField =
+    { value : Maybe Float
+    , input : String
+    }
+
+
+initFloatField : FloatField
+initFloatField =
+    { value = Nothing
+    , input = ""
+    }
+
+
+stringToFloatField : String -> FloatField
+stringToFloatField str =
+    case String.toFloat str of
+        Nothing ->
+            { value = Nothing, input = str }
+
+        Just new ->
+            { value = Just new, input = str }

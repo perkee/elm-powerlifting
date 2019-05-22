@@ -14,7 +14,7 @@ import Feat exposing (genderToString, liftToString)
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Library exposing (thrush)
-import Renderer exposing (floatToString, maybeFloatToString, rowsToHeadedTable, textual)
+import Renderer exposing (floatToString, maybeFloatToString, rowsToHeadedTable)
 import Scores exposing (Record)
 
 

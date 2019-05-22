@@ -27,10 +27,15 @@
       max-width: 12em;
       width: 100%;
     }
+    .title-cell--wilks,
+    .title-cell--allo,
+    .title-cell--ipf,
+    .title-cell--sc-allo,
+    .title-cell--mcculloch,
     .body-cell--wilks,
     .body-cell--allo,
     .body-cell--ipf,
-    .body-cell--cs-allo
+    .body-cell--sc-allo,
     .body-cell--mcculloch {
       min-width: 7em;
     }
@@ -38,15 +43,20 @@
       text-align: left;
       padding: 0 0 0 .75em;
     }
+    th {
+      position: relative
+    }
+    th .fa {
+      height: 2.2em;
+      position: absolute;
+      right: 0.25em;
+      top: 0;
+      line-height: 2.2em;
+    }
   </style>
 </head>
 <body>
-  <div id="elm"></div>
-  <script src="public/elm.js"></script>
-  <script>
-    var app = Elm.Main.init({
-      node: document.getElementById('elm')
-    });
-  </script>
+  <div id="main"></div>
+  <script src="./index.js"></script>
 </body>
 </html>

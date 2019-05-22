@@ -41,7 +41,7 @@ import Html.Events exposing (on, onCheck, onClick, onInput, targetValue)
 import Json.Decode as Json
 import Json.Encode as JE
 import Library exposing (filterListByList, removeAt, stringToAttr, thrush, updateArrayAt)
-import Renderer exposing (htmlsToRow, rowsToHeadedTable, textual)
+import Renderer exposing (FloatField, initFloatField, rowsToHeadedTable, stringToFloatField)
 import Scores
     exposing
         ( Record
@@ -65,24 +65,11 @@ subscriptions model =
         ]
 
 
-type alias FloatField =
-    { value : Maybe Float
-    , input : String
-    }
-
-
 type alias SavedFeat =
     { feat : Feat
     , index : Int
     , note : String
     , key : Int
-    }
-
-
-initFloatField : FloatField
-initFloatField =
-    { value = Nothing
-    , input = ""
     }
 
 
@@ -105,6 +92,8 @@ type alias Model =
     , tableAccordionState : Accordion.State
     , deleteConfirmVisibility : Modal.Visibility
     , idxToDelete : Maybe Int
+    , sortColumn : SortColumn
+    , sortOrder : SortOrder
     }
 
 
@@ -112,7 +101,7 @@ someFeats : Array SavedFeat
 someFeats =
     Array.fromList
         [ { index = 0
-          , key = -3
+          , key = 1
           , note = "first"
           , feat =
                 { bodyKilos = 100
@@ -125,7 +114,7 @@ someFeats =
                 }
           }
         , { index = 1
-          , key = -2
+          , key = 2
           , note = "second"
           , feat =
                 { bodyKilos = 70
@@ -138,7 +127,7 @@ someFeats =
                 }
           }
         , { index = 2
-          , key = -1
+          , key = 3
           , note = "third"
           , feat =
                 { bodyKilos = 60
@@ -164,8 +153,8 @@ init _ =
       , gender = GNC
       , lift = Total
       , age = initFloatField
-      , feats = Array.empty -- someFeats --
-      , featKey = 0
+      , feats = Array.empty --someFeats
+      , featKey = 4
       , currentColumns = initCurrentColumns
       , tableColumns = initTableColumns
       , equipment = Raw
@@ -173,6 +162,8 @@ init _ =
       , currentAccordionState = Accordion.initialState
       , deleteConfirmVisibility = Modal.hidden
       , idxToDelete = Nothing
+      , sortOrder = Ascending
+      , sortColumn = BodyMass
       }
     , Cmd.none
     )
@@ -224,7 +215,6 @@ type Msg
     | SetAge String
     | SaveFeat
     | SetNote Int String
-    | DeleteRow Int
     | ToggleTableColumn Column Bool
     | ToggleCurrentColumn Column Bool
     | SetEquipment (Maybe Equipment)
@@ -234,16 +224,7 @@ type Msg
     | AskDelete Int
     | CancelDelete
     | ConfirmDelete
-
-
-ffParse : String -> FloatField
-ffParse str =
-    case String.toFloat str of
-        Nothing ->
-            { value = Nothing, input = str }
-
-        Just new ->
-            { value = Just new, input = str }
+    | SetSortColumn SortColumn
 
 
 setNoteOnSavedFeat : String -> SavedFeat -> SavedFeat
@@ -258,7 +239,7 @@ update msg model =
             model
 
         SetLiftedMass s ->
-            { model | liftedMass = ffParse s }
+            { model | liftedMass = stringToFloatField s }
 
         SetLiftedUnit u ->
             { model | liftedUnit = u }
@@ -267,7 +248,7 @@ update msg model =
             { model | liftedUnitState = state }
 
         SetBodyMass s ->
-            { model | bodyMass = ffParse s }
+            { model | bodyMass = stringToFloatField s }
 
         SetBodyUnit u ->
             { model | bodyUnit = u }
@@ -292,7 +273,7 @@ update msg model =
                     model
 
         SetAge s ->
-            { model | age = ffParse s }
+            { model | age = stringToFloatField s }
 
         SaveFeat ->
             case model |> modelToFeat of
@@ -307,9 +288,6 @@ update msg model =
 
         SetNote index note ->
             { model | feats = updateArrayAt index (setNoteOnSavedFeat note) model.feats }
-
-        DeleteRow idx ->
-            { model | feats = removeAt model.feats idx }
 
         ToggleTableColumn col checked ->
             let
@@ -359,7 +337,16 @@ update msg model =
                 , feats =
                     case model.idxToDelete of
                         Just idx ->
-                            removeAt model.feats idx
+                            model.feats
+                                |> removeAt idx
+                                |> Array.indexedMap
+                                    (\i f ->
+                                        if i < idx then
+                                            f
+
+                                        else
+                                            { f | index = f.index - 1 }
+                                    )
 
                         Nothing ->
                             model.feats
@@ -375,6 +362,22 @@ update msg model =
         AnimateDeleteModal visibility ->
             -- Just fadein
             { model | deleteConfirmVisibility = visibility }
+
+        SetSortColumn column ->
+            { model
+                | sortColumn = column
+                , sortOrder =
+                    if model.sortColumn /= column then
+                        Descending
+
+                    else
+                        case model.sortOrder of
+                            Ascending ->
+                                Descending
+
+                            Descending ->
+                                Ascending
+            }
     , Cmd.none
     )
 
@@ -644,7 +647,13 @@ view model =
         , Grid.containerFluid []
             [ Grid.row []
                 [ Grid.col [ Col.sm12 ]
-                    [ model.feats |> savedFeatsToTable (filterListByList model.tableColumns allColumns) ]
+                    [ model.feats
+                        |> sortSavedFeats model.sortOrder model.sortColumn
+                        |> savedFeatsToTable
+                            model.sortColumn
+                            model.sortOrder
+                            (filterListByList model.tableColumns allColumns)
+                    ]
                 ]
             ]
         , Modal.config CancelDelete
@@ -687,8 +696,8 @@ view model =
         ]
 
 
-savedFeatsToTable : List Column -> Array SavedFeat -> Html Msg
-savedFeatsToTable cols savedFeats =
+savedFeatsToTable : SortColumn -> SortOrder -> List Column -> Array SavedFeat -> Html Msg
+savedFeatsToTable sort order cols savedFeats =
     let
         maxes =
             savedFeats |> Array.toList |> List.map (.feat >> featToRecord) |> maxRecord
@@ -696,12 +705,30 @@ savedFeatsToTable cols savedFeats =
     savedFeats
         |> Array.indexedMap (savedFeatToRow cols maxes)
         >> Array.toList
-        >> ([ [ "Index" ]
-            , [ "Note" ]
+        >> ([ [ ( "Index"
+                , span
+                    [ (case ( sort, order ) of
+                        ( Index, Ascending ) ->
+                            "fa-sort-up"
+
+                        ( Index, Descending ) ->
+                            "fa-sort-down"
+
+                        ( _, _ ) ->
+                            "fa-sort"
+                      )
+                        |> (++) "fa "
+                        |> class
+                    , onClick (SetSortColumn Index)
+                    ]
+                    []
+                )
+              ]
+            , [ ( "Note", span [] [] ) ]
             , List.map
-                columnToColumnLabel
+                (\c -> ( columnToColumnLabel c, columnAndSortToIcon sort order c ))
                 cols
-            , [ "Delete" ]
+            , [ ( "Delete", span [] [] ) ]
             ]
                 |> List.concat
                 |> rowsToHeadedTable
@@ -726,7 +753,7 @@ savedFeatToRow cols maxes index savedFeat =
                     Input.text
                         [ Input.placeholder "Note"
                         , Input.value v
-                        , Input.onInput (SetNote index)
+                        , Input.onInput (SetNote savedFeat.index)
                         , Input.attrs [ class "note-input" ]
                         ]
                )
@@ -741,9 +768,7 @@ savedFeatToRow cols maxes index savedFeat =
         (List.map (columnToFloatToCell maxes) cols)
     , Button.button
         [ Button.outlineDanger
-
-        -- , index |> DeleteRow |> Button.onClick
-        , AskDelete index |> Button.onClick
+        , AskDelete savedFeat.index |> Button.onClick
         ]
         [ span [ class "fa fa-trash" ] []
         ]
@@ -769,4 +794,148 @@ featToTable cols feat =
                 )
             )
             cols
-        |> rowsToHeadedTable [ "Label", "Value" ]
+        |> rowsToHeadedTable [ ( "Label", span [] [] ), ( "Value", span [] [] ) ]
+
+
+type SortOrder
+    = Ascending
+    | Descending
+
+
+sortByOrder : SortOrder -> comparable -> comparable -> Order
+sortByOrder sortOrder a b =
+    case ( sortOrder, compare a b ) of
+        ( Ascending, anyOrder ) ->
+            anyOrder
+
+        ( Descending, LT ) ->
+            GT
+
+        ( Descending, GT ) ->
+            LT
+
+        ( Descending, EQ ) ->
+            EQ
+
+
+type SortColumn
+    = BodyMass
+    | LiftedMass
+    | Wilks
+    | ScaledAllometric
+    | Allometric
+    | IPF
+    | McCulloch
+    | Index
+
+
+sortColumnToGetter : SortColumn -> SavedFeat -> Maybe Float
+sortColumnToGetter col =
+    case col of
+        BodyMass ->
+            .feat >> .bodyKilos >> Just
+
+        LiftedMass ->
+            .feat >> .bodyKilos >> Just
+
+        Wilks ->
+            .feat >> featToRecord >> .wilks
+
+        ScaledAllometric ->
+            .feat >> featToRecord >> .scaledAllometric
+
+        Allometric ->
+            .feat >> featToRecord >> .allometric
+
+        IPF ->
+            .feat >> featToRecord >> .ipf
+
+        McCulloch ->
+            .feat >> featToRecord >> .mcCulloch
+
+        Index ->
+            .index >> toFloat >> Just
+
+
+sortSavedFeats : SortOrder -> SortColumn -> Array SavedFeat -> Array SavedFeat
+sortSavedFeats sortOrder sortColumn =
+    Array.toList
+        >> List.sortWith
+            (\a b ->
+                sortByOrder sortOrder
+                    (a |> sortColumnToGetter sortColumn |> Maybe.withDefault (-1 / 0))
+                    (b |> sortColumnToGetter sortColumn |> Maybe.withDefault (-1 / 0))
+            )
+        >> Array.fromList
+
+
+columnAndSortToIcon : SortColumn -> SortOrder -> Column -> Html Msg
+columnAndSortToIcon sort order column =
+    let
+        arrows =
+            "fa "
+                ++ (case order of
+                        Ascending ->
+                            "fa-sort-up"
+
+                        Descending ->
+                            "fa-sort-down"
+                   )
+    in
+    (case ( sort, columnToSortColumn column ) of
+        ( s, Just sc ) ->
+            (if s == sc then
+                arrows
+
+             else
+                "fa fa-sort"
+            )
+                |> class
+                |> List.singleton
+                |> (++)
+                    [ class "sort-button"
+                    , onClick (SetSortColumn sc)
+                    ]
+
+        ( _, Nothing ) ->
+            [ class "fa" ]
+    )
+        |> span
+        |> thrush []
+
+
+columnToSortColumn : Column -> Maybe SortColumn
+columnToSortColumn col =
+    case col of
+        Column.BodyKilos ->
+            Just BodyMass
+
+        Column.LiftedKilos ->
+            Just LiftedMass
+
+        Column.BodyPounds ->
+            Just BodyMass
+
+        Column.LiftedPounds ->
+            Just LiftedMass
+
+        Column.Wilks ->
+            Just Wilks
+
+        Column.ScaledAllometric ->
+            Just ScaledAllometric
+
+        Column.Allometric ->
+            Just Allometric
+
+        Column.IPF ->
+            Just IPF
+
+        Column.McCulloch ->
+            Just McCulloch
+
+        Column.Gender ->
+            Nothing
+
+        Column.Lift ->
+            Nothing

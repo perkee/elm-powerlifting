@@ -67,8 +67,8 @@ stringToAttr =
         >> String.toLower
 
 
-removeAt : Array any -> Int -> Array any
-removeAt array idx =
+removeAt : Int -> Array any -> Array any
+removeAt idx array =
     array
         |> Array.slice (idx + 1) (Array.length array)
         |> Array.append (array |> Array.slice 0 idx)
