@@ -364,7 +364,7 @@ view model =
             [ h1 [] [ text "Every Score Calculator" ]
             , lifterForm model.formState currentFeat UpdateForm (SaveFeat currentFeat)
             , h2 [] [ text "Current Score" ]
-            , Grid.row []
+            , Grid.row [ Row.attrs [ class "current-table" ] ]
                 [ Grid.col [ Col.xs12 ]
                     (case currentFeat of
                         Just feat ->
@@ -375,7 +375,7 @@ view model =
                                 model.currentColumns
                                 ToggleCurrentColumn
                                 "Current Scores Options"
-                            , featToTable model.currentColumns feat
+                            , featToTable model.feats model.currentColumns feat
                             ]
 
                         Nothing ->
@@ -532,20 +532,38 @@ savedFeatToRow cols maxes index savedFeat =
         |> (\row -> ( savedFeat.key |> String.fromInt, row ))
 
 
-featToTable : List Column -> Feat -> Html Msg
-featToTable cols feat =
-    (feat |> featToRecord |> thrush |> List.map) (List.map columnToRecordToText cols)
-        |> List.map2
+featToTable : Array SavedFeat -> List Column -> Feat -> Html Msg
+featToTable savedFeats cols =
+    let
+        recordsToText =
+            cols
+                |> List.map
+                    (if Array.isEmpty savedFeats then
+                        columnToRecordToText
+
+                     else
+                        savedFeats
+                            |> Array.toList
+                            |> List.map (.feat >> featToRecord)
+                            |> maxRecord
+                            |> columnToRecordToTextWithMaxes
+                    )
+    in
+    featToRecord
+        >> thrush
+        >> List.map
+        >> thrush recordsToText
+        >> List.map2
             (\label value ->
                 ( label |> columnToToggleLabel
                 , Table.tr []
-                    [ label |> columnToToggleLabel |> text |> List.singleton |> Table.td []
-                    , value |> List.singleton |> Table.td []
+                    [ label |> columnToToggleLabel |> text |> List.singleton |> Table.td [ "body-cell--label" |> class |> Table.cellAttr ]
+                    , value |> List.singleton |> Table.td [ "body-cell--value" |> class |> Table.cellAttr ]
                     ]
                 )
             )
             cols
-        |> rowsToHeadedTable [ ( "Label", span [] [] ), ( "Value", span [] [] ) ]
+        >> rowsToHeadedTable [ ( "Label", span [] [] ), ( "Value", span [] [] ) ]
 
 
 type SortOrder

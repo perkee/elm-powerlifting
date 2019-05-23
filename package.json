@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "dev": "yarn run parcel index.html --open",
-    "build": "rm -r dist && yarn run parcel build index.html --no-source-maps && ls -l dist"
+    "dev": "parcel index.html --open",
+    "build": "rm -r dist; parcel build index.html --no-source-maps --public-url='/powerlifting' && ls -l dist"
   },
   "dependencies": {
     "elm": "^0.19.0-no-deps",
