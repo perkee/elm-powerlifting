@@ -7,15 +7,10 @@ import Array exposing (Array)
 import Bootstrap.Accordion as Accordion
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
-import Bootstrap.Card as Card
 import Bootstrap.Card.Block as Block
-import Bootstrap.Dropdown as Dropdown
 import Bootstrap.Form as Form
 import Bootstrap.Form.Checkbox as Checkbox
-import Bootstrap.Form.Fieldset as Fieldset
 import Bootstrap.Form.Input as Input
-import Bootstrap.Form.InputGroup as InputGroup
-import Bootstrap.Form.Select as Select
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
@@ -33,14 +28,12 @@ import Column
         , initCurrentColumns
         , initTableColumns
         )
-import Dropdowns exposing (Option, typedSelect)
-import Feat exposing (Equipment(..), Feat, Gender(..), Lift(..), MassUnit(..), genderToString, massToKilos, massToPounds)
+import Feat exposing (Feat, Gender, Lift)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (on, onCheck, onClick, onInput, targetValue)
-import Json.Decode as Json
-import Json.Encode as JE
+import Html.Events exposing (on, onCheck, onClick, onInput)
 import Library exposing (filterListByList, removeAt, stringToAttr, thrush, updateArrayAt)
+import LiftForm exposing (FormState, formStateToFeat, formStateToSubs, initFormState, lifterForm)
 import Renderer exposing (FloatField, initFloatField, rowsToHeadedTable, stringToFloatField)
 import Scores
     exposing
@@ -57,8 +50,7 @@ main =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Dropdown.subscriptions model.liftedUnitState SetLiftedUnitState
-        , Dropdown.subscriptions model.bodyUnitState SetBodyUnitState
+        [ formStateToSubs model.formState UpdateForm
         , Accordion.subscriptions model.tableAccordionState SetTableAccordion
         , Accordion.subscriptions model.currentAccordionState SetCurrentAccordion
         , Modal.subscriptions model.deleteConfirmVisibility AnimateDeleteModal
@@ -74,20 +66,11 @@ type alias SavedFeat =
 
 
 type alias Model =
-    { liftedMass : FloatField
-    , liftedUnit : MassUnit
-    , liftedUnitState : Dropdown.State
-    , bodyMass : FloatField
-    , bodyUnit : MassUnit
-    , bodyUnitState : Dropdown.State
-    , gender : Gender
-    , lift : Lift
-    , age : FloatField
+    { formState : FormState
     , feats : Array SavedFeat
     , featKey : Int
     , currentColumns : List Column
     , tableColumns : List Column
-    , equipment : Equipment
     , currentAccordionState : Accordion.State
     , tableAccordionState : Accordion.State
     , deleteConfirmVisibility : Modal.Visibility
@@ -108,8 +91,8 @@ someFeats =
                 , bodyPounds = 220
                 , liftedKilos = 400
                 , liftedPounds = 881
-                , gender = Male
-                , lift = Total
+                , gender = Feat.Male
+                , lift = Feat.Total
                 , age = Just 40
                 }
           }
@@ -121,8 +104,8 @@ someFeats =
                 , bodyPounds = 154
                 , liftedKilos = 500
                 , liftedPounds = 1101
-                , gender = Male
-                , lift = Total
+                , gender = Feat.Male
+                , lift = Feat.Total
                 , age = Just 45
                 }
           }
@@ -134,8 +117,8 @@ someFeats =
                 , bodyPounds = 132
                 , liftedKilos = 505
                 , liftedPounds = 1112
-                , gender = Male
-                , lift = Total
+                , gender = Feat.Male
+                , lift = Feat.Total
                 , age = Just 50
                 }
           }
@@ -144,20 +127,11 @@ someFeats =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { liftedMass = initFloatField
-      , liftedUnit = KG
-      , liftedUnitState = Dropdown.initialState
-      , bodyMass = initFloatField
-      , bodyUnit = KG
-      , bodyUnitState = Dropdown.initialState
-      , gender = GNC
-      , lift = Total
-      , age = initFloatField
+    ( { formState = initFormState
       , feats = Array.empty --someFeats
       , featKey = 4
       , currentColumns = initCurrentColumns
       , tableColumns = initTableColumns
-      , equipment = Raw
       , tableAccordionState = Accordion.initialState
       , currentAccordionState = Accordion.initialState
       , deleteConfirmVisibility = Modal.hidden
@@ -170,21 +144,8 @@ init _ =
 
 
 modelToFeat : Model -> Maybe Feat
-modelToFeat m =
-    case ( m.bodyMass.value, m.liftedMass.value ) of
-        ( Just bodyMass, Just liftedMass ) ->
-            Just
-                { bodyKilos = massToKilos m.bodyUnit bodyMass
-                , bodyPounds = massToPounds m.bodyUnit bodyMass
-                , liftedKilos = massToKilos m.liftedUnit liftedMass
-                , liftedPounds = massToPounds m.liftedUnit liftedMass
-                , gender = m.gender
-                , lift = m.lift
-                , age = m.age.value
-                }
-
-        ( _, _ ) ->
-            Nothing
+modelToFeat =
+    .formState >> formStateToFeat
 
 
 modelToRecord : Model -> Maybe Record
@@ -204,20 +165,11 @@ canMakeFeat m =
 
 type Msg
     = NoMsg
-    | SetLiftedMass String
-    | SetLiftedUnit MassUnit
-    | SetLiftedUnitState Dropdown.State
-    | SetBodyMass String
-    | SetBodyUnit MassUnit
-    | SetBodyUnitState Dropdown.State
-    | SetGender (Maybe Gender)
-    | SetLift (Maybe Lift)
-    | SetAge String
-    | SaveFeat
+    | UpdateForm FormState
+    | SaveFeat (Maybe Feat)
     | SetNote Int String
     | ToggleTableColumn Column Bool
     | ToggleCurrentColumn Column Bool
-    | SetEquipment (Maybe Equipment)
     | SetTableAccordion Accordion.State
     | SetCurrentAccordion Accordion.State
     | AnimateDeleteModal Modal.Visibility
@@ -238,45 +190,11 @@ update msg model =
         NoMsg ->
             model
 
-        SetLiftedMass s ->
-            { model | liftedMass = stringToFloatField s }
+        UpdateForm state ->
+            { model | formState = state }
 
-        SetLiftedUnit u ->
-            { model | liftedUnit = u }
-
-        SetLiftedUnitState state ->
-            { model | liftedUnitState = state }
-
-        SetBodyMass s ->
-            { model | bodyMass = stringToFloatField s }
-
-        SetBodyUnit u ->
-            { model | bodyUnit = u }
-
-        SetBodyUnitState state ->
-            { model | bodyUnitState = state }
-
-        SetGender mg ->
-            case mg of
-                Just g ->
-                    { model | gender = g }
-
-                Nothing ->
-                    model
-
-        SetLift ml ->
-            case ml of
-                Just l ->
-                    { model | lift = l }
-
-                Nothing ->
-                    model
-
-        SetAge s ->
-            { model | age = stringToFloatField s }
-
-        SaveFeat ->
-            case model |> modelToFeat of
+        SaveFeat mf ->
+            case mf of
                 Just feat ->
                     { model
                         | feats = Array.push (SavedFeat feat (Array.length model.feats) "" model.featKey) model.feats
@@ -310,14 +228,6 @@ update msg model =
                         List.filter ((/=) col) model.currentColumns
             in
             { model | currentColumns = newColumns }
-
-        SetEquipment me ->
-            case me of
-                Just e ->
-                    { model | equipment = e }
-
-                Nothing ->
-                    model
 
         SetTableAccordion state ->
             { model | tableAccordionState = state }
@@ -397,169 +307,6 @@ columnToToggle prefix msg columns col =
         (col |> columnToToggleLabel)
 
 
-saveButton : Bool -> Html Msg
-saveButton canSave =
-    Button.button
-        [ Button.onClick SaveFeat
-        , if canSave then
-            Button.success
-
-          else
-            Button.secondary
-        , Button.block
-        , canSave |> not |> Button.disabled
-        , Button.small
-        ]
-        [ text "Add to Table"
-        ]
-
-
-unitDropDown : Dropdown.State -> (Dropdown.State -> Msg) -> MassUnit -> (MassUnit -> Msg) -> InputGroup.Addon Msg
-unitDropDown state stateMsg massUnit unitMsg =
-    InputGroup.dropdown
-        state
-        { options = []
-        , toggleMsg = stateMsg
-        , toggleButton =
-            (case massUnit of
-                KG ->
-                    "Kilos"
-
-                LBM ->
-                    "Pounds"
-            )
-                |> text
-                |> List.singleton
-                |> Dropdown.toggle [ Button.primary, Button.small ]
-        , items =
-            [ Dropdown.buttonItem [ KG |> unitMsg |> onClick ] [ text "Kilos" ]
-            , Dropdown.buttonItem [ LBM |> unitMsg |> onClick ] [ text "Pounds" ]
-            ]
-        }
-
-
-lifterForm : Model -> Html Msg
-lifterForm model =
-    Form.form []
-        [ h2 [] [ text "Lift input" ]
-        , Form.row [ Row.attrs [ class " mb-0" ] ]
-            [ Form.col [ Col.xs12, Col.md6 ]
-                [ Form.row []
-                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Gender" ]
-                    , Form.col [ Col.xs8, Col.sm9 ]
-                        [ typedSelect [ Select.small ]
-                            [ Option Male "Male" "M"
-                            , Option Female "Female" "F"
-                            , Option GNC "—" "GNC"
-                            ]
-                            model.gender
-                            SetGender
-                        ]
-                    ]
-                ]
-            , Form.col [ Col.xs12, Col.md6 ]
-                [ Form.row []
-                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Event" ]
-                    , Form.col [ Col.xs8, Col.sm9 ]
-                        [ typedSelect [ Select.small ]
-                            [ Option Total "Total" "T"
-                            , Option Squat "Squat" "S"
-                            , Option Bench "Bench" "B"
-                            , Option Deadlift "Deadlift" "D"
-                            ]
-                            model.lift
-                            SetLift
-                        ]
-                    ]
-                ]
-            ]
-        , Form.row [ Row.attrs [ class " mb-0" ] ]
-            [ Form.col [ Col.xs12, Col.md6 ]
-                [ Form.row []
-                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Lifted weight" ]
-                    , Form.col [ Col.xs8, Col.sm9 ]
-                        [ InputGroup.config
-                            (InputGroup.number
-                                [ Input.placeholder "0"
-                                , Input.onInput SetLiftedMass
-                                , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
-                                ]
-                            )
-                            |> InputGroup.successors
-                                [ unitDropDown
-                                    model.liftedUnitState
-                                    SetLiftedUnitState
-                                    model.liftedUnit
-                                    SetLiftedUnit
-                                ]
-                            |> InputGroup.small
-                            |> InputGroup.view
-                        ]
-                    ]
-                ]
-            , Form.col [ Col.xs12, Col.md6 ]
-                [ Form.row []
-                    [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Bodyweight" ]
-                    , Form.col [ Col.xs8, Col.sm9 ]
-                        [ InputGroup.config
-                            (InputGroup.number
-                                [ Input.placeholder "0"
-                                , Input.onInput SetBodyMass
-                                , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
-                                ]
-                            )
-                            |> InputGroup.successors
-                                [ unitDropDown
-                                    model.bodyUnitState
-                                    SetBodyUnitState
-                                    model.bodyUnit
-                                    SetBodyUnit
-                                ]
-                            |> InputGroup.small
-                            |> InputGroup.view
-                        ]
-                    ]
-                ]
-            ]
-        , Form.row [ Row.attrs [ class " mb-0" ] ]
-            -- [ Form.col [ Col.xs12, Col.md6 ]
-            --     [ Form.row []
-            --         [ Form.colLabel [ Col.xs4, Col.sm3 ] [ text "Equipment" ]
-            --         , Form.col [ Col.xs8, Col.sm9 ]
-            --             [ typedSelect [ Select.disabled True, Select.small ]
-            --                 [ Option Raw "raw" "R"
-            --                 , Option SinglePly "single ply" "SP"
-            --                 ]
-            --                 model.equipment
-            --                 SetEquipment
-            --             ]
-            --         ]
-            --     ]
-            [ Form.col [ Col.xs12, Col.md6 ]
-                [ Form.row []
-                    [ Form.col [ Col.xs7, Col.sm7 ]
-                        [ Form.row []
-                            [ Form.colLabel [ Col.xs7, Col.sm5 ] [ text "Age" ]
-                            , Form.col [ Col.xs5, Col.sm7 ]
-                                [ Input.number
-                                    [ Input.placeholder "0"
-                                    , Input.onInput SetAge
-                                    , Input.attrs [ pattern "\\d+(\\.\\d+)?", attribute "inputmode" "decimal" ]
-                                    , Input.value model.age.input
-                                    , Input.small
-                                    ]
-                                ]
-                            ]
-                        ]
-                    , Form.col [ Col.xs5, Col.sm5 ]
-                        [ model |> modelToFeat |> canMakeFeat |> saveButton
-                        ]
-                    ]
-                ]
-            ]
-        ]
-
-
 accordion : Accordion.State -> (Accordion.State -> Msg) -> String -> List Column -> (Column -> Bool -> Msg) -> String -> Html Msg
 accordion state toggleAccordionMsg id columns toggleColumnMsg title =
     Accordion.config toggleAccordionMsg
@@ -608,14 +355,18 @@ accordion state toggleAccordionMsg id columns toggleColumnMsg title =
 
 view : Model -> Html Msg
 view model =
+    let
+        currentFeat =
+            modelToFeat model
+    in
     div []
         [ Grid.container []
             [ h1 [] [ text "Every Score Calculator" ]
-            , lifterForm model
+            , lifterForm model.formState currentFeat UpdateForm (SaveFeat currentFeat)
             , h2 [] [ text "Current Score" ]
             , Grid.row []
                 [ Grid.col [ Col.xs12 ]
-                    (case model |> modelToFeat of
+                    (case currentFeat of
                         Just feat ->
                             [ accordion
                                 model.currentAccordionState
