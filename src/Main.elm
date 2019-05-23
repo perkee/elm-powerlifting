@@ -28,7 +28,7 @@ import Column
         , initCurrentColumns
         , initTableColumns
         )
-import Feat exposing (Feat, Gender, Lift)
+import Feat exposing (Equipment, Feat, Gender, Lift)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (on, onCheck, onClick, onInput)
@@ -94,6 +94,7 @@ someFeats =
                 , gender = Feat.Male
                 , lift = Feat.Total
                 , age = Just 40
+                , equipment = Feat.Raw
                 }
           }
         , { index = 1
@@ -107,6 +108,7 @@ someFeats =
                 , gender = Feat.Male
                 , lift = Feat.Total
                 , age = Just 45
+                , equipment = Feat.Raw
                 }
           }
         , { index = 2
@@ -120,6 +122,7 @@ someFeats =
                 , gender = Feat.Male
                 , lift = Feat.Total
                 , age = Just 50
+                , equipment = Feat.Raw
                 }
           }
         ]

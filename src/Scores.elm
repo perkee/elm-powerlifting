@@ -9,7 +9,8 @@ import Array
 import Bootstrap.Table as Table
 import Feat
     exposing
-        ( Feat
+        ( Equipment(..)
+        , Feat
         , Gender(..)
         , Lift(..)
         , MassUnit
@@ -121,6 +122,7 @@ maxFeat current new =
     , gender = GNC
     , lift = Total
     , age = maybeMax current.age new.age
+    , equipment = Raw
     }
 
 
@@ -145,6 +147,7 @@ maxRecord =
             , gender = GNC
             , lift = Total
             , age = Nothing
+            , equipment = Raw
             }
         , wilks = Nothing
         , scaledAllometric = Nothing
@@ -173,32 +176,56 @@ allometric m =
 
 allometricCoefficient : Feat -> Maybe Float
 allometricCoefficient m =
-    case ( m.lift, m.gender ) of
-        ( _, GNC ) ->
+    case ( m.lift, m.gender, m.equipment ) of
+        ( _, GNC, _ ) ->
             Nothing
 
-        ( Squat, Male ) ->
+        ( Squat, Male, Raw ) ->
             Just 6.487682129
 
-        ( Squat, Female ) ->
+        ( Squat, Female, Raw ) ->
             Just 8.540082411
 
-        ( Bench, Male ) ->
+        ( Bench, Male, Raw ) ->
             Just 8.373410442
 
-        ( Bench, Female ) ->
+        ( Bench, Female, Raw ) ->
             Just 11.26896531
 
-        ( Deadlift, Male ) ->
+        ( Deadlift, Male, Raw ) ->
             Just 5.510559406
 
-        ( Deadlift, Female ) ->
+        ( Deadlift, Female, Raw ) ->
             Just 7.164206454
 
-        ( Total, Male ) ->
+        ( Total, Male, Raw ) ->
             Just 2.292801981
 
-        ( Total, Female ) ->
+        ( Total, Female, Raw ) ->
+            Just 3.195981761
+
+        ( Squat, Male, SinglePly ) ->
+            Just 4.796198362
+
+        ( Bench, Male, SinglePly ) ->
+            Just 5.875342993
+
+        ( Deadlift, Male, SinglePly ) ->
+            Just 5.217770257
+
+        ( Total, Male, SinglePly ) ->
+            Just 1.947627512
+
+        ( Squat, Female, SinglePly ) ->
+            Just 8.540082411
+
+        ( Bench, Female, SinglePly ) ->
+            Just 11.26896531
+
+        ( Deadlift, Female, SinglePly ) ->
+            Just 7.164206454
+
+        ( Total, Female, SinglePly ) ->
             Just 3.195981761
 
 
@@ -250,33 +277,57 @@ ipfCoefficients :
             , c4 : Float
             }
 ipfCoefficients m =
-    case ( m.lift, m.gender ) of
-        ( _, GNC ) ->
+    case ( m.lift, m.gender, m.equipment ) of
+        ( _, GNC, _ ) ->
             Nothing
 
-        ( Squat, Male ) ->
+        ( Squat, Male, Raw ) ->
             Just { c1 = 123.1, c2 = 363.085, c3 = 25.1667, c4 = 75.4311 }
 
-        ( Squat, Female ) ->
+        ( Squat, Female, Raw ) ->
             Just { c1 = 50.479, c2 = 105.632, c3 = 19.1846, c4 = 56.2215 }
 
-        ( Bench, Male ) ->
+        ( Bench, Male, Raw ) ->
             Just { c1 = 86.4745, c2 = 259.155, c3 = 17.5785, c4 = 53.122 }
 
-        ( Bench, Female ) ->
+        ( Bench, Female, Raw ) ->
             Just { c1 = 25.0485, c2 = 43.848, c3 = 6.7172, c4 = 13.952 }
 
-        ( Deadlift, Male ) ->
+        ( Deadlift, Male, Raw ) ->
             Just { c1 = 103.5355, c2 = 244.765, c3 = 15.3714, c4 = 31.5022 }
 
-        ( Deadlift, Female ) ->
+        ( Deadlift, Female, Raw ) ->
             Just { c1 = 47.136, c2 = 67.349, c3 = 9.1555, c4 = 13.67 }
 
-        ( Total, Male ) ->
+        ( Total, Male, Raw ) ->
             Just { c1 = 310.67, c2 = 857.785, c3 = 53.216, c4 = 147.0835 }
 
-        ( Total, Female ) ->
+        ( Total, Female, Raw ) ->
             Just { c1 = 125.1435, c2 = 228.03, c3 = 34.5246, c4 = 86.8301 }
+
+        ( Squat, Male, SinglePly ) ->
+            Just { c1 = 150.485, c2 = 446.445, c3 = 36.5155, c4 = 103.7061 }
+
+        ( Squat, Female, SinglePly ) ->
+            Just { c1 = 74.6855, c2 = 171.585, c3 = 21.9475, c4 = 52.2948 }
+
+        ( Bench, Male, SinglePly ) ->
+            Just { c1 = 133.94, c2 = 441.465, c3 = 35.3938, c4 = 113.0057 }
+
+        ( Bench, Female, SinglePly ) ->
+            Just { c1 = 49.106, c2 = 124.209, c3 = 23.199, c4 = 67.4926 }
+
+        ( Deadlift, Male, SinglePly ) ->
+            Just { c1 = 110.135, c2 = 263.66, c3 = 14.996, c4 = 23.011 }
+
+        ( Deadlift, Female, SinglePly ) ->
+            Just { c1 = 51.002, c2 = 69.8265, c3 = 8.5802, c4 = 5.7258 }
+
+        ( Total, Male, SinglePly ) ->
+            Just { c1 = 387.265, c2 = 1121.28, c3 = 80.6324, c4 = 222.4896 }
+
+        ( Total, Female, SinglePly ) ->
+            Just { c1 = 176.58, c2 = 373.315, c3 = 48.4534, c4 = 110.0103 }
 
 
 

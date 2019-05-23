@@ -31,6 +31,7 @@ type alias Feat =
     , gender : Gender
     , lift : Lift
     , age : Maybe Float
+    , equipment : Equipment
     }
 
 
