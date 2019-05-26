@@ -10,7 +10,6 @@ module Library exposing
 
 import Array exposing (Array)
 import Regex
-import Set exposing (Set)
 
 
 thrush : a -> (a -> b) -> b
@@ -26,15 +25,6 @@ updateArrayAt index fn array =
 
         Nothing ->
             array
-
-
-setwiseToggle : comparable -> Set comparable -> Set comparable
-setwiseToggle val set =
-    if Set.member val set then
-        Set.remove val set
-
-    else
-        Set.insert val set
 
 
 truncate : Int -> Float -> Float

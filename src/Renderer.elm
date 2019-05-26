@@ -1,4 +1,9 @@
-module Renderer exposing (FloatField, floatToString, initFloatField, maybeFloatToString, rowsToHeadedTable, stringToFloatField, stringToHeaderCell)
+module Renderer exposing
+    ( floatToString
+    , maybeFloatToString
+    , rowsToHeadedTable
+    , stringToHeaderCell
+    )
 
 import Bootstrap.Table as Table
 import Html as H exposing (Html)
@@ -52,30 +57,3 @@ maybeFloatToString f =
 floatToString : Float -> String
 floatToString =
     truncate 2 >> String.fromFloat
-
-
-
--- Float Fields
-
-
-type alias FloatField =
-    { value : Maybe Float
-    , input : String
-    }
-
-
-initFloatField : FloatField
-initFloatField =
-    { value = Nothing
-    , input = ""
-    }
-
-
-stringToFloatField : String -> FloatField
-stringToFloatField str =
-    case String.toFloat str of
-        Nothing ->
-            { value = Nothing, input = str }
-
-        Just new ->
-            { value = Just new, input = str }

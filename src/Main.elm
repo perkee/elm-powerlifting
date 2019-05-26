@@ -28,21 +28,23 @@ import Column
         , initCurrentColumns
         , initTableColumns
         )
-import Feat exposing (Equipment, Feat, Gender, Lift)
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (on, onCheck, onClick, onInput)
+import Data.LiftForm as LiftForm
+import Feat exposing (Feat, testFeats)
+import Html exposing (Html, div, h1, h2, span, text)
+import Html.Attributes exposing (class, style)
+import Html.Events exposing (onCheck, onClick, onInput)
 import Library exposing (filterListByList, removeAt, stringToAttr, thrush, updateArrayAt)
-import LiftForm exposing (FormState, formStateToFeat, formStateToSubs, initFormState, lifterForm)
-import Renderer exposing (FloatField, initFloatField, rowsToHeadedTable, stringToFloatField)
+import Renderer exposing (rowsToHeadedTable)
 import Scores
     exposing
         ( Record
         , featToRecord
         , maxRecord
         )
+import View.LiftForm as LiftForm
 
 
+main : Platform.Program () Model Msg
 main =
     Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
@@ -50,7 +52,7 @@ main =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ formStateToSubs model.formState UpdateForm
+        [ LiftForm.toSubs model.formState UpdateForm
         , Accordion.subscriptions model.tableAccordionState SetTableAccordion
         , Accordion.subscriptions model.currentAccordionState SetCurrentAccordion
         , Modal.subscriptions model.deleteConfirmVisibility AnimateDeleteModal
@@ -66,7 +68,7 @@ type alias SavedFeat =
 
 
 type alias Model =
-    { formState : FormState
+    { formState : LiftForm.State
     , feats : Array SavedFeat
     , featKey : Int
     , currentColumns : List Column
@@ -82,55 +84,18 @@ type alias Model =
 
 someFeats : Array SavedFeat
 someFeats =
-    Array.fromList
-        [ { index = 0
-          , key = 1
-          , note = "first"
-          , feat =
-                { bodyKilos = 100
-                , bodyPounds = 220
-                , liftedKilos = 400
-                , liftedPounds = 881
-                , gender = Feat.Male
-                , lift = Feat.Total
-                , age = Just 40
-                , equipment = Feat.Raw
-                }
-          }
-        , { index = 1
-          , key = 2
-          , note = "second"
-          , feat =
-                { bodyKilos = 70
-                , bodyPounds = 154
-                , liftedKilos = 500
-                , liftedPounds = 1101
-                , gender = Feat.Male
-                , lift = Feat.Total
-                , age = Just 45
-                , equipment = Feat.Raw
-                }
-          }
-        , { index = 2
-          , key = 3
-          , note = "third"
-          , feat =
-                { bodyKilos = 60
-                , bodyPounds = 132
-                , liftedKilos = 505
-                , liftedPounds = 1112
-                , gender = Feat.Male
-                , lift = Feat.Total
-                , age = Just 50
-                , equipment = Feat.Raw
-                }
-          }
-        ]
+    testFeats
+        |> List.map2 (\( index, key, note ) feat -> SavedFeat feat index note key)
+            [ ( 0, 1, "first" )
+            , ( 1, 2, "second" )
+            , ( 2, 3, "third" )
+            ]
+        |> Array.fromList
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { formState = initFormState
+    ( { formState = LiftForm.init
       , feats = Array.empty --someFeats
       , featKey = 4
       , currentColumns = initCurrentColumns
@@ -148,27 +113,11 @@ init _ =
 
 modelToFeat : Model -> Maybe Feat
 modelToFeat =
-    .formState >> formStateToFeat
-
-
-modelToRecord : Model -> Maybe Record
-modelToRecord model =
-    model |> modelToFeat |> Maybe.map featToRecord
-
-
-canMakeFeat : Maybe Feat -> Bool
-canMakeFeat m =
-    case m of
-        Just _ ->
-            True
-
-        Nothing ->
-            False
+    .formState >> LiftForm.toFeat
 
 
 type Msg
-    = NoMsg
-    | UpdateForm FormState
+    = UpdateForm LiftForm.State
     | SaveFeat (Maybe Feat)
     | SetNote Int String
     | ToggleTableColumn Column Bool
@@ -190,9 +139,6 @@ setNoteOnSavedFeat note feat =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     ( case msg of
-        NoMsg ->
-            model
-
         UpdateForm state ->
             { model | formState = state }
 
@@ -365,7 +311,7 @@ view model =
     div []
         [ Grid.container []
             [ h1 [] [ text "Every Score Calculator" ]
-            , lifterForm model.formState currentFeat UpdateForm (SaveFeat currentFeat)
+            , LiftForm.view model.formState UpdateForm (SaveFeat (modelToFeat model))
             , h2 [] [ text "Current Score" ]
             , Grid.row [ Row.attrs [ class "current-table" ] ]
                 [ Grid.col [ Col.xs12 ]
@@ -436,7 +382,7 @@ view model =
                 [ Button.button
                     [ Button.outlineDanger
 
-                    -- todo: animate this on confirm. Gets into an infinite loop rn. Kinda impresseive!
+                    -- cannot currently animate this on confirm. Gets into an infinite loop rn. Kinda impresseive!
                     , Button.attrs [ onClick <| ConfirmDelete ]
                     ]
                     [ text "Yes, Delete this row" ]
@@ -457,7 +403,7 @@ savedFeatsToTable sort order cols savedFeats =
             savedFeats |> Array.toList |> List.map (.feat >> featToRecord) |> maxRecord
     in
     savedFeats
-        |> Array.indexedMap (savedFeatToRow cols maxes)
+        |> Array.map (savedFeatToRow cols maxes)
         >> Array.toList
         >> ([ [ ( "Index"
                 , span
@@ -499,8 +445,8 @@ columnToFloatToCell maxes col =
     columnToRecordToTextWithMaxes maxes col >> classToHtmlToCell (col |> columnToColumnLabel |> (++) "body-cell--")
 
 
-savedFeatToRow : List Column -> Record -> Int -> SavedFeat -> ( String, Table.Row Msg )
-savedFeatToRow cols maxes index savedFeat =
+savedFeatToRow : List Column -> Record -> SavedFeat -> ( String, Table.Row Msg )
+savedFeatToRow cols maxes savedFeat =
     [ [ .index >> String.fromInt >> text >> classToHtmlToCell "body-cell--index"
       , .note
             >> (\v ->

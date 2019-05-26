@@ -6,18 +6,14 @@ module Scores exposing
     )
 
 import Array
-import Bootstrap.Table as Table
 import Feat
     exposing
         ( Equipment(..)
         , Feat
         , Gender(..)
         , Lift(..)
-        , MassUnit
         )
-import Html as H exposing (Html)
 import Library exposing (thrush)
-import Renderer exposing (floatToString, maybeFloatToString, rowsToHeadedTable)
 
 
 
@@ -31,15 +27,6 @@ type Score
     | McCulloch Float
     | Allometric Float
     | NoScore
-
-
-type alias Scores =
-    { wilks : Maybe Float
-    , scaledAllometric : Maybe Float
-    , allometric : Maybe Float
-    , ipf : Maybe Float
-    , mcCulloch : Maybe Float
-    }
 
 
 type alias Record =

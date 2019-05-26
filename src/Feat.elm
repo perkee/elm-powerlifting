@@ -8,6 +8,7 @@ module Feat exposing
     , liftToString
     , massToKilos
     , massToPounds
+    , testFeats
     )
 
 
@@ -44,6 +45,38 @@ type Gender
 type Equipment
     = Raw
     | SinglePly
+
+
+testFeats : List Feat
+testFeats =
+    [ { bodyKilos = 100
+      , bodyPounds = 220
+      , liftedKilos = 400
+      , liftedPounds = 881
+      , gender = Male
+      , lift = Total
+      , age = Just 40
+      , equipment = Raw
+      }
+    , { bodyKilos = 70
+      , bodyPounds = 154
+      , liftedKilos = 500
+      , liftedPounds = 1101
+      , gender = Male
+      , lift = Total
+      , age = Just 45
+      , equipment = Raw
+      }
+    , { bodyKilos = 60
+      , bodyPounds = 132
+      , liftedKilos = 505
+      , liftedPounds = 1112
+      , gender = Male
+      , lift = Total
+      , age = Just 50
+      , equipment = Raw
+      }
+    ]
 
 
 genderToString : Gender -> String
