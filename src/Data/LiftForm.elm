@@ -1,4 +1,4 @@
-module Data.LiftForm exposing (State, init, toFeat, toSubs)
+module Data.LiftForm exposing (State, init, subscriptions, toFeat)
 
 import Data.UnitDropdown as UnitDropdown
 import Feat exposing (Equipment(..), Feat, Gender(..), Lift(..), MassUnit(..))
@@ -17,14 +17,14 @@ type alias State =
     }
 
 
-toSubs : State -> (State -> msg) -> Platform.Sub.Sub msg
-toSubs state updateMsg =
+subscriptions : State -> (State -> msg) -> Platform.Sub.Sub msg
+subscriptions state updateMsg =
     Sub.batch
-        [ UnitDropdown.toSubs state.liftedUnit
+        [ UnitDropdown.subscriptions state.liftedUnit
             ((\x -> { state | liftedUnit = x })
                 >> updateMsg
             )
-        , UnitDropdown.toSubs state.bodyUnit
+        , UnitDropdown.subscriptions state.bodyUnit
             (updateMsg << (\x -> { state | bodyUnit = x }))
         ]
 

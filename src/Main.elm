@@ -52,7 +52,7 @@ main =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ LiftForm.toSubs model.formState UpdateForm
+        [ LiftForm.subscriptions model.formState UpdateForm
         , Accordion.subscriptions model.tableAccordionState SetTableAccordion
         , Accordion.subscriptions model.currentAccordionState SetCurrentAccordion
         , Modal.subscriptions model.deleteConfirmVisibility AnimateDeleteModal

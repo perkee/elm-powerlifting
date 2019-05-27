@@ -1,4 +1,4 @@
-module Data.UnitDropdown exposing (State, init, toKilos, toPounds, toSubs)
+module Data.UnitDropdown exposing (State, init, subscriptions, toKilos, toPounds)
 
 import Bootstrap.Dropdown as Dropdown
 import Feat exposing (MassUnit(..), massToKilos, massToPounds)
@@ -28,6 +28,6 @@ init =
     }
 
 
-toSubs : State -> (State -> msg) -> Platform.Sub.Sub msg
-toSubs state msg =
+subscriptions : State -> (State -> msg) -> Platform.Sub.Sub msg
+subscriptions state msg =
     Dropdown.subscriptions state.dropdownState (\x -> msg { state | dropdownState = x })
