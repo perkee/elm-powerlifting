@@ -10,7 +10,7 @@ module Column exposing
     )
 
 import Bootstrap.Progress as Progress
-import Feat exposing (genderToString, liftToString)
+import Feat exposing (equipmentToString, genderToString, liftToString)
 import Html as H exposing (Html)
 import Renderer exposing (floatToString, maybeFloatToString)
 import Scores exposing (Record)
@@ -22,18 +22,21 @@ type Column
     | BodyPounds
     | LiftedPounds
     | Wilks
-    | ScaledAllometric
+    | ScaledAllometricIpf
+    | ScaledAllometricAtr
     | Allometric
     | IPF
     | McCulloch
     | Gender
     | Lift
+    | Equipment
 
 
 allColumns : List Column
 allColumns =
     [ Gender
     , Lift
+    , Equipment
     , LiftedKilos
     , BodyKilos
     , LiftedPounds
@@ -42,7 +45,8 @@ allColumns =
     , Allometric
     , IPF
     , McCulloch
-    , ScaledAllometric
+    , ScaledAllometricIpf
+    , ScaledAllometricAtr
     ]
 
 
@@ -50,6 +54,7 @@ initCurrentColumns : List Column
 initCurrentColumns =
     [ Gender
     , Lift
+    , Equipment
     , LiftedKilos
     , BodyKilos
     , LiftedPounds
@@ -58,7 +63,8 @@ initCurrentColumns =
     , Allometric
     , IPF
     , McCulloch
-    , ScaledAllometric
+    , ScaledAllometricAtr
+    , ScaledAllometricIpf
     ]
 
 
@@ -66,11 +72,12 @@ initTableColumns : List Column
 initTableColumns =
     [ Gender
     , Lift
+    , Equipment
     , LiftedKilos
     , BodyKilos
     , Wilks
     , IPF
-    , ScaledAllometric
+    , ScaledAllometricIpf
     , Allometric
     ]
 
@@ -89,11 +96,17 @@ columnToColumnLabel column =
         BodyPounds ->
             "BW" ++ unitSeparatorSpace ++ "(lb)"
 
-        ScaledAllometric ->
-            "Sc. Allo."
+        ScaledAllometricIpf ->
+            "Sc. Allo. IPF"
+
+        ScaledAllometricAtr ->
+            "Sc. Allo. ATR"
 
         Allometric ->
             "Allo."
+
+        McCulloch ->
+            "McC–W"
 
         x ->
             columnToToggleLabel x
@@ -108,23 +121,29 @@ columnToToggleLabel column =
         Lift ->
             "Lift"
 
+        Equipment ->
+            "Equip."
+
         LiftedKilos ->
-            "Lift (kg)"
+            "Lift" ++ unitSeparatorSpace ++ "(kg)"
 
         BodyKilos ->
-            "Bodyweight (kg)"
+            "Bodyweight" ++ unitSeparatorSpace ++ "(kg)"
 
         LiftedPounds ->
-            "Lift (lb)"
+            "Lift" ++ unitSeparatorSpace ++ "(lb)"
 
         BodyPounds ->
-            "Bodyweight (lb)"
+            "Bodyweight" ++ unitSeparatorSpace ++ "(lb)"
 
         Wilks ->
             "Wilks"
 
-        ScaledAllometric ->
-            "Scaled Allometric"
+        ScaledAllometricIpf ->
+            "Scaled Allometric (IPF)"
+
+        ScaledAllometricAtr ->
+            "Scaled Allometric (All Time Raw w/ Wraps)"
 
         Allometric ->
             "Allometric"
@@ -133,7 +152,7 @@ columnToToggleLabel column =
             "IPF"
 
         McCulloch ->
-            "McCulloch"
+            "McCulloch–Wilks"
 
 
 floatToProgress : Float -> Float -> Html msg
@@ -163,6 +182,9 @@ columnToRecordToTextWithMaxes maxes column =
         Lift ->
             .feat >> .lift >> liftToString >> H.text
 
+        Equipment ->
+            .feat >> .equipment >> equipmentToString >> H.text
+
         LiftedKilos ->
             .feat >> .liftedKilos >> floatToProgress maxes.feat.liftedKilos
 
@@ -178,8 +200,11 @@ columnToRecordToTextWithMaxes maxes column =
         Wilks ->
             .wilks >> maybeFloatToProgress maxes.wilks
 
-        ScaledAllometric ->
-            .scaledAllometric >> maybeFloatToProgress maxes.scaledAllometric
+        ScaledAllometricIpf ->
+            .scaledAllometricIpf >> maybeFloatToProgress maxes.scaledAllometricIpf
+
+        ScaledAllometricAtr ->
+            .scaledAllometricAtr >> maybeFloatToProgress maxes.scaledAllometricAtr
 
         Allometric ->
             .allometric >> maybeFloatToProgress maxes.allometric
@@ -201,6 +226,9 @@ columnToRecordToText column =
             Lift ->
                 .feat >> .lift >> liftToString
 
+            Equipment ->
+                .feat >> .equipment >> equipmentToString
+
             LiftedKilos ->
                 .feat >> .liftedKilos >> floatToString
 
@@ -216,8 +244,11 @@ columnToRecordToText column =
             Wilks ->
                 .wilks >> maybeFloatToString
 
-            ScaledAllometric ->
-                .scaledAllometric >> maybeFloatToString
+            ScaledAllometricIpf ->
+                .scaledAllometricIpf >> maybeFloatToString
+
+            ScaledAllometricAtr ->
+                .scaledAllometricAtr >> maybeFloatToString
 
             Allometric ->
                 .allometric >> maybeFloatToString

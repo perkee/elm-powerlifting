@@ -96,7 +96,7 @@ someFeats =
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { formState = LiftForm.init
-      , feats = Array.empty --someFeats
+      , feats = Array.empty --someFeats --
       , featKey = 4
       , currentColumns = initCurrentColumns
       , tableColumns = initTableColumns
@@ -304,18 +304,14 @@ accordion state toggleAccordionMsg id columns toggleColumnMsg title =
 
 view : Model -> Html Msg
 view model =
-    let
-        currentFeat =
-            modelToFeat model
-    in
     div []
         [ Grid.container []
             [ h1 [] [ text "Every Score Calculator" ]
-            , LiftForm.view model.formState UpdateForm (SaveFeat (modelToFeat model))
+            , LiftForm.view model.formState UpdateForm <| SaveFeat <| modelToFeat <| model
             , h2 [] [ text "Current Score" ]
             , Grid.row [ Row.attrs [ class "current-table" ] ]
                 [ Grid.col [ Col.xs12 ]
-                    (case currentFeat of
+                    (case modelToFeat model of
                         Just feat ->
                             [ accordion
                                 model.currentAccordionState
@@ -400,7 +396,10 @@ savedFeatsToTable : SortColumn -> SortOrder -> List Column -> Array SavedFeat ->
 savedFeatsToTable sort order cols savedFeats =
     let
         maxes =
-            savedFeats |> Array.toList |> List.map (.feat >> featToRecord) |> maxRecord
+            savedFeats
+                |> Array.toList
+                |> List.map (.feat >> featToRecord)
+                |> maxRecord
     in
     savedFeats
         |> Array.map (savedFeatToRow cols maxes)
@@ -424,23 +423,23 @@ savedFeatsToTable sort order cols savedFeats =
                     []
                 )
               ]
-            , [ ( "Note", span [] [] ) ]
+            , [ ( "Note", text "" ) ]
             , List.map
                 (\c -> ( columnToColumnLabel c, columnAndSortToIcon sort order c ))
                 cols
-            , [ ( "Delete", span [] [] ) ]
+            , [ ( "Delete", text "" ) ]
             ]
                 |> List.concat
                 |> rowsToHeadedTable
            )
 
 
-classToHtmlToCell : String -> Html Msg -> Table.Cell Msg
-classToHtmlToCell className =
-    List.singleton >> Table.td [ className |> stringToAttr |> class |> Table.cellAttr ]
+classToHtmlToCell : String -> Html Msg -> ( String, Table.Cell Msg )
+classToHtmlToCell className html =
+    ( className, Table.td [ className |> stringToAttr |> class |> Table.cellAttr ] [ html ] )
 
 
-columnToFloatToCell : Record -> Column -> Record -> Table.Cell Msg
+columnToFloatToCell : Record -> Column -> Record -> ( String, Table.Cell Msg )
 columnToFloatToCell maxes col =
     columnToRecordToTextWithMaxes maxes col >> classToHtmlToCell (col |> columnToColumnLabel |> (++) "body-cell--")
 
@@ -472,12 +471,11 @@ savedFeatToRow cols maxes savedFeat =
         ]
         [ span [ class "fa fa-trash" ] []
         ]
-        |> List.singleton
-        |> Table.td [ "body-cell--delete" |> class |> Table.cellAttr ]
+        |> classToHtmlToCell "body-cell--delete"
         |> List.singleton
     ]
         |> List.concat
-        |> Table.tr []
+        |> Table.keyedTr []
         |> (\row -> ( savedFeat.key |> String.fromInt, row ))
 
 
@@ -540,7 +538,8 @@ type SortColumn
     = BodyMass
     | LiftedMass
     | Wilks
-    | ScaledAllometric
+    | ScaledAllometricIpf
+    | ScaledAllometricAtr
     | Allometric
     | IPF
     | McCulloch
@@ -559,8 +558,11 @@ sortColumnToGetter col =
         Wilks ->
             .feat >> featToRecord >> .wilks
 
-        ScaledAllometric ->
-            .feat >> featToRecord >> .scaledAllometric
+        ScaledAllometricIpf ->
+            .feat >> featToRecord >> .scaledAllometricIpf
+
+        ScaledAllometricAtr ->
+            .feat >> featToRecord >> .scaledAllometricAtr
 
         Allometric ->
             .feat >> featToRecord >> .allometric
@@ -600,7 +602,7 @@ columnAndSortToIcon sort order column =
                             "fa-sort-down"
                    )
     in
-    (case ( sort, columnToSortColumn column ) of
+    case ( sort, columnToSortColumn column ) of
         ( s, Just sc ) ->
             (if s == sc then
                 arrows
@@ -614,12 +616,11 @@ columnAndSortToIcon sort order column =
                     [ class "sort-button"
                     , onClick (SetSortColumn sc)
                     ]
+                |> span
+                |> thrush []
 
         ( _, Nothing ) ->
-            [ class "fa" ]
-    )
-        |> span
-        |> thrush []
+            text ""
 
 
 columnToSortColumn : Column -> Maybe SortColumn
@@ -640,8 +641,11 @@ columnToSortColumn col =
         Column.Wilks ->
             Just Wilks
 
-        Column.ScaledAllometric ->
-            Just ScaledAllometric
+        Column.ScaledAllometricIpf ->
+            Just ScaledAllometricIpf
+
+        Column.ScaledAllometricAtr ->
+            Just ScaledAllometricAtr
 
         Column.Allometric ->
             Just Allometric
@@ -656,4 +660,7 @@ columnToSortColumn col =
             Nothing
 
         Column.Lift ->
+            Nothing
+
+        Column.Equipment ->
             Nothing

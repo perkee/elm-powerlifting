@@ -22,7 +22,8 @@ import Library exposing (thrush)
 
 type Score
     = Wilks Float
-    | ScaledAllometric Float
+    | ScaledAllometricIpf Float
+    | ScaledAllometricAtr Float
     | Ipf Float
     | McCulloch Float
     | Allometric Float
@@ -32,7 +33,8 @@ type Score
 type alias Record =
     { feat : Feat
     , wilks : Maybe Float
-    , scaledAllometric : Maybe Float
+    , scaledAllometricIpf : Maybe Float
+    , scaledAllometricAtr : Maybe Float
     , allometric : Maybe Float
     , ipf : Maybe Float
     , mcCulloch : Maybe Float
@@ -47,7 +49,8 @@ featToRecord feat =
             scoreToRecord
             { feat = feat
             , wilks = Nothing
-            , scaledAllometric = Nothing
+            , scaledAllometricIpf = Nothing
+            , scaledAllometricAtr = Nothing
             , allometric = Nothing
             , ipf = Nothing
             , mcCulloch = Nothing
@@ -60,8 +63,11 @@ scoreToRecord score record =
         Wilks s ->
             { record | wilks = Just s }
 
-        ScaledAllometric s ->
-            { record | scaledAllometric = Just s }
+        ScaledAllometricIpf s ->
+            { record | scaledAllometricIpf = Just s }
+
+        ScaledAllometricAtr s ->
+            { record | scaledAllometricAtr = Just s }
 
         Allometric s ->
             { record | allometric = Just s }
@@ -79,7 +85,8 @@ scoreToRecord score record =
 featToScores : Feat -> List Score
 featToScores feat =
     [ wilks
-    , scaledAllometric
+    , scaledAllometricIpf
+    , scaledAllometricAtr
     , allometric
     , ipf
     , mcCulloch
@@ -119,7 +126,8 @@ maxRecord =
         (\maxes record ->
             { maxes
                 | wilks = maybeMax maxes.wilks record.wilks
-                , scaledAllometric = maybeMax maxes.scaledAllometric record.scaledAllometric
+                , scaledAllometricIpf = maybeMax maxes.scaledAllometricIpf record.scaledAllometricIpf
+                , scaledAllometricAtr = maybeMax maxes.scaledAllometricAtr record.scaledAllometricAtr
                 , allometric = maybeMax maxes.allometric record.allometric
                 , ipf = maybeMax maxes.ipf record.ipf
                 , mcCulloch = maybeMax maxes.mcCulloch record.mcCulloch
@@ -137,7 +145,8 @@ maxRecord =
             , equipment = Raw
             }
         , wilks = Nothing
-        , scaledAllometric = Nothing
+        , scaledAllometricIpf = Nothing
+        , scaledAllometricAtr = Nothing
         , allometric = Nothing
         , ipf = Nothing
         , mcCulloch = Nothing
@@ -161,68 +170,119 @@ allometric m =
 -- Scaled Allometric
 
 
-allometricCoefficient : Feat -> Maybe Float
-allometricCoefficient m =
-    case ( m.lift, m.gender, m.equipment ) of
-        ( _, GNC, _ ) ->
-            Nothing
-
-        ( Squat, Male, Raw ) ->
-            Just 6.487682129
-
-        ( Squat, Female, Raw ) ->
-            Just 8.540082411
-
-        ( Bench, Male, Raw ) ->
-            Just 8.373410442
-
-        ( Bench, Female, Raw ) ->
-            Just 11.26896531
-
-        ( Deadlift, Male, Raw ) ->
-            Just 5.510559406
-
-        ( Deadlift, Female, Raw ) ->
-            Just 7.164206454
-
-        ( Total, Male, Raw ) ->
-            Just 2.292801981
-
-        ( Total, Female, Raw ) ->
-            Just 3.195981761
-
-        ( Squat, Male, SinglePly ) ->
-            Just 4.796198362
-
-        ( Bench, Male, SinglePly ) ->
-            Just 5.875342993
-
-        ( Deadlift, Male, SinglePly ) ->
-            Just 5.217770257
-
-        ( Total, Male, SinglePly ) ->
-            Just 1.947627512
-
-        ( Squat, Female, SinglePly ) ->
-            Just 8.540082411
-
-        ( Bench, Female, SinglePly ) ->
-            Just 11.26896531
-
-        ( Deadlift, Female, SinglePly ) ->
-            Just 7.164206454
-
-        ( Total, Female, SinglePly ) ->
-            Just 3.195981761
+type NuckolsFed
+    = IPF
+    | AllTimeRaw
 
 
-scaledAllometric : Feat -> Score
-scaledAllometric m =
-    case ( allometricCoefficient m, allometric m ) of
+allometricCoefficient : NuckolsFed -> Feat -> Maybe Float
+allometricCoefficient fed feat =
+    case fed of
+        AllTimeRaw ->
+            case ( feat.lift, feat.gender, feat.equipment ) of
+                ( _, GNC, _ ) ->
+                    Nothing
+
+                ( _, _, SinglePly ) ->
+                    Nothing
+
+                ( Squat, Male, Raw ) ->
+                    Just 3.870519111
+
+                ( Squat, Female, Raw ) ->
+                    Just 5.672829804
+
+                ( Bench, Male, Raw ) ->
+                    Just 5.435740026
+
+                ( Bench, Female, Raw ) ->
+                    Just 7.493817001
+
+                ( Deadlift, Male, Raw ) ->
+                    Just 3.901043709
+
+                ( Deadlift, Female, Raw ) ->
+                    Just 5.28914498
+
+                ( Total, Male, Raw ) ->
+                    Just 1.675105545
+
+                ( Total, Female, Raw ) ->
+                    Just 2.306479733
+
+        IPF ->
+            case ( feat.lift, feat.gender, feat.equipment ) of
+                ( _, GNC, _ ) ->
+                    Nothing
+
+                ( Squat, Male, Raw ) ->
+                    Just 6.487682129
+
+                ( Squat, Female, Raw ) ->
+                    Just 8.540082411
+
+                ( Bench, Male, Raw ) ->
+                    Just 8.373410442
+
+                ( Bench, Female, Raw ) ->
+                    Just 11.26896531
+
+                ( Deadlift, Male, Raw ) ->
+                    Just 5.510559406
+
+                ( Deadlift, Female, Raw ) ->
+                    Just 7.164206454
+
+                ( Total, Male, Raw ) ->
+                    Just 2.292801981
+
+                ( Total, Female, Raw ) ->
+                    Just 3.195981761
+
+                ( Squat, Male, SinglePly ) ->
+                    Just 4.796198362
+
+                ( Bench, Male, SinglePly ) ->
+                    Just 5.875342993
+
+                ( Deadlift, Male, SinglePly ) ->
+                    Just 5.217770257
+
+                ( Total, Male, SinglePly ) ->
+                    Just 1.947627512
+
+                ( Squat, Female, SinglePly ) ->
+                    Just 8.540082411
+
+                ( Bench, Female, SinglePly ) ->
+                    Just 11.26896531
+
+                ( Deadlift, Female, SinglePly ) ->
+                    Just 7.164206454
+
+                ( Total, Female, SinglePly ) ->
+                    Just 3.195981761
+
+
+scaledAllometricIpf : Feat -> Score
+scaledAllometricIpf feat =
+    case ( allometricCoefficient IPF feat, allometric feat ) of
         ( Just coefficient, Allometric unscaled ) ->
             unscaled
                 * coefficient
-                |> ScaledAllometric
+                |> ScaledAllometricIpf
+
+        ( _, _ ) ->
+            NoScore
+
+
+scaledAllometricAtr : Feat -> Score
+scaledAllometricAtr feat =
+    case ( allometricCoefficient AllTimeRaw feat, allometric feat ) of
+        ( Just coefficient, Allometric unscaled ) ->
+            unscaled
+                * coefficient
+                |> ScaledAllometricAtr
 
         ( _, _ ) ->
             NoScore

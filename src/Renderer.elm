@@ -15,18 +15,27 @@ import Library exposing (stringToAttr, truncate)
 -- helper
 
 
-stringToHeaderCell : ( String, Html msg ) -> Table.Cell msg
+stringToHeaderCell : ( String, Html msg ) -> ( String, Table.Cell msg )
 stringToHeaderCell ( title, icon ) =
     let
         class =
             title
                 |> stringToAttr
                 |> (++) "title-cell--"
+                |> (++)
+                    (if icon /= H.text "" then
+                        "title-cell--sortable "
+
+                     else
+                        ""
+                    )
     in
-    Table.th [ Table.cellAttr (HA.class class) ]
+    ( class
+    , Table.th [ Table.cellAttr (HA.class class) ]
         [ title |> H.text
         , icon
         ]
+    )
 
 
 rowsToHeadedTable : List ( String, Html msg ) -> List ( String, Table.Row msg ) -> Html msg
@@ -38,8 +47,11 @@ rowsToHeadedTable titles rows =
         Table.table
             { options = [ Table.striped, Table.hover, Table.small ]
             , thead =
-                Table.simpleThead
-                    (titles |> List.map stringToHeaderCell)
+                titles
+                    |> List.map stringToHeaderCell
+                    |> Table.keyedTr []
+                    |> List.singleton
+                    |> Table.thead []
             , tbody = Table.keyedTBody [] rows
             }
 

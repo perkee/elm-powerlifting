@@ -4,6 +4,7 @@ module Feat exposing
     , Gender(..)
     , Lift(..)
     , MassUnit(..)
+    , equipmentToString
     , genderToString
     , liftToString
     , massToKilos
@@ -56,7 +57,7 @@ testFeats =
       , gender = Male
       , lift = Total
       , age = Just 40
-      , equipment = Raw
+      , equipment = SinglePly
       }
     , { bodyKilos = 70
       , bodyPounds = 154
@@ -90,6 +91,16 @@ genderToString gender =
 
         GNC ->
             "Other"
+
+
+equipmentToString : Equipment -> String
+equipmentToString equipment =
+    case equipment of
+        Raw ->
+            "Raw"
+
+        SinglePly ->
+            "1-ply"
 
 
 liftToString : Lift -> String
