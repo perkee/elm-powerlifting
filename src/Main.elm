@@ -4,12 +4,8 @@ module Main exposing (main)
 -- imports used
 
 import Array exposing (Array)
-import Bootstrap.Accordion as Accordion
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
-import Bootstrap.Card.Block as Block
-import Bootstrap.Form as Form
-import Bootstrap.Form.Checkbox as Checkbox
 import Bootstrap.Form.Input as Input
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
@@ -20,7 +16,6 @@ import Browser
 import Column
     exposing
         ( Column
-        , allColumns
         , columnToColumnLabel
         , columnToRecordToText
         , columnToRecordToTextWithMaxes
@@ -28,12 +23,13 @@ import Column
         , initCurrentColumns
         , initTableColumns
         )
+import Data.ColumnToggles as ColumnToggles
 import Data.LiftForm as LiftForm
 import Feat exposing (Feat, testFeats)
 import Html exposing (Html, div, h1, h2, span, text)
-import Html.Attributes exposing (class, style)
-import Html.Events exposing (onCheck, onClick, onInput)
-import Library exposing (filterListByList, removeAt, stringToAttr, thrush, updateArrayAt)
+import Html.Attributes exposing (class)
+import Html.Events exposing (onClick, onInput)
+import Library exposing (removeAt, stringToAttr, thrush, updateArrayAt)
 import Renderer exposing (rowsToHeadedTable)
 import Scores
     exposing
@@ -41,6 +37,7 @@ import Scores
         , featToRecord
         , maxRecord
         )
+import View.ColumnToggles as ColumnToggles
 import View.LiftForm as LiftForm
 
 
@@ -53,8 +50,8 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ LiftForm.subscriptions model.formState UpdateForm
-        , Accordion.subscriptions model.tableAccordionState SetTableAccordion
-        , Accordion.subscriptions model.currentAccordionState SetCurrentAccordion
+        , ColumnToggles.subscriptions model.featState UpdateFeatDisplay
+        , ColumnToggles.subscriptions model.tableState UpdateTableDisplay
         , Modal.subscriptions model.deleteConfirmVisibility AnimateDeleteModal
         ]
 
@@ -71,10 +68,8 @@ type alias Model =
     { formState : LiftForm.State
     , feats : Array SavedFeat
     , featKey : Int
-    , currentColumns : List Column
-    , tableColumns : List Column
-    , currentAccordionState : Accordion.State
-    , tableAccordionState : Accordion.State
+    , featState : ColumnToggles.State
+    , tableState : ColumnToggles.State
     , deleteConfirmVisibility : Modal.Visibility
     , idxToDelete : Maybe Int
     , sortColumn : SortColumn
@@ -96,12 +91,10 @@ someFeats =
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { formState = LiftForm.init
-      , feats = Array.empty --someFeats --
+      , feats = someFeats --Array.empty --
       , featKey = 4
-      , currentColumns = initCurrentColumns
-      , tableColumns = initTableColumns
-      , tableAccordionState = Accordion.initialState
-      , currentAccordionState = Accordion.initialState
+      , featState = ColumnToggles.init initCurrentColumns
+      , tableState = ColumnToggles.init initTableColumns
       , deleteConfirmVisibility = Modal.hidden
       , idxToDelete = Nothing
       , sortOrder = Ascending
@@ -120,11 +113,9 @@ type Msg
     = UpdateForm LiftForm.State
     | SaveFeat (Maybe Feat)
     | SetNote Int String
-    | ToggleTableColumn Column Bool
-    | ToggleCurrentColumn Column Bool
-    | SetTableAccordion Accordion.State
-    | SetCurrentAccordion Accordion.State
     | AnimateDeleteModal Modal.Visibility
+    | UpdateFeatDisplay ColumnToggles.State
+    | UpdateTableDisplay ColumnToggles.State
     | AskDelete Int
     | CancelDelete
     | ConfirmDelete
@@ -139,6 +130,12 @@ setNoteOnSavedFeat note feat =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     ( case msg of
+        UpdateFeatDisplay state ->
+            { model | featState = state }
+
+        UpdateTableDisplay state ->
+            { model | tableState = state }
+
         UpdateForm state ->
             { model | formState = state }
 
@@ -155,34 +152,6 @@ update msg model =
 
         SetNote index note ->
             { model | feats = updateArrayAt index (setNoteOnSavedFeat note) model.feats }
-
-        ToggleTableColumn col checked ->
-            let
-                newColumns =
-                    if checked then
-                        col :: model.tableColumns
-
-                    else
-                        List.filter ((/=) col) model.tableColumns
-            in
-            { model | tableColumns = newColumns }
-
-        ToggleCurrentColumn col checked ->
-            let
-                newColumns =
-                    if checked then
-                        col :: model.currentColumns
-
-                    else
-                        List.filter ((/=) col) model.currentColumns
-            in
-            { model | currentColumns = newColumns }
-
-        SetTableAccordion state ->
-            { model | tableAccordionState = state }
-
-        SetCurrentAccordion state ->
-            { model | currentAccordionState = state }
 
         CancelDelete ->
             { model
@@ -241,67 +210,6 @@ update msg model =
     )
 
 
-columnToToggle : String -> (Column -> Bool -> Msg) -> List Column -> Column -> Html Msg
-columnToToggle prefix msg columns col =
-    Checkbox.checkbox
-        [ col
-            |> columnToToggleLabel
-            |> (++) prefix
-            |> Checkbox.id
-        , Checkbox.onCheck <|
-            msg col
-        , Checkbox.checked <| List.member col columns
-        , Checkbox.inline
-        ]
-        (col |> columnToToggleLabel)
-
-
-accordion : Accordion.State -> (Accordion.State -> Msg) -> String -> List Column -> (Column -> Bool -> Msg) -> String -> Html Msg
-accordion state toggleAccordionMsg id columns toggleColumnMsg title =
-    Accordion.config toggleAccordionMsg
-        |> Accordion.withAnimation
-        |> Accordion.cards
-            [ Accordion.card
-                { id = id
-                , options = []
-                , header =
-                    Accordion.toggle [ class "btn-block" ]
-                        [ span
-                            [ (if Accordion.isOpen id state then
-                                "fa fa-chevron-down"
-
-                               else
-                                "fa fa-chevron-up"
-                              )
-                                |> class
-                            , style "float" "left"
-                            , style "padding" ".125em 0 0 0"
-                            ]
-                            []
-                        , text title
-                        ]
-                        |> Accordion.header [ style "padding" "0" ]
-                , blocks =
-                    [ Accordion.block []
-                        [ Block.titleH4 [] [ text "Toggle Fields" ]
-                        , Block.text []
-                            [ Form.row
-                                []
-                                (allColumns
-                                    |> List.map
-                                        (columnToToggle id toggleColumnMsg columns
-                                            >> List.singleton
-                                            >> Form.col [ Col.xs6, Col.sm4, Col.md3, Col.lg3 ]
-                                        )
-                                )
-                            ]
-                        ]
-                    ]
-                }
-            ]
-        |> Accordion.view state
-
-
 view : Model -> Html Msg
 view model =
     div []
@@ -313,14 +221,12 @@ view model =
                 [ Grid.col [ Col.xs12 ]
                     (case modelToFeat model of
                         Just feat ->
-                            [ accordion
-                                model.currentAccordionState
-                                SetCurrentAccordion
+                            [ ColumnToggles.view
+                                model.featState
+                                UpdateFeatDisplay
                                 "current-column-toggles"
-                                model.currentColumns
-                                ToggleCurrentColumn
                                 "Current Scores Options"
-                            , featToTable model.feats model.currentColumns feat
+                            , (featToTable model.feats <| ColumnToggles.columns model.featState) <| feat
                             ]
 
                         Nothing ->
@@ -332,12 +238,10 @@ view model =
                 Alert.simpleInfo [] [ text "Add scores to the table to compare" ]
 
               else
-                accordion
-                    model.tableAccordionState
-                    SetTableAccordion
+                ColumnToggles.view
+                    model.tableState
+                    UpdateTableDisplay
                     "table-column-toggles"
-                    model.tableColumns
-                    ToggleTableColumn
                     "Table Options"
             ]
         , Grid.containerFluid []
@@ -348,7 +252,7 @@ view model =
                         |> savedFeatsToTable
                             model.sortColumn
                             model.sortOrder
-                            (filterListByList model.tableColumns allColumns)
+                            (ColumnToggles.columns model.tableState)
                     ]
                 ]
             ]
