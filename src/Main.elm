@@ -24,7 +24,7 @@ import Column
         , initTableColumns
         )
 import Data.ColumnToggles as ColumnToggles
-import Data.LiftForm as LiftForm
+import LiftForm
 import Feat exposing (Feat, testFeats)
 import Html exposing (Html, div, h1, h2, span, text)
 import Html.Attributes exposing (class)
@@ -38,7 +38,6 @@ import Scores
         , maxRecord
         )
 import View.ColumnToggles as ColumnToggles
-import View.LiftForm as LiftForm
 
 
 main : Platform.Program () Model Msg
@@ -221,11 +220,9 @@ view model =
                 [ Grid.col [ Col.xs12 ]
                     (case modelToFeat model of
                         Just feat ->
-                            [ ColumnToggles.view
-                                model.featState
-                                UpdateFeatDisplay
-                                "current-column-toggles"
-                                "Current Scores Options"
+                            [ ColumnToggles.config UpdateFeatDisplay "current-column-toggles"
+                                |> ColumnToggles.title "Current Scores Options"
+                                |> ColumnToggles.view model.featState
                             , (featToTable model.feats <| ColumnToggles.columns model.featState) <| feat
                             ]
 
@@ -238,11 +235,9 @@ view model =
                 Alert.simpleInfo [] [ text "Add scores to the table to compare" ]
 
               else
-                ColumnToggles.view
-                    model.tableState
-                    UpdateTableDisplay
-                    "table-column-toggles"
-                    "Table Options"
+                ColumnToggles.config UpdateTableDisplay "table-column-toggles"
+                    |> ColumnToggles.title "Table Options"
+                    |> ColumnToggles.view model.tableState
             ]
         , Grid.containerFluid []
             [ Grid.row []

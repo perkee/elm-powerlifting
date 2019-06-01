@@ -1,4 +1,14 @@
-module Data.ColumnToggles exposing (State, columns, init, subscriptions, toggleColumn, updateAccordion)
+module Data.ColumnToggles exposing
+    ( Config(..)
+    , State
+    , columns
+    , config
+    , init
+    , subscriptions
+    , title
+    , toggleColumn
+    , updateAccordion
+    )
 
 import Bootstrap.Accordion as Accordion
 import Column exposing (Column, allColumns)
@@ -10,6 +20,32 @@ type alias State =
     { accordionState : Accordion.State
     , columns : List Column
     }
+
+
+type Config msg
+    = Config (ConfigRec msg)
+
+
+type alias ConfigRec msg =
+    { id : String
+    , title : String
+    , toMsg : State -> msg
+    }
+
+
+config : (State -> msg) -> String -> Config msg
+config toMsg id =
+    -- since ID is the only required field no need for a record type
+    Config
+        { toMsg = toMsg
+        , id = id
+        , title = ""
+        }
+
+
+title : String -> Config msg -> Config msg
+title title_ (Config configRec) =
+    Config { configRec | title = title_ }
 
 
 init : List Column -> State

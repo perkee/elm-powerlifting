@@ -6,6 +6,7 @@ module Library exposing
     , thrush
     , truncate
     , updateArrayAt
+    , isStringPositiveFloat
     )
 
 import Array exposing (Array)
@@ -62,3 +63,9 @@ removeAt idx array =
     array
         |> Array.slice (idx + 1) (Array.length array)
         |> Array.append (array |> Array.slice 0 idx)
+
+isStringPositiveFloat : String -> Bool
+isStringPositiveFloat =
+    Regex.fromString "^\\d*\\.?\\d*$"
+        |> Maybe.withDefault Regex.never
+        |> Regex.contains
