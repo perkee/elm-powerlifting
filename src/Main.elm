@@ -6,6 +6,8 @@ module Main exposing (main)
 import Array exposing (Array)
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
+import Bootstrap.Card as Card
+import Bootstrap.Card.Block as Block
 import Bootstrap.Form.Input as Input
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
@@ -24,12 +26,12 @@ import Column
         , initTableColumns
         )
 import Data.ColumnToggles as ColumnToggles
-import LiftForm
 import Feat exposing (Feat, testFeats)
 import Html exposing (Html, div, h1, h2, span, text)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick, onInput)
 import Library exposing (removeAt, stringToAttr, thrush, updateArrayAt)
+import LiftForm
 import Renderer exposing (rowsToHeadedTable)
 import Scores
     exposing
@@ -238,8 +240,18 @@ view model =
                 ColumnToggles.config UpdateTableDisplay "table-column-toggles"
                     |> ColumnToggles.title "Table Options"
                     |> ColumnToggles.view model.tableState
+            , Grid.row []
+                [ model.feats
+                    |> sortSavedFeats model.sortOrder model.sortColumn
+                    |> savedFeatsToCards
+                        model.sortColumn
+                        model.sortOrder
+                        (ColumnToggles.columns model.tableState)
+                    |> List.map (\( key, html ) -> html)
+                    |> Grid.col [ Col.sm12 ]
+                ]
             ]
-        , Grid.containerFluid []
+        , Grid.containerFluid [ class "d-none d-md-block" ]
             [ Grid.row []
                 [ Grid.col [ Col.sm12 ]
                     [ model.feats
@@ -291,17 +303,20 @@ view model =
         ]
 
 
+maxSavedFeat : Array SavedFeat -> Record
+maxSavedFeat =
+    Array.toList >> List.map (.feat >> featToRecord) >> maxRecord
+
+
+savedFeatsToCards : SortColumn -> SortOrder -> List Column -> Array SavedFeat -> List ( String, Html Msg )
+savedFeatsToCards sort order cols savedFeats =
+    savedFeats |> Array.map (savedFeatToCard cols savedFeats) |> Array.toList
+
+
 savedFeatsToTable : SortColumn -> SortOrder -> List Column -> Array SavedFeat -> Html Msg
 savedFeatsToTable sort order cols savedFeats =
-    let
-        maxes =
-            savedFeats
-                |> Array.toList
-                |> List.map (.feat >> featToRecord)
-                |> maxRecord
-    in
     savedFeats
-        |> Array.map (savedFeatToRow cols maxes)
+        |> Array.map (savedFeatToRow cols <| maxSavedFeat savedFeats)
         >> Array.toList
         >> ([ [ ( "Index"
                 , span
@@ -343,6 +358,35 @@ columnToFloatToCell maxes col =
     columnToRecordToTextWithMaxes maxes col >> classToHtmlToCell (col |> columnToColumnLabel |> (++) "body-cell--")
 
 
+savedFeatToCard : List Column -> Array SavedFeat -> SavedFeat -> ( String, Html Msg )
+savedFeatToCard cols feats savedFeat =
+    ( savedFeat.key |> String.fromInt
+    , Card.config
+        [ Card.attrs [ class "d-md-none" ]
+        ]
+        |> Card.headerH4 []
+            [ text <| String.fromInt <| savedFeat.index
+            , Button.button
+                [ Button.outlineDanger
+                , AskDelete savedFeat.index |> Button.onClick
+                , Button.attrs [ class "card-delete" ]
+                ]
+                [ span [ class "fa fa-trash" ] []
+                ]
+            , Input.text
+                [ Input.placeholder "Note"
+                , Input.value savedFeat.note
+                , Input.onInput (SetNote savedFeat.index)
+                , Input.attrs [ class "note-input note-input--card" ]
+                ]
+            ]
+        |> Card.block []
+            [ Block.text [] [ featToTable feats cols savedFeat.feat ]
+            ]
+        |> Card.view
+    )
+
+
 savedFeatToRow : List Column -> Record -> SavedFeat -> ( String, Table.Row Msg )
 savedFeatToRow cols maxes savedFeat =
     [ [ .index >> String.fromInt >> text >> classToHtmlToCell "body-cell--index"
@@ -352,7 +396,7 @@ savedFeatToRow cols maxes savedFeat =
                         [ Input.placeholder "Note"
                         , Input.value v
                         , Input.onInput (SetNote savedFeat.index)
-                        , Input.attrs [ class "note-input" ]
+                        , Input.attrs [ class "note-input note-input--table" ]
                         ]
                )
             >> classToHtmlToCell "body-cell--note"
