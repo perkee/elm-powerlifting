@@ -1,7 +1,7 @@
 {
   "scripts": {
     "dev": "parcel index.html --open",
-    "build": "rm -r dist; parcel build index.html --no-source-maps --public-url='/powerlifting' && ls -l dist",
+    "build": "rm -r dist; parcel build index.html --detailed-report --no-source-maps --public-url='/powerlifting' && ls -l dist && echo \"compiled elm-powerlifting @ $(git rev-parse --short HEAD)\" && echo \"compiled elm-powerlifting @ $(git rev-parse --short HEAD)\" | pbcopy",
     "analyze": "elm-analyse --serve --port=1235 --open"
   },
   "dependencies": {
