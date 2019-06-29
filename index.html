@@ -60,13 +60,18 @@
       line-height: 2.2em;
     }
 
-    .current-table .body-cell--label,
-    .current-table .title-cell--label {
+    .body-cell--label,
+    .title-cell--label {
       max-width: 2rem;
       min-width: 1.5rem;
     }
     .note-input--card {
       float: right;
+    }
+    @media (min-width: 576px) {
+      .card-columns {
+        column-count: 1;
+      }
     }
     .card-header {
       line-height: 2.425rem;

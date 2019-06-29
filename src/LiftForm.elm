@@ -1,18 +1,11 @@
 module LiftForm exposing
-    ( view
-    , State
+    ( State
     , init
     , subscriptions
     , toFeat
+    , view
     )
 
-import Data.UnitDropdown as UnitDropdown
-import View.UnitDropdown as UnitDropdown
-import Feat exposing (Equipment(..), Feat, Gender(..), Lift(..), MassUnit(..))
-import Library exposing (isStringPositiveFloat)
-import Html as H exposing (Html)
-import Html.Attributes as HA
-import Platform.Sub
 import Bootstrap.Button as Button
 import Bootstrap.Form as Form
 import Bootstrap.Form.Input as Input
@@ -20,9 +13,20 @@ import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Form.Select as Select
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
+import Data.UnitDropdown as UnitDropdown
 import Dropdowns exposing (Option, typedSelect)
+import Feat exposing (Equipment(..), Feat, Gender(..), Lift(..), MassUnit(..))
+import Html as H exposing (Html)
+import Html.Attributes as HA
+import Library exposing (isStringPositiveFloat)
+import Platform.Sub
+import View.UnitDropdown as UnitDropdown
+
+
 
 -- Model
+
+
 type alias State =
     { liftedMass : String
     , liftedUnit : UnitDropdown.State
@@ -33,6 +37,8 @@ type alias State =
     , age : String
     , equipment : Equipment
     }
+
+
 toFeat : State -> Maybe Feat
 toFeat state =
     case ( String.toFloat state.bodyMass, String.toFloat state.liftedMass ) of
@@ -50,6 +56,8 @@ toFeat state =
 
         ( _, _ ) ->
             Nothing
+
+
 subscriptions : State -> (State -> msg) -> Platform.Sub.Sub msg
 subscriptions state updateMsg =
     Sub.batch
@@ -61,7 +69,11 @@ subscriptions state updateMsg =
             (updateMsg << (\x -> { state | bodyUnit = x }))
         ]
 
+
+
 -- Init
+
+
 init : State
 init =
     { liftedMass = ""
@@ -77,6 +89,8 @@ init =
 
 
 --Update
+
+
 updateEquipment : State -> (State -> msg) -> Maybe Equipment -> msg
 updateEquipment state updateMsg maybeEquipment =
     case maybeEquipment of
@@ -151,7 +165,10 @@ updateUnit state updateMsg field unitState =
     )
         |> updateMsg
 
+
+
 -- View
+
 
 view : State -> (State -> msg) -> msg -> Html msg
 view state updateMsg saveMsg =

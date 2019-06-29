@@ -9,6 +9,7 @@ import Bootstrap.Button as Button
 import Bootstrap.Card as Card
 import Bootstrap.Card.Block as Block
 import Bootstrap.Form.Input as Input
+import Bootstrap.Form.Select as Select
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
@@ -26,9 +27,10 @@ import Column
         , initTableColumns
         )
 import Data.ColumnToggles as ColumnToggles
+import Dropdowns exposing (Option, typedSelect)
 import Feat exposing (Feat, testFeats)
 import Html exposing (Html, div, h1, h2, span, text)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick, onInput)
 import Library exposing (removeAt, stringToAttr, thrush, updateArrayAt)
 import LiftForm
@@ -92,14 +94,14 @@ someFeats =
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { formState = LiftForm.init
-      , feats = someFeats --Array.empty --
-      , featKey = 4
+      , feats = Array.empty --someFeats --
+      , featKey = 0
       , featState = ColumnToggles.init initCurrentColumns
       , tableState = ColumnToggles.init initTableColumns
       , deleteConfirmVisibility = Modal.hidden
       , idxToDelete = Nothing
       , sortOrder = Ascending
-      , sortColumn = BodyMass
+      , sortColumn = Index -- BodyMass
       }
     , Cmd.none
     )
@@ -121,6 +123,8 @@ type Msg
     | CancelDelete
     | ConfirmDelete
     | SetSortColumn SortColumn
+    | SortColumnDropdownChanged (Maybe SortColumn)
+    | SortOrderDropdownChanged (Maybe SortOrder)
 
 
 setNoteOnSavedFeat : String -> SavedFeat -> SavedFeat
@@ -192,11 +196,11 @@ update msg model =
             -- Just fadein
             { model | deleteConfirmVisibility = visibility }
 
-        SetSortColumn column ->
+        SetSortColumn sortColumn ->
             { model
-                | sortColumn = column
+                | sortColumn = sortColumn
                 , sortOrder =
-                    if model.sortColumn /= column then
+                    if model.sortColumn /= sortColumn then
                         Descending
 
                     else
@@ -207,6 +211,26 @@ update msg model =
                             Descending ->
                                 Ascending
             }
+
+        SortColumnDropdownChanged maybeSortColumn ->
+            case maybeSortColumn of
+                Just sortColumn ->
+                    { model
+                        | sortColumn = sortColumn
+                    }
+
+                Nothing ->
+                    model
+
+        SortOrderDropdownChanged maybeSortOrder ->
+            case maybeSortOrder of
+                Just sortOrder ->
+                    { model
+                        | sortOrder = sortOrder
+                    }
+
+                Nothing ->
+                    model
     , Cmd.none
     )
 
@@ -240,6 +264,51 @@ view model =
                 ColumnToggles.config UpdateTableDisplay "table-column-toggles"
                     |> ColumnToggles.title "Table Options"
                     |> ColumnToggles.view model.tableState
+                    |> List.singleton
+                    |> Grid.col [ Col.xs12 ]
+                    |> List.singleton
+                    |> Grid.row [ Row.attrs [ style "margin-bottom" ".75rem" ] ]
+            , if Array.isEmpty model.feats then
+                text ""
+
+              else
+                Grid.row
+                    [ Row.attrs
+                        [ style "margin-bottom" ".75rem"
+                        , class "d-md-none"
+                        ]
+                    ]
+                    [ model.tableState
+                        |> ColumnToggles.columns
+                        |> List.map columnToSortColumn
+                        |> (::) (Just Index)
+                        |> List.foldr
+                            (\msc acc ->
+                                case msc of
+                                    Just sc ->
+                                        Option sc
+                                            (sortColumnToString sc)
+                                            (sortColumnToString sc)
+                                            :: acc
+
+                                    Nothing ->
+                                        acc
+                            )
+                            []
+                        |> typedSelect [ Select.small ]
+                        |> thrush model.sortColumn
+                        |> thrush SortColumnDropdownChanged
+                        |> List.singleton
+                        |> Grid.col [ Col.xs9 ]
+                    , typedSelect [ Select.small ]
+                        [ Option Ascending (sortOrderToString Ascending) "asc"
+                        , Option Descending (sortOrderToString Descending) "desc"
+                        ]
+                        model.sortOrder
+                        SortOrderDropdownChanged
+                        |> List.singleton
+                        |> Grid.col [ Col.xs3 ]
+                    ]
             , Grid.row []
                 [ model.feats
                     |> sortSavedFeats model.sortOrder model.sortColumn
@@ -247,8 +316,9 @@ view model =
                         model.sortColumn
                         model.sortOrder
                         (ColumnToggles.columns model.tableState)
-                    |> List.map (\( key, html ) -> html)
-                    |> Grid.col [ Col.sm12 ]
+                    |> Card.keyedColumns
+                    |> List.singleton
+                    |> Grid.col [ Col.xs12, Col.attrs [ class "d-md-none" ] ]
                 ]
             ]
         , Grid.containerFluid [ class "d-none d-md-block" ]
@@ -272,14 +342,14 @@ view model =
                     [ Grid.row []
                         [ Grid.col
                             [ Col.xs12 ]
-                            [ "Are you sure you want to delete the entry at row "
-                                ++ (case model.idxToDelete of
-                                        Just idx ->
-                                            String.fromInt idx
+                            [ (case model.idxToDelete of
+                                Just idx ->
+                                    "Are you sure you want to delete the entry at row "
+                                        ++ String.fromInt idx
 
-                                        Nothing ->
-                                            "whaaaa???"
-                                   )
+                                Nothing ->
+                                    ""
+                              )
                                 |> text
                             ]
                         ]
@@ -308,7 +378,7 @@ maxSavedFeat =
     Array.toList >> List.map (.feat >> featToRecord) >> maxRecord
 
 
-savedFeatsToCards : SortColumn -> SortOrder -> List Column -> Array SavedFeat -> List ( String, Html Msg )
+savedFeatsToCards : SortColumn -> SortOrder -> List Column -> Array SavedFeat -> List ( String, Card.Config Msg )
 savedFeatsToCards sort order cols savedFeats =
     savedFeats |> Array.map (savedFeatToCard cols savedFeats) |> Array.toList
 
@@ -332,7 +402,7 @@ savedFeatsToTable sort order cols savedFeats =
                       )
                         |> (++) "fa "
                         |> class
-                    , onClick (SetSortColumn Index)
+                    , onClick <| SetSortColumn Index
                     ]
                     []
                 )
@@ -358,11 +428,11 @@ columnToFloatToCell maxes col =
     columnToRecordToTextWithMaxes maxes col >> classToHtmlToCell (col |> columnToColumnLabel |> (++) "body-cell--")
 
 
-savedFeatToCard : List Column -> Array SavedFeat -> SavedFeat -> ( String, Html Msg )
+savedFeatToCard : List Column -> Array SavedFeat -> SavedFeat -> ( String, Card.Config Msg )
 savedFeatToCard cols feats savedFeat =
     ( savedFeat.key |> String.fromInt
     , Card.config
-        [ Card.attrs [ class "d-md-none" ]
+        [ Card.attrs []
         ]
         |> Card.headerH4 []
             [ text <| String.fromInt <| savedFeat.index
@@ -383,7 +453,7 @@ savedFeatToCard cols feats savedFeat =
         |> Card.block []
             [ Block.text [] [ featToTable feats cols savedFeat.feat ]
             ]
-        |> Card.view
+      --|> Card.view
     )
 
 
@@ -557,7 +627,7 @@ columnAndSortToIcon sort order column =
                 |> List.singleton
                 |> (++)
                     [ class "sort-button"
-                    , onClick (SetSortColumn sc)
+                    , onClick <| SetSortColumn sc
                     ]
                 |> span
                 |> thrush []
@@ -607,3 +677,44 @@ columnToSortColumn col =
 
         Column.Equipment ->
             Nothing
+
+
+sortOrderToString : SortOrder -> String
+sortOrderToString so =
+    case so of
+        Ascending ->
+            "▲"
+
+        Descending ->
+            "▼"
+
+
+sortColumnToString : SortColumn -> String
+sortColumnToString sc =
+    case sc of
+        BodyMass ->
+            "Body Mass"
+
+        LiftedMass ->
+            "Lifted Mass"
+
+        Wilks ->
+            "Wilks"
+
+        ScaledAllometricIpf ->
+            "Scaled Allometric IPF"
+
+        ScaledAllometricAtr ->
+            "Scaled Allometric ATR"
+
+        Allometric ->
+            "Allometric"
+
+        IPF ->
+            "IPF"
+
+        McCulloch ->
+            "McCulloch"
+
+        Index ->
+            "Index"
