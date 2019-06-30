@@ -20,6 +20,7 @@ import Data.ColumnToggles
         )
 import Html as H exposing (Html)
 import Html.Attributes as HA
+import Renderer exposing (icon)
 
 
 view : State -> Config msg -> Html msg
@@ -36,18 +37,16 @@ view state (Data.ColumnToggles.Config configRec) =
                     , options = []
                     , header =
                         Accordion.toggle [ HA.class "btn-block" ]
-                            [ H.span
-                                [ (if Accordion.isOpen configRec.id state.accordionState then
-                                    "fa fa-chevron-down"
+                            [ icon
+                                (if Accordion.isOpen configRec.id state.accordionState then
+                                    "chevron-down"
 
-                                   else
-                                    "fa fa-chevron-up"
-                                  )
-                                    |> HA.class
-                                , HA.style "float" "left"
+                                 else
+                                    "chevron-up"
+                                )
+                                [ HA.style "float" "left"
                                 , HA.style "padding" ".125em 0 0 0"
                                 ]
-                                []
                             , H.text configRec.title
                             ]
                             |> Accordion.header [ HA.style "padding" "0" ]

@@ -1,5 +1,6 @@
 module Renderer exposing
     ( floatToString
+    , icon
     , maybeFloatToString
     , rowsToHeadedTable
     , stringToHeaderCell
@@ -8,7 +9,7 @@ module Renderer exposing
 import Bootstrap.Table as Table
 import Html as H exposing (Html)
 import Html.Attributes as HA
-import Library exposing (stringToAttr, truncate)
+import Library exposing (stringToAttr, thrush, truncate)
 
 
 
@@ -16,14 +17,14 @@ import Library exposing (stringToAttr, truncate)
 
 
 stringToHeaderCell : ( String, Html msg ) -> ( String, Table.Cell msg )
-stringToHeaderCell ( title, icon ) =
+stringToHeaderCell ( title, arrows ) =
     let
         class =
             title
                 |> stringToAttr
                 |> (++) "title-cell--"
                 |> (++)
-                    (if icon /= H.text "" then
+                    (if arrows /= H.text "" then
                         "title-cell--sortable "
 
                      else
@@ -33,7 +34,7 @@ stringToHeaderCell ( title, icon ) =
     ( class
     , Table.th [ Table.cellAttr (HA.class class) ]
         [ title |> H.text
-        , icon
+        , arrows
         ]
     )
 
@@ -69,3 +70,14 @@ maybeFloatToString f =
 floatToString : Float -> String
 floatToString =
     truncate 2 >> String.fromFloat
+
+
+icon : String -> List (H.Attribute msg) -> H.Html msg
+icon faClass attrs =
+    faClass
+        |> (++) "fa fa-"
+        |> HA.class
+        |> (::)
+        |> thrush attrs
+        |> H.span
+        |> thrush []

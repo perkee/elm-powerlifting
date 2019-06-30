@@ -34,7 +34,7 @@ import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick, onInput)
 import Library exposing (removeAt, stringToAttr, thrush, updateArrayAt)
 import LiftForm
-import Renderer exposing (rowsToHeadedTable)
+import Renderer exposing (icon, rowsToHeadedTable)
 import Scores
     exposing
         ( Record
@@ -52,10 +52,10 @@ main =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ LiftForm.subscriptions model.formState UpdateForm
-        , ColumnToggles.subscriptions model.featState UpdateFeatDisplay
-        , ColumnToggles.subscriptions model.tableState UpdateTableDisplay
-        , Modal.subscriptions model.deleteConfirmVisibility AnimateDeleteModal
+        [ LiftForm.subscriptions model.formState FormUpdated
+        , ColumnToggles.subscriptions model.featState FeatDisplayUpdated
+        , ColumnToggles.subscriptions model.tableState TableDisplayUpdated
+        , Modal.subscriptions model.deleteConfirmVisibility DeleteModalAnimated
         ]
 
 
@@ -113,18 +113,18 @@ modelToFeat =
 
 
 type Msg
-    = UpdateForm LiftForm.State
-    | SaveFeat (Maybe Feat)
-    | SetNote Int String
-    | AnimateDeleteModal Modal.Visibility
-    | UpdateFeatDisplay ColumnToggles.State
-    | UpdateTableDisplay ColumnToggles.State
-    | AskDelete Int
-    | CancelDelete
-    | ConfirmDelete
-    | SetSortColumn SortColumn
+    = FormUpdated LiftForm.State
+    | SaveButtonClicked (Maybe Feat)
+    | NoteChanged Int String
+    | DeleteModalAnimated Modal.Visibility
+    | FeatDisplayUpdated ColumnToggles.State
+    | TableDisplayUpdated ColumnToggles.State
+    | DeleteButtonClicked Int
+    | DeleteCanceled
+    | DeleteConfirmed
+    | ColumnHeaderArrowsClicked SortColumn
     | SortColumnDropdownChanged (Maybe SortColumn)
-    | SortOrderDropdownChanged (Maybe SortOrder)
+    | SortOrderToggleClicked
 
 
 setNoteOnSavedFeat : String -> SavedFeat -> SavedFeat
@@ -135,16 +135,16 @@ setNoteOnSavedFeat note feat =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     ( case msg of
-        UpdateFeatDisplay state ->
+        FeatDisplayUpdated state ->
             { model | featState = state }
 
-        UpdateTableDisplay state ->
+        TableDisplayUpdated state ->
             { model | tableState = state }
 
-        UpdateForm state ->
+        FormUpdated state ->
             { model | formState = state }
 
-        SaveFeat mf ->
+        SaveButtonClicked mf ->
             case mf of
                 Just feat ->
                     { model
@@ -155,16 +155,16 @@ update msg model =
                 Nothing ->
                     model
 
-        SetNote index note ->
+        NoteChanged index note ->
             { model | feats = updateArrayAt index (setNoteOnSavedFeat note) model.feats }
 
-        CancelDelete ->
+        DeleteCanceled ->
             { model
                 | deleteConfirmVisibility = Modal.hidden
                 , idxToDelete = Nothing
             }
 
-        ConfirmDelete ->
+        DeleteConfirmed ->
             { model
                 | deleteConfirmVisibility = Modal.hidden
                 , feats =
@@ -186,17 +186,17 @@ update msg model =
                 , idxToDelete = Nothing
             }
 
-        AskDelete idx ->
+        DeleteButtonClicked idx ->
             { model
                 | deleteConfirmVisibility = Modal.shown
                 , idxToDelete = Just idx
             }
 
-        AnimateDeleteModal visibility ->
+        DeleteModalAnimated visibility ->
             -- Just fadein
             { model | deleteConfirmVisibility = visibility }
 
-        SetSortColumn sortColumn ->
+        ColumnHeaderArrowsClicked sortColumn ->
             { model
                 | sortColumn = sortColumn
                 , sortOrder =
@@ -222,15 +222,16 @@ update msg model =
                 Nothing ->
                     model
 
-        SortOrderDropdownChanged maybeSortOrder ->
-            case maybeSortOrder of
-                Just sortOrder ->
-                    { model
-                        | sortOrder = sortOrder
-                    }
+        SortOrderToggleClicked ->
+            { model
+                | sortOrder =
+                    case model.sortOrder of
+                        Ascending ->
+                            Descending
 
-                Nothing ->
-                    model
+                        Descending ->
+                            Ascending
+            }
     , Cmd.none
     )
 
@@ -240,13 +241,13 @@ view model =
     div []
         [ Grid.container []
             [ h1 [] [ text "Every Score Calculator" ]
-            , LiftForm.view model.formState UpdateForm <| SaveFeat <| modelToFeat <| model
+            , LiftForm.view model.formState FormUpdated <| SaveButtonClicked <| modelToFeat <| model
             , h2 [] [ text "Current Score" ]
             , Grid.row [ Row.attrs [ class "current-table" ] ]
                 [ Grid.col [ Col.xs12 ]
                     (case modelToFeat model of
                         Just feat ->
-                            [ ColumnToggles.config UpdateFeatDisplay "current-column-toggles"
+                            [ ColumnToggles.config FeatDisplayUpdated "current-column-toggles"
                                 |> ColumnToggles.title "Current Scores Options"
                                 |> ColumnToggles.view model.featState
                             , (featToTable model.feats <| ColumnToggles.columns model.featState) <| feat
@@ -261,7 +262,7 @@ view model =
                 Alert.simpleInfo [] [ text "Add scores to the table to compare" ]
 
               else
-                ColumnToggles.config UpdateTableDisplay "table-column-toggles"
+                ColumnToggles.config TableDisplayUpdated "table-column-toggles"
                     |> ColumnToggles.title "Table Options"
                     |> ColumnToggles.view model.tableState
                     |> List.singleton
@@ -299,15 +300,25 @@ view model =
                         |> thrush model.sortColumn
                         |> thrush SortColumnDropdownChanged
                         |> List.singleton
-                        |> Grid.col [ Col.xs9 ]
-                    , typedSelect [ Select.small ]
-                        [ Option Ascending (sortOrderToString Ascending) "asc"
-                        , Option Descending (sortOrderToString Descending) "desc"
-                        ]
-                        model.sortOrder
-                        SortOrderDropdownChanged
+                        |> Grid.col [ Col.xs10 ]
+                    , icon
+                        (case model.sortOrder of
+                            Ascending ->
+                                "sort-amount-down-alt"
+
+                            Descending ->
+                                "sort-amount-up"
+                        )
+                        []
                         |> List.singleton
-                        |> Grid.col [ Col.xs3 ]
+                        |> Button.button
+                            [ Button.outlineSecondary
+                            , Button.onClick SortOrderToggleClicked
+                            , Button.small
+                            , Button.block
+                            ]
+                        |> List.singleton
+                        |> Grid.col [ Col.xs2 ]
                     ]
             , Grid.row []
                 [ model.feats
@@ -333,8 +344,8 @@ view model =
                     ]
                 ]
             ]
-        , Modal.config CancelDelete
-            |> Modal.withAnimation AnimateDeleteModal
+        , Modal.config DeleteCanceled
+            |> Modal.withAnimation DeleteModalAnimated
             |> Modal.large
             |> Modal.h3 [] [ text "Confirm delete" ]
             |> Modal.body []
@@ -360,12 +371,12 @@ view model =
                     [ Button.outlineDanger
 
                     -- cannot currently animate this on confirm. Gets into an infinite loop rn. Kinda impresseive!
-                    , Button.attrs [ onClick <| ConfirmDelete ]
+                    , Button.attrs [ onClick <| DeleteConfirmed ]
                     ]
                     [ text "Yes, Delete this row" ]
                 , Button.button
                     [ Button.outlineSuccess
-                    , Button.attrs [ onClick <| CancelDelete ]
+                    , Button.attrs [ onClick <| DeleteCanceled ]
                     ]
                     [ text "Nevermind" ]
                 ]
@@ -389,22 +400,19 @@ savedFeatsToTable sort order cols savedFeats =
         |> Array.map (savedFeatToRow cols <| maxSavedFeat savedFeats)
         >> Array.toList
         >> ([ [ ( "Index"
-                , span
-                    [ (case ( sort, order ) of
+                , icon
+                    (case ( sort, order ) of
                         ( Index, Ascending ) ->
-                            "fa-sort-up"
+                            "sort-up"
 
                         ( Index, Descending ) ->
-                            "fa-sort-down"
+                            "sort-down"
 
                         ( _, _ ) ->
-                            "fa-sort"
-                      )
-                        |> (++) "fa "
-                        |> class
-                    , onClick <| SetSortColumn Index
+                            "sort"
+                    )
+                    [ onClick <| ColumnHeaderArrowsClicked Index
                     ]
-                    []
                 )
               ]
             , [ ( "Note", text "" ) ]
@@ -438,15 +446,15 @@ savedFeatToCard cols feats savedFeat =
             [ text <| String.fromInt <| savedFeat.index
             , Button.button
                 [ Button.outlineDanger
-                , AskDelete savedFeat.index |> Button.onClick
+                , DeleteButtonClicked savedFeat.index |> Button.onClick
                 , Button.attrs [ class "card-delete" ]
                 ]
-                [ span [ class "fa fa-trash" ] []
+                [ icon "trash" []
                 ]
             , Input.text
                 [ Input.placeholder "Note"
                 , Input.value savedFeat.note
-                , Input.onInput (SetNote savedFeat.index)
+                , Input.onInput (NoteChanged savedFeat.index)
                 , Input.attrs [ class "note-input note-input--card" ]
                 ]
             ]
@@ -465,7 +473,7 @@ savedFeatToRow cols maxes savedFeat =
                     Input.text
                         [ Input.placeholder "Note"
                         , Input.value v
-                        , Input.onInput (SetNote savedFeat.index)
+                        , Input.onInput (NoteChanged savedFeat.index)
                         , Input.attrs [ class "note-input note-input--table" ]
                         ]
                )
@@ -480,9 +488,9 @@ savedFeatToRow cols maxes savedFeat =
         (List.map (columnToFloatToCell maxes) cols)
     , Button.button
         [ Button.outlineDanger
-        , AskDelete savedFeat.index |> Button.onClick
+        , DeleteButtonClicked savedFeat.index |> Button.onClick
         ]
-        [ span [ class "fa fa-trash" ] []
+        [ icon "trash" []
         ]
         |> classToHtmlToCell "body-cell--delete"
         |> List.singleton
@@ -566,7 +574,7 @@ sortColumnToGetter col =
             .feat >> .bodyKilos >> Just
 
         LiftedMass ->
-            .feat >> .bodyKilos >> Just
+            .feat >> .liftedKilos >> Just
 
         Wilks ->
             .feat >> featToRecord >> .wilks
@@ -604,33 +612,24 @@ sortSavedFeats sortOrder sortColumn =
 
 columnAndSortToIcon : SortColumn -> SortOrder -> Column -> Html Msg
 columnAndSortToIcon sort order column =
-    let
-        arrows =
-            "fa "
-                ++ (case order of
-                        Ascending ->
-                            "fa-sort-up"
-
-                        Descending ->
-                            "fa-sort-down"
-                   )
-    in
     case ( sort, columnToSortColumn column ) of
         ( s, Just sc ) ->
             (if s == sc then
-                arrows
+                case order of
+                    Ascending ->
+                        "sort-up"
+
+                    Descending ->
+                        "sort-down"
 
              else
-                "fa fa-sort"
+                "sort"
             )
-                |> class
-                |> List.singleton
-                |> (++)
+                |> icon
+                |> thrush
                     [ class "sort-button"
-                    , onClick <| SetSortColumn sc
+                    , onClick <| ColumnHeaderArrowsClicked sc
                     ]
-                |> span
-                |> thrush []
 
         ( _, Nothing ) ->
             text ""
