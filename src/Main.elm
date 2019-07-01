@@ -44,8 +44,9 @@ import Scores
 import View.ColumnToggles as ColumnToggles
 
 
-main : Platform.Program () Model Msg
+main : Platform.Program String Model Msg
 main =
+    -- Flags is only one field, so type is String.
     Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
 
@@ -91,10 +92,15 @@ someFeats =
         |> Array.fromList
 
 
-init : () -> ( Model, Cmd Msg )
-init _ =
+init : String -> ( Model, Cmd Msg )
+init nodeEnv =
     ( { formState = LiftForm.init
-      , feats = Array.empty --someFeats --
+      , feats =
+            if nodeEnv == "development" then
+                someFeats
+
+            else
+                Array.empty
       , featKey = 0
       , featState = ColumnToggles.init initCurrentColumns
       , tableState = ColumnToggles.init initTableColumns
@@ -324,8 +330,6 @@ view model =
                 [ model.feats
                     |> sortSavedFeats model.sortOrder model.sortColumn
                     |> savedFeatsToCards
-                        model.sortColumn
-                        model.sortOrder
                         (ColumnToggles.columns model.tableState)
                     |> Card.keyedColumns
                     |> List.singleton
@@ -389,8 +393,8 @@ maxSavedFeat =
     Array.toList >> List.map (.feat >> featToRecord) >> maxRecord
 
 
-savedFeatsToCards : SortColumn -> SortOrder -> List Column -> Array SavedFeat -> List ( String, Card.Config Msg )
-savedFeatsToCards sort order cols savedFeats =
+savedFeatsToCards : List Column -> Array SavedFeat -> List ( String, Card.Config Msg )
+savedFeatsToCards cols savedFeats =
     savedFeats |> Array.map (savedFeatToCard cols savedFeats) |> Array.toList
 
 
@@ -676,16 +680,6 @@ columnToSortColumn col =
 
         Column.Equipment ->
             Nothing
-
-
-sortOrderToString : SortOrder -> String
-sortOrderToString so =
-    case so of
-        Ascending ->
-            "▲"
-
-        Descending ->
-            "▼"
 
 
 sortColumnToString : SortColumn -> String
