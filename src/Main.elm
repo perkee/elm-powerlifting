@@ -107,7 +107,7 @@ init nodeEnv =
       , deleteConfirmVisibility = Modal.hidden
       , idxToDelete = Nothing
       , sortOrder = Ascending
-      , sortColumn = Index -- BodyMass
+      , sortColumn = Index
       }
     , Cmd.none
     )
@@ -464,8 +464,7 @@ savedFeatToCard cols feats savedFeat =
             ]
         |> Card.block []
             [ Block.text [] [ featToTable feats cols savedFeat.feat ]
-            ]
-      --|> Card.view
+
     )
 
 
