@@ -36,6 +36,7 @@ type alias State =
     , lift : Lift
     , age : String
     , equipment : Equipment
+    , note : String
     }
 
 
@@ -52,6 +53,7 @@ toFeat state =
                 , lift = state.lift
                 , age = String.toFloat state.age
                 , equipment = state.equipment
+                , note = state.note
                 }
 
         ( _, _ ) ->
@@ -84,6 +86,7 @@ init =
     , lift = Total
     , age = ""
     , equipment = Raw
+    , note = ""
     }
 
 
@@ -176,6 +179,7 @@ view state updateMsg saveMsg =
         [ H.h2 [] [ H.text "Lift input" ]
         , topRow state updateMsg
         , middleRow state updateMsg
+        , thirdRow state updateMsg
         , bottomRow state updateMsg saveMsg
         ]
 
@@ -281,6 +285,22 @@ numericInputOpts value toMsg =
     , Input.value value
     , Input.small
     ]
+
+
+thirdRow : State -> (State -> msg) -> Html msg
+thirdRow state updateMsg =
+    Form.row [ Row.attrs [ HA.class " mb-0" ] ]
+        [ Form.col [ Col.xs12, Col.md6 ]
+            [ Form.row []
+                [ Form.colLabel [ Col.xs4, Col.sm3 ] [ H.text "Note" ]
+                , Form.col [ Col.xs8, Col.sm9 ]
+                    [ Input.text
+                        [ Input.onInput (updateMsg << (\s -> { state | note = s }))
+                        ]
+                    ]
+                ]
+            ]
+        ]
 
 
 bottomRow : State -> (State -> msg) -> msg -> Html msg

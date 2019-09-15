@@ -34,6 +34,7 @@ type alias Feat =
     , lift : Lift
     , age : Maybe Float
     , equipment : Equipment
+    , note : String
     }
 
 
@@ -55,9 +56,10 @@ testFeats =
       , liftedKilos = 400
       , liftedPounds = 881
       , gender = Male
-      , lift = Total
+      , lift = Bench
       , age = Just 40
       , equipment = SinglePly
+      , note = "first"
       }
     , { bodyKilos = 70
       , bodyPounds = 154
@@ -67,6 +69,7 @@ testFeats =
       , lift = Total
       , age = Just 45
       , equipment = Raw
+      , note = "second"
       }
     , { bodyKilos = 60
       , bodyPounds = 132
@@ -76,6 +79,7 @@ testFeats =
       , lift = Total
       , age = Just 50
       , equipment = Raw
+      , note = "third"
       }
     ]
 

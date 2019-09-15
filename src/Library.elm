@@ -1,12 +1,13 @@
 module Library exposing
-    ( filterListByList
+    ( dropNothing
+    , filterListByList
+    , isStringPositiveFloat
     , removeAt
     , replace
     , stringToAttr
     , thrush
     , truncate
     , updateArrayAt
-    , isStringPositiveFloat
     )
 
 import Array exposing (Array)
@@ -64,8 +65,23 @@ removeAt idx array =
         |> Array.slice (idx + 1) (Array.length array)
         |> Array.append (array |> Array.slice 0 idx)
 
+
 isStringPositiveFloat : String -> Bool
 isStringPositiveFloat =
     Regex.fromString "^\\d*\\.?\\d*$"
         |> Maybe.withDefault Regex.never
         |> Regex.contains
+
+
+dropNothing : List (Maybe a) -> List a
+dropNothing =
+    List.foldr
+        (\maybeA acc ->
+            case maybeA of
+                Just a ->
+                    a :: acc
+
+                Nothing ->
+                    acc
+        )
+        []

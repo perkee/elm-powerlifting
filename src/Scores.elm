@@ -117,6 +117,7 @@ maxFeat current new =
     , lift = Total
     , age = maybeMax current.age new.age
     , equipment = Raw
+    , note = ""
     }
 
 
@@ -143,6 +144,7 @@ maxRecord =
             , lift = Total
             , age = Nothing
             , equipment = Raw
+            , note = ""
             }
         , wilks = Nothing
         , scaledAllometricIpf = Nothing

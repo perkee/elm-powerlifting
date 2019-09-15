@@ -26,15 +26,19 @@ import Column
         , initCurrentColumns
         , initTableColumns
         )
+import Css exposing (after)
 import Data.ColumnToggles as ColumnToggles
 import Dropdowns exposing (Option, typedSelect)
-import Feat exposing (Feat, testFeats)
+import Feat exposing (Feat, MassUnit, liftToString, testFeats)
 import Html exposing (Html, div, h1, h2, span, text)
 import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick, onInput)
-import Library exposing (removeAt, stringToAttr, thrush, updateArrayAt)
+import Html.Styled
+import Html.Styled.Attributes as HSA
+import Html.Styled.Keyed
+import Library exposing (dropNothing, removeAt, stringToAttr, thrush, updateArrayAt)
 import LiftForm
-import Renderer exposing (icon, rowsToHeadedTable)
+import Renderer exposing (floatToString, icon, rowsToHeadedTable)
 import Scores
     exposing
         ( Record
@@ -63,7 +67,6 @@ subscriptions model =
 type alias SavedFeat =
     { feat : Feat
     , index : Int
-    , note : String
     , key : Int
     }
 
@@ -78,16 +81,17 @@ type alias Model =
     , idxToDelete : Maybe Int
     , sortColumn : SortColumn
     , sortOrder : SortOrder
+    , liftCardUnits : MassUnit
     }
 
 
 someFeats : Array SavedFeat
 someFeats =
     testFeats
-        |> List.map2 (\( index, key, note ) feat -> SavedFeat feat index note key)
-            [ ( 0, 1, "first" )
-            , ( 1, 2, "second" )
-            , ( 2, 3, "third" )
+        |> List.map2 (\( index, key ) feat -> SavedFeat feat index key)
+            [ ( 0, 2 )
+            , ( 1, 2 )
+            , ( 2, 2 )
             ]
         |> Array.fromList
 
@@ -108,6 +112,7 @@ init nodeEnv =
       , idxToDelete = Nothing
       , sortOrder = Ascending
       , sortColumn = Index
+      , liftCardUnits = Feat.KG
       }
     , Cmd.none
     )
@@ -131,11 +136,17 @@ type Msg
     | ColumnHeaderArrowsClicked SortColumn
     | SortColumnDropdownChanged (Maybe SortColumn)
     | SortOrderToggleClicked
+    | LiftCardUnitsToggleClicked
+
+
+setNoteOnFeat : String -> Feat -> Feat
+setNoteOnFeat note feat =
+    { feat | note = note }
 
 
 setNoteOnSavedFeat : String -> SavedFeat -> SavedFeat
-setNoteOnSavedFeat note feat =
-    { feat | note = note }
+setNoteOnSavedFeat note savedFeat =
+    { savedFeat | feat = setNoteOnFeat note savedFeat.feat }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -154,7 +165,7 @@ update msg model =
             case mf of
                 Just feat ->
                     { model
-                        | feats = Array.push (SavedFeat feat (Array.length model.feats) "" model.featKey) model.feats
+                        | feats = Array.push (SavedFeat feat (Array.length model.feats) model.featKey) model.feats
                         , featKey = model.featKey + 1
                     }
 
@@ -237,6 +248,17 @@ update msg model =
 
                         Descending ->
                             Ascending
+            }
+
+        LiftCardUnitsToggleClicked ->
+            { model
+                | liftCardUnits =
+                    case model.liftCardUnits of
+                        Feat.KG ->
+                            Feat.LBM
+
+                        Feat.LBM ->
+                            Feat.KG
             }
     , Cmd.none
     )
@@ -328,6 +350,15 @@ view model =
                     ]
             , Grid.row []
                 [ model.feats
+                    |> savedFeatsToLiftCards
+                        (ColumnToggles.columns model.tableState)
+                        model.liftCardUnits
+                    |> Card.keyedColumns
+                    |> List.singleton
+                    |> Grid.col [ Col.xs12, Col.attrs [ class "d-md-none" ] ]
+                ]
+            , Grid.row []
+                [ model.feats
                     |> sortSavedFeats model.sortOrder model.sortColumn
                     |> savedFeatsToCards
                         (ColumnToggles.columns model.tableState)
@@ -393,6 +424,188 @@ maxSavedFeat =
     Array.toList >> List.map (.feat >> featToRecord) >> maxRecord
 
 
+savedFeatsToColumnToRecordToText : Array SavedFeat -> Column -> Record -> Html msg
+savedFeatsToColumnToRecordToText savedFeats =
+    if Array.isEmpty savedFeats then
+        columnToRecordToText
+
+    else
+        savedFeats
+            |> Array.toList
+            |> List.map (.feat >> featToRecord)
+            |> maxRecord
+            |> columnToRecordToTextWithMaxes
+
+
+maybeMaxRecord : Array SavedFeat -> Maybe Record
+maybeMaxRecord savedFeats =
+    if Array.isEmpty savedFeats then
+        Nothing
+
+    else
+        savedFeats
+            |> Array.toList
+            |> List.map (.feat >> featToRecord)
+            |> maxRecord
+            |> Just
+
+
+savedFeatsToLiftCards : List Column -> MassUnit -> Array SavedFeat -> List ( String, Card.Config Msg )
+savedFeatsToLiftCards cols liftCardsMassUnit savedFeats =
+    let
+        colToRecordToText =
+            -- savedFeatsToColumnToRecordToText savedFeats
+            columnToRecordToText
+    in
+    cols
+        |> List.foldr
+            (\col acc ->
+                case columnToSortColumn col of
+                    Just sc ->
+                        ( col, sc ) :: acc
+
+                    Nothing ->
+                        acc
+            )
+            []
+        |> List.map (columnToLiftCard savedFeats liftCardsMassUnit colToRecordToText)
+
+
+featToSummaryPounds : Feat -> String
+featToSummaryPounds f =
+    floatToString f.liftedPounds ++ " @ " ++ floatToString f.bodyPounds
+
+
+featToSummaryKilos : Feat -> String
+featToSummaryKilos f =
+    floatToString f.liftedKilos ++ " @ " ++ floatToString f.bodyKilos
+
+
+savedFeatToRowForLiftCard : ( Column, SortColumn ) -> Bool -> MassUnit -> (Record -> Html Msg) -> SavedFeat -> ( String, Html Msg )
+savedFeatToRowForLiftCard ( col, sortCol ) shouldShowLift liftCardsUnit recordToText savedFeat =
+    let
+        key =
+            String.fromInt savedFeat.key ++ (sortCol |> sortColumnToString)
+    in
+    ( key
+    , Html.Styled.Keyed.node "tr"
+        [ HSA.class "lift-card__data-row"
+        , HSA.css
+            [ Css.after
+                [ Css.display Css.block
+                , Css.property "content"
+                    "''"
+                , Css.height <|
+                    Css.px 3
+                , Css.position
+                    Css.absolute
+                , Css.backgroundColor <|
+                    Css.hex "000"
+                , Css.width <|
+                    Css.pct 100
+                , Css.left Css.zero
+                ]
+            ]
+        ]
+        ([ ( key ++ "idx"
+           , Html.Styled.th [ HSA.class "index" ]
+                [ savedFeat.index |> String.fromInt |> Html.Styled.text ]
+           )
+         , ( key ++ "note", Html.Styled.td [ HSA.class "note" ] [ savedFeatToNoteInput "lift-card" savedFeat |> Html.Styled.fromUnstyled ] )
+         ]
+            ++ (if shouldShowLift then
+                    [ ( key ++ "lift", Html.Styled.td [ HSA.class "lift" ] [ savedFeat.feat |> .lift |> liftToString |> text |> Html.Styled.fromUnstyled ] ) ]
+
+                else
+                    []
+               )
+            ++ [ case liftCardsUnit of
+                    Feat.LBM ->
+                        ( key ++ "summary--lb", Html.Styled.td [ HSA.class "summary summary--lb" ] [ featToSummaryPounds savedFeat.feat |> text |> Html.Styled.fromUnstyled ] )
+
+                    Feat.KG ->
+                        ( key ++ "summary--kg", Html.Styled.td [ HSA.class "summary summary--kg" ] [ featToSummaryKilos savedFeat.feat |> text |> Html.Styled.fromUnstyled ] )
+               , ( key ++ "score", Html.Styled.td [ HSA.class "value" ] [ featToRecord savedFeat.feat |> recordToText |> Html.Styled.fromUnstyled ] )
+               ]
+        )
+        |> Html.Styled.toUnstyled
+    )
+
+
+showLift : Array SavedFeat -> Bool
+showLift savedFeats =
+    case Array.toList savedFeats of
+        [] ->
+            Debug.log "empty savedfeats" False
+
+        feat :: [] ->
+            Debug.log "singleton savedfeats" False
+
+        feat :: feats ->
+            feats |> List.foldl (\f anyDiff -> Debug.log "returning" (anyDiff || Debug.log "current feat " (f.feat |> .lift) /= Debug.log "reference feat " (feat.feat |> .lift))) False
+
+
+columnToLiftCard : Array SavedFeat -> MassUnit -> (Column -> Record -> Html Msg) -> ( Column, SortColumn ) -> ( String, Card.Config Msg )
+columnToLiftCard savedFeats liftCardsUnit columnToRecordToText ( col, sortCol ) =
+    let
+        label =
+            sortCol |> sortColumnToString
+
+        rows =
+            savedFeats
+                |> sortSavedFeats Descending sortCol
+                |> Array.map
+                    (savedFeatToRowForLiftCard
+                        ( col, sortCol )
+                        (showLift savedFeats)
+                        liftCardsUnit
+                        (columnToRecordToText col)
+                    )
+                |> Array.toList
+    in
+    ( label
+    , Card.config
+        [ Card.attrs [ class "lift-card" ]
+        ]
+        |> Card.headerH4 []
+            [ text label
+            ]
+        |> Card.block [ Block.attrs [ class "lift-card__block" ] ]
+            [ Block.custom <|
+                rowsToHeadedTable
+                    ([ ( "", text "" )
+                     , ( "Note", text "" )
+                     ]
+                        ++ (if showLift savedFeats then
+                                [ ( "Lift", text "" ) ]
+
+                            else
+                                []
+                           )
+                        ++ [ ( ""
+                             , Button.button
+                                [ Button.outlineSecondary
+                                , Button.onClick LiftCardUnitsToggleClicked
+                                , Button.small
+                                , Button.block
+                                ]
+                                [ text <|
+                                    case liftCardsUnit of
+                                        Feat.KG ->
+                                            "Kg"
+
+                                        Feat.LBM ->
+                                            "Lb."
+                                ]
+                             )
+                           , ( "Value", text "" )
+                           ]
+                    )
+                    rows
+            ]
+    )
+
+
 savedFeatsToCards : List Column -> Array SavedFeat -> List ( String, Card.Config Msg )
 savedFeatsToCards cols savedFeats =
     savedFeats |> Array.map (savedFeatToCard cols savedFeats) |> Array.toList
@@ -435,9 +648,29 @@ classToHtmlToCell className html =
     ( className, Table.td [ className |> stringToAttr |> class |> Table.cellAttr ] [ html ] )
 
 
+classToHtmlToStyledCell : String -> Html Msg -> ( String, Html.Styled.Html Msg )
+classToHtmlToStyledCell className html =
+    ( className, Html.Styled.td [ className |> stringToAttr |> HSA.class ] [ Html.Styled.fromUnstyled html ] )
+
+
 columnToFloatToCell : Record -> Column -> Record -> ( String, Table.Cell Msg )
 columnToFloatToCell maxes col =
     columnToRecordToTextWithMaxes maxes col >> classToHtmlToCell (col |> columnToColumnLabel |> (++) "body-cell--")
+
+
+columnToFloatToStyledCell : Record -> Column -> Record -> ( String, Html.Styled.Html Msg )
+columnToFloatToStyledCell maxes col =
+    columnToRecordToTextWithMaxes maxes col >> classToHtmlToStyledCell (col |> columnToColumnLabel |> (++) "body-cell--")
+
+
+savedFeatToNoteInput : String -> SavedFeat -> Html Msg
+savedFeatToNoteInput classSuffix savedFeat =
+    Input.text
+        [ Input.placeholder "Note"
+        , Input.value <| .note <| savedFeat.feat
+        , Input.onInput <| NoteChanged savedFeat.index
+        , Input.attrs [ class <| "note-input note-input--" ++ classSuffix ]
+        ]
 
 
 savedFeatToCard : List Column -> Array SavedFeat -> SavedFeat -> ( String, Card.Config Msg )
@@ -455,32 +688,18 @@ savedFeatToCard cols feats savedFeat =
                 ]
                 [ icon "trash" []
                 ]
-            , Input.text
-                [ Input.placeholder "Note"
-                , Input.value savedFeat.note
-                , Input.onInput (NoteChanged savedFeat.index)
-                , Input.attrs [ class "note-input note-input--card" ]
-                ]
+            , savedFeatToNoteInput "card" savedFeat
             ]
         |> Card.block []
-            [ Block.text [] [ featToTable feats cols savedFeat.feat ]
-
+            [ Block.custom <| featToTable feats cols savedFeat.feat ]
     )
 
 
-savedFeatToRow : List Column -> Record -> SavedFeat -> ( String, Table.Row Msg )
+savedFeatToRow : List Column -> Record -> SavedFeat -> ( String, Html Msg )
 savedFeatToRow cols maxes savedFeat =
-    [ [ .index >> String.fromInt >> text >> classToHtmlToCell "body-cell--index"
-      , .note
-            >> (\v ->
-                    Input.text
-                        [ Input.placeholder "Note"
-                        , Input.value v
-                        , Input.onInput (NoteChanged savedFeat.index)
-                        , Input.attrs [ class "note-input note-input--table" ]
-                        ]
-               )
-            >> classToHtmlToCell "body-cell--note"
+    [ [ .index >> String.fromInt >> text >> classToHtmlToStyledCell "body-cell--index"
+      , savedFeatToNoteInput "table"
+            >> classToHtmlToStyledCell "body-cell--note"
       ]
         |> List.map (thrush savedFeat)
     , (savedFeat.feat
@@ -488,19 +707,19 @@ savedFeatToRow cols maxes savedFeat =
         |> thrush
         |> List.map
       )
-        (List.map (columnToFloatToCell maxes) cols)
+        (List.map (columnToFloatToStyledCell maxes) cols)
     , Button.button
         [ Button.outlineDanger
         , DeleteButtonClicked savedFeat.index |> Button.onClick
         ]
         [ icon "trash" []
         ]
-        |> classToHtmlToCell "body-cell--delete"
+        |> classToHtmlToStyledCell "body-cell--delete"
         |> List.singleton
     ]
         |> List.concat
-        |> Table.keyedTr []
-        |> (\row -> ( savedFeat.key |> String.fromInt, row ))
+        |> Html.Styled.Keyed.node "tr" []
+        |> (\row -> ( savedFeat.key |> String.fromInt, row |> Html.Styled.toUnstyled ))
 
 
 featToTable : Array SavedFeat -> List Column -> Feat -> Html Msg
@@ -510,14 +729,14 @@ featToTable savedFeats cols =
             cols
                 |> List.map
                     (if Array.isEmpty savedFeats then
-                        columnToRecordToText
+                        \c r -> columnToRecordToText c r |> Html.Styled.fromUnstyled
 
                      else
                         savedFeats
                             |> Array.toList
                             |> List.map (.feat >> featToRecord)
                             |> maxRecord
-                            |> columnToRecordToTextWithMaxes
+                            |> (\m c r -> columnToRecordToTextWithMaxes m c r |> Html.Styled.fromUnstyled)
                     )
     in
     featToRecord
@@ -527,14 +746,16 @@ featToTable savedFeats cols =
         >> List.map2
             (\label value ->
                 ( label |> columnToToggleLabel
-                , Table.tr []
-                    [ label |> columnToToggleLabel |> text |> List.singleton |> Table.td [ "body-cell--label" |> class |> Table.cellAttr ]
-                    , value |> List.singleton |> Table.td [ "body-cell--value" |> class |> Table.cellAttr ]
+                , Html.Styled.tr
+                    []
+                    [ label |> columnToToggleLabel |> Html.Styled.text |> List.singleton |> Html.Styled.td [ "body-cell--label" |> HSA.class ]
+                    , value |> List.singleton |> Html.Styled.td [ "body-cell--value" |> HSA.class ]
                     ]
                 )
             )
             cols
-        >> rowsToHeadedTable [ ( "Label", span [] [] ), ( "Value", span [] [] ) ]
+        >> List.map (Tuple.mapSecond Html.Styled.toUnstyled)
+        >> rowsToHeadedTable [ ( "Label", text "" ), ( "Value", text "" ) ]
 
 
 type SortOrder

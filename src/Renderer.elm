@@ -6,9 +6,15 @@ module Renderer exposing
     , stringToHeaderCell
     )
 
+-- import Html as H exposing (Html)
+
 import Bootstrap.Table as Table
-import Html as H exposing (Html)
-import Html.Attributes as HA
+import Css
+import Html as Raw
+import Html.Attributes
+import Html.Styled as H exposing (Html)
+import Html.Styled.Attributes as HA
+import Html.Styled.Keyed
 import Library exposing (stringToAttr, thrush, truncate)
 
 
@@ -16,7 +22,7 @@ import Library exposing (stringToAttr, thrush, truncate)
 -- helper
 
 
-stringToHeaderCell : ( String, Html msg ) -> ( String, Table.Cell msg )
+stringToHeaderCell : ( String, Html msg ) -> ( String, Html msg )
 stringToHeaderCell ( title, arrows ) =
     let
         class =
@@ -32,29 +38,35 @@ stringToHeaderCell ( title, arrows ) =
                     )
     in
     ( class
-    , Table.th [ Table.cellAttr (HA.class class) ]
+    , H.th [ HA.class class ]
         [ title |> H.text
         , arrows
         ]
     )
 
 
-rowsToHeadedTable : List ( String, Html msg ) -> List ( String, Table.Row msg ) -> Html msg
+rowsToHeadedTable : List ( String, Raw.Html msg ) -> List ( String, Raw.Html msg ) -> Raw.Html msg
 rowsToHeadedTable titles rows =
-    if List.isEmpty rows then
-        H.span [] []
+    H.toUnstyled <|
+        if List.isEmpty rows then
+            H.text ""
 
-    else
-        Table.table
-            { options = [ Table.striped, Table.hover, Table.small ]
-            , thead =
-                titles
-                    |> List.map stringToHeaderCell
-                    |> Table.keyedTr []
+        else
+            H.table
+                [ HA.class "table table-striped table-hover table-sm"
+                ]
+                [ titles
+                    |> List.map
+                        (Tuple.mapSecond H.fromUnstyled
+                            >> stringToHeaderCell
+                        )
+                    |> Html.Styled.Keyed.node "tr" []
                     |> List.singleton
-                    |> Table.thead []
-            , tbody = Table.keyedTBody [] rows
-            }
+                    |> H.thead []
+                , rows
+                    |> List.map (Tuple.mapSecond H.fromUnstyled)
+                    |> Html.Styled.Keyed.node "tbody" []
+                ]
 
 
 maybeFloatToString : Maybe Float -> String
@@ -72,12 +84,12 @@ floatToString =
     truncate 2 >> String.fromFloat
 
 
-icon : String -> List (H.Attribute msg) -> H.Html msg
+icon : String -> List (Raw.Attribute msg) -> Raw.Html msg
 icon faClass attrs =
     faClass
         |> (++) "fa fa-"
-        |> HA.class
+        |> Html.Attributes.class
         |> (::)
         |> thrush attrs
-        |> H.span
+        |> Raw.span
         |> thrush []
