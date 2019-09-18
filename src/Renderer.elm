@@ -4,12 +4,11 @@ module Renderer exposing
     , maybeFloatToString
     , rowsToHeadedTable
     , stringToHeaderCell
+    , styledIcon
     )
 
 -- import Html as H exposing (Html)
 
-import Bootstrap.Table as Table
-import Css
 import Html as Raw
 import Html.Attributes
 import Html.Styled as H exposing (Html)
@@ -92,4 +91,15 @@ icon faClass attrs =
         |> (::)
         |> thrush attrs
         |> Raw.span
+        |> thrush []
+
+
+styledIcon : String -> List (H.Attribute msg) -> Html msg
+styledIcon faClass attrs =
+    faClass
+        |> (++) "fa fa-"
+        |> HA.class
+        |> (::)
+        |> thrush attrs
+        |> H.span
         |> thrush []

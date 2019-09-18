@@ -6,6 +6,7 @@ module Feat exposing
     , MassUnit(..)
     , equipmentToString
     , genderToString
+    , liftToLetter
     , liftToString
     , massToKilos
     , massToPounds
@@ -52,30 +53,30 @@ type Equipment
 testFeats : List Feat
 testFeats =
     [ { bodyKilos = 100
-      , bodyPounds = 220
+      , bodyPounds = massToPounds KG 100
       , liftedKilos = 400
-      , liftedPounds = 881
+      , liftedPounds = massToPounds KG 400
       , gender = Male
       , lift = Bench
       , age = Just 40
       , equipment = SinglePly
       , note = "first"
       }
-    , { bodyKilos = 70
-      , bodyPounds = 154
-      , liftedKilos = 500
-      , liftedPounds = 1101
-      , gender = Male
+    , { bodyKilos = 99
+      , bodyPounds = massToPounds KG 99
+      , liftedKilos = 1007.5
+      , liftedPounds = massToPounds KG 1007.5
+      , gender = Female
       , lift = Total
       , age = Just 45
       , equipment = Raw
       , note = "second"
       }
     , { bodyKilos = 60
-      , bodyPounds = 132
+      , bodyPounds = massToPounds KG 60
       , liftedKilos = 505
-      , liftedPounds = 1112
-      , gender = Male
+      , liftedPounds = massToPounds KG 505
+      , gender = GNC
       , lift = Total
       , age = Just 50
       , equipment = Raw
@@ -121,6 +122,11 @@ liftToString lift =
 
         Total ->
             "Total"
+
+
+liftToLetter : Lift -> String
+liftToLetter =
+    liftToString >> String.left 1
 
 
 poundsPerKilo : Float

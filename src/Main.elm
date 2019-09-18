@@ -14,7 +14,6 @@ import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
 import Bootstrap.Modal as Modal
-import Bootstrap.Table as Table
 import Browser
 import Column
     exposing
@@ -26,11 +25,10 @@ import Column
         , initCurrentColumns
         , initTableColumns
         )
-import Css exposing (after)
 import Data.ColumnToggles as ColumnToggles
 import Dropdowns exposing (Option, typedSelect)
-import Feat exposing (Feat, MassUnit, liftToString, testFeats)
-import Html exposing (Html, div, h1, h2, span, text)
+import Feat exposing (Feat, MassUnit, testFeats)
+import Html exposing (Html, div, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick, onInput)
 import Html.Styled
@@ -38,14 +36,17 @@ import Html.Styled.Attributes as HSA
 import Html.Styled.Keyed
 import Library exposing (dropNothing, removeAt, stringToAttr, thrush, updateArrayAt)
 import LiftForm
-import Renderer exposing (floatToString, icon, rowsToHeadedTable)
+import Renderer exposing (icon, rowsToHeadedTable)
+import SavedFeat exposing (SavedFeat)
 import Scores
     exposing
         ( Record
         , featToRecord
         , maxRecord
         )
+import SortColumn
 import View.ColumnToggles as ColumnToggles
+import View.ScoreCards as ScoreCards
 
 
 main : Platform.Program String Model Msg
@@ -64,13 +65,6 @@ subscriptions model =
         ]
 
 
-type alias SavedFeat =
-    { feat : Feat
-    , index : Int
-    , key : Int
-    }
-
-
 type alias Model =
     { formState : LiftForm.State
     , feats : Array SavedFeat
@@ -79,7 +73,7 @@ type alias Model =
     , tableState : ColumnToggles.State
     , deleteConfirmVisibility : Modal.Visibility
     , idxToDelete : Maybe Int
-    , sortColumn : SortColumn
+    , sortColumn : SortColumn.SortColumn
     , sortOrder : SortOrder
     , liftCardUnits : MassUnit
     }
@@ -101,6 +95,7 @@ init nodeEnv =
     ( { formState = LiftForm.init
       , feats =
             if nodeEnv == "development" then
+                --Array.empty
                 someFeats
 
             else
@@ -111,7 +106,7 @@ init nodeEnv =
       , deleteConfirmVisibility = Modal.hidden
       , idxToDelete = Nothing
       , sortOrder = Ascending
-      , sortColumn = Index
+      , sortColumn = SortColumn.Index
       , liftCardUnits = Feat.KG
       }
     , Cmd.none
@@ -133,8 +128,8 @@ type Msg
     | DeleteButtonClicked Int
     | DeleteCanceled
     | DeleteConfirmed
-    | ColumnHeaderArrowsClicked SortColumn
-    | SortColumnDropdownChanged (Maybe SortColumn)
+    | ColumnHeaderArrowsClicked SortColumn.SortColumn
+    | SortColumnDropdownChanged (Maybe SortColumn.SortColumn)
     | SortOrderToggleClicked
     | LiftCardUnitsToggleClicked
 
@@ -268,10 +263,10 @@ view : Model -> Html Msg
 view model =
     div []
         [ Grid.container []
-            [ h1 [] [ text "Every Score Calculator" ]
-            , LiftForm.view model.formState FormUpdated <| SaveButtonClicked <| modelToFeat <| model
-            , h2 [] [ text "Current Score" ]
-            , Grid.row [ Row.attrs [ class "current-table" ] ]
+            ([ h1 [] [ text "Every Score Calculator" ]
+             , LiftForm.view model.formState FormUpdated <| SaveButtonClicked <| modelToFeat <| model
+             , h2 [] [ text "Current Score" ]
+             , Grid.row [ Row.attrs [ class "current-table" ] ]
                 [ Grid.col [ Col.xs12 ]
                     (case modelToFeat model of
                         Just feat ->
@@ -285,11 +280,11 @@ view model =
                             [ Alert.simpleInfo [] [ text "Enter data to see all scores for a lift" ] ]
                     )
                 ]
-            , h2 [] [ text "Scores Table" ]
-            , if Array.isEmpty model.feats then
+             , h2 [] [ text "Scores Table" ]
+             , if Array.isEmpty model.feats then
                 Alert.simpleInfo [] [ text "Add scores to the table to compare" ]
 
-              else
+               else
                 ColumnToggles.config TableDisplayUpdated "table-column-toggles"
                     |> ColumnToggles.title "Table Options"
                     |> ColumnToggles.view model.tableState
@@ -297,76 +292,67 @@ view model =
                     |> Grid.col [ Col.xs12 ]
                     |> List.singleton
                     |> Grid.row [ Row.attrs [ style "margin-bottom" ".75rem" ] ]
-            , if Array.isEmpty model.feats then
-                text ""
-
-              else
-                Grid.row
-                    [ Row.attrs
-                        [ style "margin-bottom" ".75rem"
-                        , class "d-md-none"
-                        ]
-                    ]
-                    [ model.tableState
-                        |> ColumnToggles.columns
-                        |> List.map columnToSortColumn
-                        |> (::) (Just Index)
-                        |> List.foldr
-                            (\msc acc ->
-                                case msc of
-                                    Just sc ->
-                                        Option sc
-                                            (sortColumnToString sc)
-                                            (sortColumnToString sc)
-                                            :: acc
-
-                                    Nothing ->
-                                        acc
-                            )
-                            []
-                        |> typedSelect [ Select.small ]
-                        |> thrush model.sortColumn
-                        |> thrush SortColumnDropdownChanged
-                        |> List.singleton
-                        |> Grid.col [ Col.xs10 ]
-                    , icon
-                        (case model.sortOrder of
-                            Ascending ->
-                                "sort-amount-down-alt"
-
-                            Descending ->
-                                "sort-amount-up"
-                        )
+             ]
+                ++ (if Array.isEmpty model.feats then
                         []
-                        |> List.singleton
-                        |> Button.button
-                            [ Button.outlineSecondary
-                            , Button.onClick SortOrderToggleClicked
-                            , Button.small
-                            , Button.block
-                            ]
-                        |> List.singleton
-                        |> Grid.col [ Col.xs2 ]
-                    ]
-            , Grid.row []
-                [ model.feats
-                    |> savedFeatsToLiftCards
-                        (ColumnToggles.columns model.tableState)
-                        model.liftCardUnits
-                    |> Card.keyedColumns
-                    |> List.singleton
-                    |> Grid.col [ Col.xs12, Col.attrs [ class "d-md-none" ] ]
-                ]
-            , Grid.row []
-                [ model.feats
-                    |> sortSavedFeats model.sortOrder model.sortColumn
-                    |> savedFeatsToCards
-                        (ColumnToggles.columns model.tableState)
-                    |> Card.keyedColumns
-                    |> List.singleton
-                    |> Grid.col [ Col.xs12, Col.attrs [ class "d-md-none" ] ]
-                ]
-            ]
+
+                    else
+                        ScoreCards.view (Array.toList model.feats) model.tableState model.liftCardUnits LiftCardUnitsToggleClicked NoteChanged
+                            ++ [ h3 [ class "d-md-none" ] [ text "Grouped by Lifter" ]
+                               , Grid.row
+                                    [ Row.attrs
+                                        [ style "margin-bottom" ".75rem"
+                                        , class "d-md-none"
+                                        ]
+                                    ]
+                                    [ Grid.col [ Col.xs2 ] [ text "Sort by:" ]
+                                    , model.tableState
+                                        |> ColumnToggles.columns
+                                        |> List.map SortColumn.fromColumn
+                                        |> (::) (Just SortColumn.Index)
+                                        |> dropNothing
+                                        |> List.map
+                                            (\sc ->
+                                                Option sc
+                                                    (SortColumn.toString sc)
+                                                    (SortColumn.toString sc)
+                                            )
+                                        |> typedSelect [ Select.small ]
+                                        |> thrush model.sortColumn
+                                        |> thrush SortColumnDropdownChanged
+                                        |> List.singleton
+                                        |> Grid.col [ Col.xs8 ]
+                                    , icon
+                                        (case model.sortOrder of
+                                            Ascending ->
+                                                "sort-amount-down-alt"
+
+                                            Descending ->
+                                                "sort-amount-up"
+                                        )
+                                        []
+                                        |> List.singleton
+                                        |> Button.button
+                                            [ Button.outlineSecondary
+                                            , Button.onClick SortOrderToggleClicked
+                                            , Button.small
+                                            , Button.block
+                                            ]
+                                        |> List.singleton
+                                        |> Grid.col [ Col.xs2 ]
+                                    ]
+                               , Grid.row []
+                                    [ model.feats
+                                        |> sortSavedFeats model.sortOrder model.sortColumn
+                                        |> savedFeatsToCards
+                                            (ColumnToggles.columns model.tableState)
+                                        |> Card.keyedColumns
+                                        |> List.singleton
+                                        |> Grid.col [ Col.xs12, Col.attrs [ class "d-md-none" ] ]
+                                    ]
+                               ]
+                   )
+            )
         , Grid.containerFluid [ class "d-none d-md-block" ]
             [ Grid.row []
                 [ Grid.col [ Col.sm12 ]
@@ -424,194 +410,12 @@ maxSavedFeat =
     Array.toList >> List.map (.feat >> featToRecord) >> maxRecord
 
 
-savedFeatsToColumnToRecordToText : Array SavedFeat -> Column -> Record -> Html msg
-savedFeatsToColumnToRecordToText savedFeats =
-    if Array.isEmpty savedFeats then
-        columnToRecordToText
-
-    else
-        savedFeats
-            |> Array.toList
-            |> List.map (.feat >> featToRecord)
-            |> maxRecord
-            |> columnToRecordToTextWithMaxes
-
-
-maybeMaxRecord : Array SavedFeat -> Maybe Record
-maybeMaxRecord savedFeats =
-    if Array.isEmpty savedFeats then
-        Nothing
-
-    else
-        savedFeats
-            |> Array.toList
-            |> List.map (.feat >> featToRecord)
-            |> maxRecord
-            |> Just
-
-
-savedFeatsToLiftCards : List Column -> MassUnit -> Array SavedFeat -> List ( String, Card.Config Msg )
-savedFeatsToLiftCards cols liftCardsMassUnit savedFeats =
-    let
-        colToRecordToText =
-            -- savedFeatsToColumnToRecordToText savedFeats
-            columnToRecordToText
-    in
-    cols
-        |> List.foldr
-            (\col acc ->
-                case columnToSortColumn col of
-                    Just sc ->
-                        ( col, sc ) :: acc
-
-                    Nothing ->
-                        acc
-            )
-            []
-        |> List.map (columnToLiftCard savedFeats liftCardsMassUnit colToRecordToText)
-
-
-featToSummaryPounds : Feat -> String
-featToSummaryPounds f =
-    floatToString f.liftedPounds ++ " @ " ++ floatToString f.bodyPounds
-
-
-featToSummaryKilos : Feat -> String
-featToSummaryKilos f =
-    floatToString f.liftedKilos ++ " @ " ++ floatToString f.bodyKilos
-
-
-savedFeatToRowForLiftCard : ( Column, SortColumn ) -> Bool -> MassUnit -> (Record -> Html Msg) -> SavedFeat -> ( String, Html Msg )
-savedFeatToRowForLiftCard ( col, sortCol ) shouldShowLift liftCardsUnit recordToText savedFeat =
-    let
-        key =
-            String.fromInt savedFeat.key ++ (sortCol |> sortColumnToString)
-    in
-    ( key
-    , Html.Styled.Keyed.node "tr"
-        [ HSA.class "lift-card__data-row"
-        , HSA.css
-            [ Css.after
-                [ Css.display Css.block
-                , Css.property "content"
-                    "''"
-                , Css.height <|
-                    Css.px 3
-                , Css.position
-                    Css.absolute
-                , Css.backgroundColor <|
-                    Css.hex "000"
-                , Css.width <|
-                    Css.pct 100
-                , Css.left Css.zero
-                ]
-            ]
-        ]
-        ([ ( key ++ "idx"
-           , Html.Styled.th [ HSA.class "index" ]
-                [ savedFeat.index |> String.fromInt |> Html.Styled.text ]
-           )
-         , ( key ++ "note", Html.Styled.td [ HSA.class "note" ] [ savedFeatToNoteInput "lift-card" savedFeat |> Html.Styled.fromUnstyled ] )
-         ]
-            ++ (if shouldShowLift then
-                    [ ( key ++ "lift", Html.Styled.td [ HSA.class "lift" ] [ savedFeat.feat |> .lift |> liftToString |> text |> Html.Styled.fromUnstyled ] ) ]
-
-                else
-                    []
-               )
-            ++ [ case liftCardsUnit of
-                    Feat.LBM ->
-                        ( key ++ "summary--lb", Html.Styled.td [ HSA.class "summary summary--lb" ] [ featToSummaryPounds savedFeat.feat |> text |> Html.Styled.fromUnstyled ] )
-
-                    Feat.KG ->
-                        ( key ++ "summary--kg", Html.Styled.td [ HSA.class "summary summary--kg" ] [ featToSummaryKilos savedFeat.feat |> text |> Html.Styled.fromUnstyled ] )
-               , ( key ++ "score", Html.Styled.td [ HSA.class "value" ] [ featToRecord savedFeat.feat |> recordToText |> Html.Styled.fromUnstyled ] )
-               ]
-        )
-        |> Html.Styled.toUnstyled
-    )
-
-
-showLift : Array SavedFeat -> Bool
-showLift savedFeats =
-    case Array.toList savedFeats of
-        [] ->
-            Debug.log "empty savedfeats" False
-
-        feat :: [] ->
-            Debug.log "singleton savedfeats" False
-
-        feat :: feats ->
-            feats |> List.foldl (\f anyDiff -> Debug.log "returning" (anyDiff || Debug.log "current feat " (f.feat |> .lift) /= Debug.log "reference feat " (feat.feat |> .lift))) False
-
-
-columnToLiftCard : Array SavedFeat -> MassUnit -> (Column -> Record -> Html Msg) -> ( Column, SortColumn ) -> ( String, Card.Config Msg )
-columnToLiftCard savedFeats liftCardsUnit columnToRecordToText ( col, sortCol ) =
-    let
-        label =
-            sortCol |> sortColumnToString
-
-        rows =
-            savedFeats
-                |> sortSavedFeats Descending sortCol
-                |> Array.map
-                    (savedFeatToRowForLiftCard
-                        ( col, sortCol )
-                        (showLift savedFeats)
-                        liftCardsUnit
-                        (columnToRecordToText col)
-                    )
-                |> Array.toList
-    in
-    ( label
-    , Card.config
-        [ Card.attrs [ class "lift-card" ]
-        ]
-        |> Card.headerH4 []
-            [ text label
-            ]
-        |> Card.block [ Block.attrs [ class "lift-card__block" ] ]
-            [ Block.custom <|
-                rowsToHeadedTable
-                    ([ ( "", text "" )
-                     , ( "Note", text "" )
-                     ]
-                        ++ (if showLift savedFeats then
-                                [ ( "Lift", text "" ) ]
-
-                            else
-                                []
-                           )
-                        ++ [ ( ""
-                             , Button.button
-                                [ Button.outlineSecondary
-                                , Button.onClick LiftCardUnitsToggleClicked
-                                , Button.small
-                                , Button.block
-                                ]
-                                [ text <|
-                                    case liftCardsUnit of
-                                        Feat.KG ->
-                                            "Kg"
-
-                                        Feat.LBM ->
-                                            "Lb."
-                                ]
-                             )
-                           , ( "Value", text "" )
-                           ]
-                    )
-                    rows
-            ]
-    )
-
-
 savedFeatsToCards : List Column -> Array SavedFeat -> List ( String, Card.Config Msg )
 savedFeatsToCards cols savedFeats =
     savedFeats |> Array.map (savedFeatToCard cols savedFeats) |> Array.toList
 
 
-savedFeatsToTable : SortColumn -> SortOrder -> List Column -> Array SavedFeat -> Html Msg
+savedFeatsToTable : SortColumn.SortColumn -> SortOrder -> List Column -> Array SavedFeat -> Html Msg
 savedFeatsToTable sort order cols savedFeats =
     savedFeats
         |> Array.map (savedFeatToRow cols <| maxSavedFeat savedFeats)
@@ -619,16 +423,16 @@ savedFeatsToTable sort order cols savedFeats =
         >> ([ [ ( "Index"
                 , icon
                     (case ( sort, order ) of
-                        ( Index, Ascending ) ->
+                        ( SortColumn.Index, Ascending ) ->
                             "sort-up"
 
-                        ( Index, Descending ) ->
+                        ( SortColumn.Index, Descending ) ->
                             "sort-down"
 
                         ( _, _ ) ->
                             "sort"
                     )
-                    [ onClick <| ColumnHeaderArrowsClicked Index
+                    [ onClick <| ColumnHeaderArrowsClicked SortColumn.Index
                     ]
                 )
               ]
@@ -643,19 +447,9 @@ savedFeatsToTable sort order cols savedFeats =
            )
 
 
-classToHtmlToCell : String -> Html Msg -> ( String, Table.Cell Msg )
-classToHtmlToCell className html =
-    ( className, Table.td [ className |> stringToAttr |> class |> Table.cellAttr ] [ html ] )
-
-
 classToHtmlToStyledCell : String -> Html Msg -> ( String, Html.Styled.Html Msg )
 classToHtmlToStyledCell className html =
     ( className, Html.Styled.td [ className |> stringToAttr |> HSA.class ] [ Html.Styled.fromUnstyled html ] )
-
-
-columnToFloatToCell : Record -> Column -> Record -> ( String, Table.Cell Msg )
-columnToFloatToCell maxes col =
-    columnToRecordToTextWithMaxes maxes col >> classToHtmlToCell (col |> columnToColumnLabel |> (++) "body-cell--")
 
 
 columnToFloatToStyledCell : Record -> Column -> Record -> ( String, Html.Styled.Html Msg )
@@ -779,50 +573,38 @@ sortByOrder sortOrder a b =
             EQ
 
 
-type SortColumn
-    = BodyMass
-    | LiftedMass
-    | Wilks
-    | ScaledAllometricIpf
-    | ScaledAllometricAtr
-    | Allometric
-    | IPF
-    | McCulloch
-    | Index
-
-
-sortColumnToGetter : SortColumn -> SavedFeat -> Maybe Float
+sortColumnToGetter : SortColumn.SortColumn -> SavedFeat -> Maybe Float
 sortColumnToGetter col =
     case col of
-        BodyMass ->
+        SortColumn.BodyMass ->
             .feat >> .bodyKilos >> Just
 
-        LiftedMass ->
+        SortColumn.LiftedMass ->
             .feat >> .liftedKilos >> Just
 
-        Wilks ->
+        SortColumn.Wilks ->
             .feat >> featToRecord >> .wilks
 
-        ScaledAllometricIpf ->
+        SortColumn.ScaledAllometricIpf ->
             .feat >> featToRecord >> .scaledAllometricIpf
 
-        ScaledAllometricAtr ->
+        SortColumn.ScaledAllometricAtr ->
             .feat >> featToRecord >> .scaledAllometricAtr
 
-        Allometric ->
+        SortColumn.Allometric ->
             .feat >> featToRecord >> .allometric
 
-        IPF ->
+        SortColumn.IPF ->
             .feat >> featToRecord >> .ipf
 
-        McCulloch ->
+        SortColumn.McCulloch ->
             .feat >> featToRecord >> .mcCulloch
 
-        Index ->
+        SortColumn.Index ->
             .index >> toFloat >> Just
 
 
-sortSavedFeats : SortOrder -> SortColumn -> Array SavedFeat -> Array SavedFeat
+sortSavedFeats : SortOrder -> SortColumn.SortColumn -> Array SavedFeat -> Array SavedFeat
 sortSavedFeats sortOrder sortColumn =
     Array.toList
         >> List.sortWith
@@ -834,9 +616,9 @@ sortSavedFeats sortOrder sortColumn =
         >> Array.fromList
 
 
-columnAndSortToIcon : SortColumn -> SortOrder -> Column -> Html Msg
+columnAndSortToIcon : SortColumn.SortColumn -> SortOrder -> Column -> Html Msg
 columnAndSortToIcon sort order column =
-    case ( sort, columnToSortColumn column ) of
+    case ( sort, SortColumn.fromColumn column ) of
         ( s, Just sc ) ->
             (if s == sc then
                 case order of
@@ -857,77 +639,3 @@ columnAndSortToIcon sort order column =
 
         ( _, Nothing ) ->
             text ""
-
-
-columnToSortColumn : Column -> Maybe SortColumn
-columnToSortColumn col =
-    case col of
-        Column.BodyKilos ->
-            Just BodyMass
-
-        Column.LiftedKilos ->
-            Just LiftedMass
-
-        Column.BodyPounds ->
-            Just BodyMass
-
-        Column.LiftedPounds ->
-            Just LiftedMass
-
-        Column.Wilks ->
-            Just Wilks
-
-        Column.ScaledAllometricIpf ->
-            Just ScaledAllometricIpf
-
-        Column.ScaledAllometricAtr ->
-            Just ScaledAllometricAtr
-
-        Column.Allometric ->
-            Just Allometric
-
-        Column.IPF ->
-            Just IPF
-
-        Column.McCulloch ->
-            Just McCulloch
-
-        Column.Gender ->
-            Nothing
-
-        Column.Lift ->
-            Nothing
-
-        Column.Equipment ->
-            Nothing
-
-
-sortColumnToString : SortColumn -> String
-sortColumnToString sc =
-    case sc of
-        BodyMass ->
-            "Body Mass"
-
-        LiftedMass ->
-            "Lifted Mass"
-
-        Wilks ->
-            "Wilks"
-
-        ScaledAllometricIpf ->
-            "Scaled Allometric IPF"
-
-        ScaledAllometricAtr ->
-            "Scaled Allometric ATR"
-
-        Allometric ->
-            "Allometric"
-
-        IPF ->
-            "IPF"
-
-        McCulloch ->
-            "McCulloch"
-
-        Index ->
-            "Index"

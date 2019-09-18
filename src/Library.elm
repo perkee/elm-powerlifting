@@ -1,9 +1,18 @@
 module Library exposing
-    ( dropNothing
+    ( SortOrder(..)
+    , compareByOrder
+    , compose2
+    , compose2same
+    , dropNothing
     , filterListByList
     , isStringPositiveFloat
+    , maybeListHead
+    , maybeListMember
+    , maybeSnocnu
+    , phi
     , removeAt
     , replace
+    , snocnu
     , stringToAttr
     , thrush
     , truncate
@@ -85,3 +94,74 @@ dropNothing =
                     acc
         )
         []
+
+
+maybeListMember : List a -> Maybe a -> List a -> List a
+maybeListMember beginning maybeMiddle end =
+    case maybeMiddle of
+        Just middle ->
+            beginning ++ (middle :: end)
+
+        Nothing ->
+            beginning ++ end
+
+
+maybeSnocnu : Maybe a -> List a -> List a
+maybeSnocnu maybeEnd beginning =
+    case maybeEnd of
+        Just end ->
+            snocnu end beginning
+
+        Nothing ->
+            beginning
+
+
+snocnu : a -> List a -> List a
+snocnu x xs =
+    xs ++ [ x ]
+
+
+maybeListHead : Maybe a -> List a -> List a
+maybeListHead maybeBeginning end =
+    case maybeBeginning of
+        Just beginning ->
+            beginning :: end
+
+        Nothing ->
+            end
+
+
+phi : Float
+phi =
+    (1 + sqrt 5) / 2
+
+
+type SortOrder
+    = Ascending
+    | Descending
+
+
+compareByOrder : SortOrder -> comparable -> comparable -> Order
+compareByOrder sortOrder a b =
+    case ( sortOrder, compare a b ) of
+        ( Ascending, anyOrder ) ->
+            anyOrder
+
+        ( Descending, LT ) ->
+            GT
+
+        ( Descending, GT ) ->
+            LT
+
+        ( Descending, EQ ) ->
+            EQ
+
+
+compose2 : (a -> b) -> (m -> n) -> (b -> n -> x) -> (a -> m -> x)
+compose2 aToB mToN binaryFn a m =
+    binaryFn (a |> aToB) (m |> mToN)
+
+
+compose2same : (a -> b) -> (b -> b -> x) -> (a -> a -> x)
+compose2same aToB binaryFn =
+    compose2 aToB aToB binaryFn

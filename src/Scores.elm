@@ -3,6 +3,7 @@ module Scores exposing
     , featToRecord
     , featToScores
     , maxRecord
+    , maybeMax
     )
 
 import Array
