@@ -6,10 +6,7 @@ module Main exposing (main)
 import Array exposing (Array)
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
-import Bootstrap.Card as Card
-import Bootstrap.Card.Block as Block
 import Bootstrap.Form.Input as Input
-import Bootstrap.Form.Select as Select
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
@@ -26,7 +23,6 @@ import Column
         , initTableColumns
         )
 import Data.ColumnToggles as ColumnToggles
-import Dropdowns exposing (Option, typedSelect)
 import Feat exposing (Feat, MassUnit, testFeats)
 import Html exposing (Html, div, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
@@ -34,7 +30,7 @@ import Html.Events exposing (onClick, onInput)
 import Html.Styled
 import Html.Styled.Attributes as HSA
 import Html.Styled.Keyed
-import Library exposing (dropNothing, removeAt, stringToAttr, thrush, updateArrayAt)
+import Library exposing (SortOrder(..), removeAt, stringToAttr, thrush, updateArrayAt)
 import LiftForm
 import Renderer exposing (icon, rowsToHeadedTable)
 import SavedFeat exposing (SavedFeat)
@@ -46,6 +42,7 @@ import Scores
         )
 import SortColumn
 import View.ColumnToggles as ColumnToggles
+import View.FeatCards as FeatCards
 import View.ScoreCards as ScoreCards
 
 
@@ -74,7 +71,7 @@ type alias Model =
     , deleteConfirmVisibility : Modal.Visibility
     , idxToDelete : Maybe Int
     , sortColumn : SortColumn.SortColumn
-    , sortOrder : SortOrder
+    , sortOrder : Library.SortOrder
     , liftCardUnits : MassUnit
     }
 
@@ -105,7 +102,7 @@ init nodeEnv =
       , tableState = ColumnToggles.init initTableColumns
       , deleteConfirmVisibility = Modal.hidden
       , idxToDelete = Nothing
-      , sortOrder = Ascending
+      , sortOrder = Library.Ascending
       , sortColumn = SortColumn.Index
       , liftCardUnits = Feat.KG
       }
@@ -298,59 +295,13 @@ view model =
 
                     else
                         ScoreCards.view (Array.toList model.feats) model.tableState model.liftCardUnits LiftCardUnitsToggleClicked NoteChanged
-                            ++ [ h3 [ class "d-md-none" ] [ text "Grouped by Lifter" ]
-                               , Grid.row
-                                    [ Row.attrs
-                                        [ style "margin-bottom" ".75rem"
-                                        , class "d-md-none"
-                                        ]
-                                    ]
-                                    [ Grid.col [ Col.xs2 ] [ text "Sort by:" ]
-                                    , model.tableState
-                                        |> ColumnToggles.columns
-                                        |> List.map SortColumn.fromColumn
-                                        |> (::) (Just SortColumn.Index)
-                                        |> dropNothing
-                                        |> List.map
-                                            (\sc ->
-                                                Option sc
-                                                    (SortColumn.toString sc)
-                                                    (SortColumn.toString sc)
-                                            )
-                                        |> typedSelect [ Select.small ]
-                                        |> thrush model.sortColumn
-                                        |> thrush SortColumnDropdownChanged
-                                        |> List.singleton
-                                        |> Grid.col [ Col.xs8 ]
-                                    , icon
-                                        (case model.sortOrder of
-                                            Ascending ->
-                                                "sort-amount-down-alt"
-
-                                            Descending ->
-                                                "sort-amount-up"
-                                        )
-                                        []
-                                        |> List.singleton
-                                        |> Button.button
-                                            [ Button.outlineSecondary
-                                            , Button.onClick SortOrderToggleClicked
-                                            , Button.small
-                                            , Button.block
-                                            ]
-                                        |> List.singleton
-                                        |> Grid.col [ Col.xs2 ]
-                                    ]
-                               , Grid.row []
-                                    [ model.feats
-                                        |> sortSavedFeats model.sortOrder model.sortColumn
-                                        |> savedFeatsToCards
-                                            (ColumnToggles.columns model.tableState)
-                                        |> Card.keyedColumns
-                                        |> List.singleton
-                                        |> Grid.col [ Col.xs12, Col.attrs [ class "d-md-none" ] ]
-                                    ]
-                               ]
+                            ++ FeatCards.view (Array.toList model.feats) model.tableState (FeatCards.CardSorting model.sortColumn
+                                model.sortOrder
+                                SortColumnDropdownChanged
+                                NoteChanged
+                                SortOrderToggleClicked
+                                DeleteButtonClicked
+                                )
                    )
             )
         , Grid.containerFluid [ class "d-none d-md-block" ]
@@ -410,11 +361,6 @@ maxSavedFeat =
     Array.toList >> List.map (.feat >> featToRecord) >> maxRecord
 
 
-savedFeatsToCards : List Column -> Array SavedFeat -> List ( String, Card.Config Msg )
-savedFeatsToCards cols savedFeats =
-    savedFeats |> Array.map (savedFeatToCard cols savedFeats) |> Array.toList
-
-
 savedFeatsToTable : SortColumn.SortColumn -> SortOrder -> List Column -> Array SavedFeat -> Html Msg
 savedFeatsToTable sort order cols savedFeats =
     savedFeats
@@ -465,28 +411,6 @@ savedFeatToNoteInput classSuffix savedFeat =
         , Input.onInput <| NoteChanged savedFeat.index
         , Input.attrs [ class <| "note-input note-input--" ++ classSuffix ]
         ]
-
-
-savedFeatToCard : List Column -> Array SavedFeat -> SavedFeat -> ( String, Card.Config Msg )
-savedFeatToCard cols feats savedFeat =
-    ( savedFeat.key |> String.fromInt
-    , Card.config
-        [ Card.attrs []
-        ]
-        |> Card.headerH4 []
-            [ text <| String.fromInt <| savedFeat.index
-            , Button.button
-                [ Button.outlineDanger
-                , DeleteButtonClicked savedFeat.index |> Button.onClick
-                , Button.attrs [ class "card-delete" ]
-                ]
-                [ icon "trash" []
-                ]
-            , savedFeatToNoteInput "card" savedFeat
-            ]
-        |> Card.block []
-            [ Block.custom <| featToTable feats cols savedFeat.feat ]
-    )
 
 
 savedFeatToRow : List Column -> Record -> SavedFeat -> ( String, Html Msg )
@@ -552,12 +476,7 @@ featToTable savedFeats cols =
         >> rowsToHeadedTable [ ( "Label", text "" ), ( "Value", text "" ) ]
 
 
-type SortOrder
-    = Ascending
-    | Descending
-
-
-sortByOrder : SortOrder -> comparable -> comparable -> Order
+sortByOrder : Library.SortOrder -> comparable -> comparable -> Order
 sortByOrder sortOrder a b =
     case ( sortOrder, compare a b ) of
         ( Ascending, anyOrder ) ->
