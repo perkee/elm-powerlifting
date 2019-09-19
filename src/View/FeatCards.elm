@@ -44,6 +44,8 @@ type alias CardSorting msg =
     , noteChanged : Int -> String -> msg
     , sortOrderToggleClicked : msg
     , deleteButtonClicked : Int -> msg
+    , scoreMassUnit : Feat.MassUnit
+    , massUnitMsg : msg
     }
 
 

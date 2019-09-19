@@ -41,9 +41,9 @@ import Scores
         , maxRecord
         )
 import SortColumn
+import View.Cards as Cards
 import View.ColumnToggles as ColumnToggles
 import View.FeatCards as FeatCards
-import View.ScoreCards as ScoreCards
 
 
 main : Platform.Program String Model Msg
@@ -290,25 +290,28 @@ view model =
                     |> List.singleton
                     |> Grid.row [ Row.attrs [ style "margin-bottom" ".75rem" ] ]
              ]
-                ++ (if Array.isEmpty model.feats then
-                        []
-
-                    else
-                        ScoreCards.view (Array.toList model.feats) model.tableState model.liftCardUnits LiftCardUnitsToggleClicked NoteChanged
-                            ++ FeatCards.view (Array.toList model.feats) model.tableState (FeatCards.CardSorting model.sortColumn
-                                model.sortOrder
-                                SortColumnDropdownChanged
-                                NoteChanged
-                                SortOrderToggleClicked
-                                DeleteButtonClicked
-                                )
-                   )
+                ++ Cards.view (Array.toList model.feats)
+                    model.tableState
+                    (FeatCards.CardSorting model.sortColumn
+                        model.sortOrder
+                        SortColumnDropdownChanged
+                        NoteChanged
+                        SortOrderToggleClicked
+                        DeleteButtonClicked
+                        model.liftCardUnits
+                        LiftCardUnitsToggleClicked
+                    )
             )
         , Grid.containerFluid [ class "d-none d-md-block" ]
             [ Grid.row []
                 [ Grid.col [ Col.sm12 ]
                     [ model.feats
-                        |> sortSavedFeats model.sortOrder model.sortColumn
+                        |> Array.toList
+                        |> List.sortWith
+                            (SortColumn.compareSavedFeats
+                                model.sortOrder
+                                model.sortColumn
+                            )
                         |> savedFeatsToTable
                             model.sortColumn
                             model.sortOrder
@@ -356,16 +359,15 @@ view model =
         ]
 
 
-maxSavedFeat : Array SavedFeat -> Record
+maxSavedFeat : List SavedFeat -> Record
 maxSavedFeat =
-    Array.toList >> List.map (.feat >> featToRecord) >> maxRecord
+    List.map (.feat >> featToRecord) >> maxRecord
 
 
-savedFeatsToTable : SortColumn.SortColumn -> SortOrder -> List Column -> Array SavedFeat -> Html Msg
+savedFeatsToTable : SortColumn.SortColumn -> SortOrder -> List Column -> List SavedFeat -> Html Msg
 savedFeatsToTable sort order cols savedFeats =
     savedFeats
-        |> Array.map (savedFeatToRow cols <| maxSavedFeat savedFeats)
-        >> Array.toList
+        |> List.map (savedFeatToRow cols <| maxSavedFeat savedFeats)
         >> ([ [ ( "Index"
                 , icon
                     (case ( sort, order ) of
@@ -474,65 +476,6 @@ featToTable savedFeats cols =
             cols
         >> List.map (Tuple.mapSecond Html.Styled.toUnstyled)
         >> rowsToHeadedTable [ ( "Label", text "" ), ( "Value", text "" ) ]
-
-
-sortByOrder : Library.SortOrder -> comparable -> comparable -> Order
-sortByOrder sortOrder a b =
-    case ( sortOrder, compare a b ) of
-        ( Ascending, anyOrder ) ->
-            anyOrder
-
-        ( Descending, LT ) ->
-            GT
-
-        ( Descending, GT ) ->
-            LT
-
-        ( Descending, EQ ) ->
-            EQ
-
-
-sortColumnToGetter : SortColumn.SortColumn -> SavedFeat -> Maybe Float
-sortColumnToGetter col =
-    case col of
-        SortColumn.BodyMass ->
-            .feat >> .bodyKilos >> Just
-
-        SortColumn.LiftedMass ->
-            .feat >> .liftedKilos >> Just
-
-        SortColumn.Wilks ->
-            .feat >> featToRecord >> .wilks
-
-        SortColumn.ScaledAllometricIpf ->
-            .feat >> featToRecord >> .scaledAllometricIpf
-
-        SortColumn.ScaledAllometricAtr ->
-            .feat >> featToRecord >> .scaledAllometricAtr
-
-        SortColumn.Allometric ->
-            .feat >> featToRecord >> .allometric
-
-        SortColumn.IPF ->
-            .feat >> featToRecord >> .ipf
-
-        SortColumn.McCulloch ->
-            .feat >> featToRecord >> .mcCulloch
-
-        SortColumn.Index ->
-            .index >> toFloat >> Just
-
-
-sortSavedFeats : SortOrder -> SortColumn.SortColumn -> Array SavedFeat -> Array SavedFeat
-sortSavedFeats sortOrder sortColumn =
-    Array.toList
-        >> List.sortWith
-            (\a b ->
-                sortByOrder sortOrder
-                    (a |> sortColumnToGetter sortColumn |> Maybe.withDefault (-1 / 0))
-                    (b |> sortColumnToGetter sortColumn |> Maybe.withDefault (-1 / 0))
-            )
-        >> Array.fromList
 
 
 columnAndSortToIcon : SortColumn.SortColumn -> SortOrder -> Column -> Html Msg
