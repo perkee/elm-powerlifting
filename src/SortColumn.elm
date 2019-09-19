@@ -132,10 +132,10 @@ compareSavedFeats sortOrder sortColumn =
             Maybe.withDefault <|
                 case sortOrder of
                     Library.Ascending ->
-                        -1 / 0
+                        1 / 0
 
                     Library.Descending ->
-                        1 / 0
+                        -1 / 0
     in
     Library.compose2same
         (toGetter sortColumn >> toDefault)
