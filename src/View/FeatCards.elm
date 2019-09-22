@@ -41,6 +41,7 @@ type alias CardSorting msg =
     { sortColumn : SortColumn.SortColumn
     , sortOrder : Library.SortOrder
     , sortColumnDropdownChanged : Maybe SortColumn.SortColumn -> msg
+    , sortColumnArrowsClicked : SortColumn.SortColumn -> msg
     , noteChanged : Int -> String -> msg
     , sortOrderToggleClicked : msg
     , deleteButtonClicked : Int -> msg

@@ -1,4 +1,4 @@
-module View.ScoreCards exposing (view)
+module View.ScoreCards exposing (State, init, view)
 
 import Bootstrap.Button as Button
 import Bootstrap.Card as Card
@@ -33,14 +33,25 @@ type alias NoteChangedMsg msg =
     Int -> String -> msg
 
 
-view : List SavedFeat -> ColumnToggles.State -> MassUnit -> msg -> NoteChangedMsg msg -> List (Html msg)
-view savedFeats tableState massUnit massUnitMsg noteChangedMsg =
+type alias State =
+    { summaryUnit : MassUnit
+    , togglesState : ColumnToggles.State
+    }
+
+
+init : ColumnToggles.State -> State
+init =
+    State Feat.KG
+
+
+view : List SavedFeat -> State -> msg -> NoteChangedMsg msg -> List (Html msg)
+view savedFeats state massUnitMsg noteChangedMsg =
     [ h3 [ class "d-md-none" ] [ text "Grouped by Score" ]
     , Grid.row []
         [ savedFeats
             |> savedFeatsToLiftCards
-                (ColumnToggles.columns tableState)
-                massUnit
+                (ColumnToggles.columns state.togglesState)
+                state.summaryUnit
                 massUnitMsg
                 noteChangedMsg
             |> Card.keyedColumns

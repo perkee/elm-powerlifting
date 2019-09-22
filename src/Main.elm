@@ -6,7 +6,6 @@ module Main exposing (main)
 import Array exposing (Array)
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
-import Bootstrap.Form.Input as Input
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
@@ -15,35 +14,34 @@ import Browser
 import Column
     exposing
         ( Column
-        , columnToColumnLabel
         , columnToRecordToText
         , columnToRecordToTextWithMaxes
         , columnToToggleLabel
         , initCurrentColumns
         , initTableColumns
         )
+import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Feat exposing (Feat, MassUnit, testFeats)
 import Html exposing (Html, div, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick)
 import Html.Styled
 import Html.Styled.Attributes as HSA
-import Html.Styled.Keyed
-import Library exposing (SortOrder(..), removeAt, stringToAttr, thrush, updateArrayAt)
+import Library exposing (SortOrder(..), removeAt, thrush, updateArrayAt)
 import LiftForm
-import Renderer exposing (icon, rowsToHeadedTable)
+import Renderer exposing (rowsToHeadedTable)
 import SavedFeat exposing (SavedFeat)
 import Scores
     exposing
-        ( Record
-        , featToRecord
+        ( featToRecord
         , maxRecord
         )
 import SortColumn
 import View.Cards as Cards
 import View.ColumnToggles as ColumnToggles
 import View.FeatCards as FeatCards
+import View.FeatTable as FeatTable
 
 
 main : Platform.Program String Model Msg
@@ -73,6 +71,7 @@ type alias Model =
     , sortColumn : SortColumn.SortColumn
     , sortOrder : Library.SortOrder
     , liftCardUnits : MassUnit
+    , cardsState : Cards.State
     }
 
 
@@ -105,6 +104,7 @@ init nodeEnv =
       , sortOrder = Library.Ascending
       , sortColumn = SortColumn.Index
       , liftCardUnits = Feat.KG
+      , cardsState = Cards.init
       }
     , Cmd.none
     )
@@ -125,6 +125,7 @@ type Msg
     | DeleteButtonClicked Int
     | DeleteCanceled
     | DeleteConfirmed
+    | CardsUpdate Cards.State
     | ColumnHeaderArrowsClicked SortColumn.SortColumn
     | SortColumnDropdownChanged (Maybe SortColumn.SortColumn)
     | SortOrderToggleClicked
@@ -252,6 +253,9 @@ update msg model =
                         Feat.LBM ->
                             Feat.KG
             }
+
+        CardsUpdate state ->
+            { model | cardsState = state }
     , Cmd.none
     )
 
@@ -295,6 +299,7 @@ view model =
                     (FeatCards.CardSorting model.sortColumn
                         model.sortOrder
                         SortColumnDropdownChanged
+                        ColumnHeaderArrowsClicked
                         NoteChanged
                         SortOrderToggleClicked
                         DeleteButtonClicked
@@ -307,15 +312,18 @@ view model =
                 [ Grid.col [ Col.sm12 ]
                     [ model.feats
                         |> Array.toList
-                        |> List.sortWith
-                            (SortColumn.compareSavedFeats
+                        |> FeatTable.view
+                            model.tableState
+                            (FeatCards.CardSorting model.sortColumn
                                 model.sortOrder
-                                model.sortColumn
+                                SortColumnDropdownChanged
+                                ColumnHeaderArrowsClicked
+                                NoteChanged
+                                SortOrderToggleClicked
+                                DeleteButtonClicked
+                                model.liftCardUnits
+                                LiftCardUnitsToggleClicked
                             )
-                        |> savedFeatsToTable
-                            model.sortColumn
-                            model.sortOrder
-                            (ColumnToggles.columns model.tableState)
                     ]
                 ]
             ]
@@ -359,89 +367,6 @@ view model =
         ]
 
 
-maxSavedFeat : List SavedFeat -> Record
-maxSavedFeat =
-    List.map (.feat >> featToRecord) >> maxRecord
-
-
-savedFeatsToTable : SortColumn.SortColumn -> SortOrder -> List Column -> List SavedFeat -> Html Msg
-savedFeatsToTable sort order cols savedFeats =
-    savedFeats
-        |> List.map (savedFeatToRow cols <| maxSavedFeat savedFeats)
-        >> ([ [ ( "Index"
-                , icon
-                    (case ( sort, order ) of
-                        ( SortColumn.Index, Ascending ) ->
-                            "sort-up"
-
-                        ( SortColumn.Index, Descending ) ->
-                            "sort-down"
-
-                        ( _, _ ) ->
-                            "sort"
-                    )
-                    [ onClick <| ColumnHeaderArrowsClicked SortColumn.Index
-                    ]
-                )
-              ]
-            , [ ( "Note", text "" ) ]
-            , List.map
-                (\c -> ( columnToColumnLabel c, columnAndSortToIcon sort order c ))
-                cols
-            , [ ( "Delete", text "" ) ]
-            ]
-                |> List.concat
-                |> rowsToHeadedTable
-           )
-
-
-classToHtmlToStyledCell : String -> Html Msg -> ( String, Html.Styled.Html Msg )
-classToHtmlToStyledCell className html =
-    ( className, Html.Styled.td [ className |> stringToAttr |> HSA.class ] [ Html.Styled.fromUnstyled html ] )
-
-
-columnToFloatToStyledCell : Record -> Column -> Record -> ( String, Html.Styled.Html Msg )
-columnToFloatToStyledCell maxes col =
-    columnToRecordToTextWithMaxes maxes col >> classToHtmlToStyledCell (col |> columnToColumnLabel |> (++) "body-cell--")
-
-
-savedFeatToNoteInput : String -> SavedFeat -> Html Msg
-savedFeatToNoteInput classSuffix savedFeat =
-    Input.text
-        [ Input.placeholder "Note"
-        , Input.value <| .note <| savedFeat.feat
-        , Input.onInput <| NoteChanged savedFeat.index
-        , Input.attrs [ class <| "note-input note-input--" ++ classSuffix ]
-        ]
-
-
-savedFeatToRow : List Column -> Record -> SavedFeat -> ( String, Html Msg )
-savedFeatToRow cols maxes savedFeat =
-    [ [ .index >> String.fromInt >> text >> classToHtmlToStyledCell "body-cell--index"
-      , savedFeatToNoteInput "table"
-            >> classToHtmlToStyledCell "body-cell--note"
-      ]
-        |> List.map (thrush savedFeat)
-    , (savedFeat.feat
-        |> featToRecord
-        |> thrush
-        |> List.map
-      )
-        (List.map (columnToFloatToStyledCell maxes) cols)
-    , Button.button
-        [ Button.outlineDanger
-        , DeleteButtonClicked savedFeat.index |> Button.onClick
-        ]
-        [ icon "trash" []
-        ]
-        |> classToHtmlToStyledCell "body-cell--delete"
-        |> List.singleton
-    ]
-        |> List.concat
-        |> Html.Styled.Keyed.node "tr" []
-        |> (\row -> ( savedFeat.key |> String.fromInt, row |> Html.Styled.toUnstyled ))
-
-
 featToTable : Array SavedFeat -> List Column -> Feat -> Html Msg
 featToTable savedFeats cols =
     let
@@ -476,28 +401,3 @@ featToTable savedFeats cols =
             cols
         >> List.map (Tuple.mapSecond Html.Styled.toUnstyled)
         >> rowsToHeadedTable [ ( "Label", text "" ), ( "Value", text "" ) ]
-
-
-columnAndSortToIcon : SortColumn.SortColumn -> SortOrder -> Column -> Html Msg
-columnAndSortToIcon sort order column =
-    case ( sort, SortColumn.fromColumn column ) of
-        ( s, Just sc ) ->
-            (if s == sc then
-                case order of
-                    Ascending ->
-                        "sort-up"
-
-                    Descending ->
-                        "sort-down"
-
-             else
-                "sort"
-            )
-                |> icon
-                |> thrush
-                    [ class "sort-button"
-                    , onClick <| ColumnHeaderArrowsClicked sc
-                    ]
-
-        ( _, Nothing ) ->
-            text ""

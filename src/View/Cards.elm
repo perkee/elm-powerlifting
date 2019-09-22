@@ -13,10 +13,10 @@ view savedFeats tableState cardSorting =
         []
 
     else
+        -- List SavedFeat -> State -> msg -> NoteChangedMsg msg -> List (Html msg)
         ScoreCards.view
             savedFeats
-            tableState
-            cardSorting.scoreMassUnit
+            (ScoreCards.State cardSorting.scoreMassUnit tableState)
             cardSorting.massUnitMsg
             cardSorting.noteChanged
             ++ FeatCards.view savedFeats
