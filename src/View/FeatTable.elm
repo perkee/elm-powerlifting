@@ -9,13 +9,13 @@ import Column
         , columnToRecordToTextWithMaxes
         )
 import Data.ColumnToggles as ColumnToggles
-import Html exposing (Html, h3, text)
+import Html exposing (Html, text)
 import Html.Attributes as HA
 import Html.Events exposing (onClick)
 import Html.Styled
 import Html.Styled.Attributes as HSA
 import Html.Styled.Keyed
-import Library exposing (dropNothing, thrush)
+import Library exposing (thrush)
 import Renderer
 import SavedFeat exposing (SavedFeat)
 import Scores

@@ -1,6 +1,6 @@
 module Data.Cards exposing (State, init)
 
-import Feat exposing (Feat)
+import Feat
 import Library
 import SortColumn exposing (SortColumn(..))
 
