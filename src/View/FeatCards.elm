@@ -16,6 +16,7 @@ import Column
         , columnToToggleLabel
         )
 import Data.ColumnToggles as ColumnToggles
+import Data.Sort as Sort
 import Dropdowns exposing (Option, typedSelect)
 import Feat exposing (Feat)
 import Html exposing (Html, h3, text)
@@ -38,8 +39,7 @@ type alias NoteChangedMsg msg =
 
 
 type alias CardSorting msg =
-    { sortColumn : SortColumn.SortColumn
-    , sortOrder : Library.SortOrder
+    { sort : Sort.Status
     , sortColumnDropdownChanged : Maybe SortColumn.SortColumn -> msg
     , sortColumnArrowsClicked : SortColumn.SortColumn -> msg
     , noteChanged : Int -> String -> msg
@@ -72,12 +72,12 @@ view savedFeats tableState cardSorting =
                         (SortColumn.toString sc)
                 )
             |> typedSelect [ Select.small ]
-            |> thrush cardSorting.sortColumn
+            |> thrush cardSorting.sort.sortColumn
             |> thrush cardSorting.sortColumnDropdownChanged
             |> List.singleton
             |> Grid.col [ Col.xs8 ]
         , icon
-            (case cardSorting.sortOrder of
+            (case cardSorting.sort.sortOrder of
                 Library.Ascending ->
                     "sort-amount-down-alt"
 
@@ -97,7 +97,7 @@ view savedFeats tableState cardSorting =
         ]
     , Grid.row []
         [ savedFeats
-            |> List.sortWith (SortColumn.compareSavedFeats cardSorting.sortOrder cardSorting.sortColumn)
+            |> List.sortWith (SavedFeat.compare cardSorting.sort)
             |> savedFeatsToCards
                 (ColumnToggles.columns tableState)
                 cardSorting

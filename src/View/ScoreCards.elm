@@ -12,6 +12,7 @@ import Column
         )
 import Css
 import Data.ColumnToggles as ColumnToggles
+import Data.Sort as Sort
 import Feat exposing (Feat, MassUnit, liftToLetter)
 import Html exposing (Html, h3, text)
 import Html.Attributes exposing (class)
@@ -85,12 +86,12 @@ columnToLiftCard savedFeats liftCardsUnit massUnitMsg noteChangedMsg ( col, sort
 
         max =
             savedFeats
-                |> List.map (SortColumn.toGetter sortCol)
+                |> List.map (SavedFeat.sortColumnToGetter sortCol)
                 |> List.foldl maybeMax (Just (-1 / 0))
 
         rows =
             savedFeats
-                |> List.sortWith (SortColumn.compareSavedFeats Library.Descending sortCol)
+                |> List.sortWith (SavedFeat.compare (Sort.Status sortCol Library.Descending))
                 |> List.map
                     (savedFeatToRow
                         noteChangedMsg
@@ -188,7 +189,7 @@ savedFeatToRow noteChangedMsg ( col, sortCol ) shouldShowLift liftCardsUnit mayb
         [ HSA.class "lift-card__data-row"
         , HSA.css
             [ Css.backgroundAttachment Css.fixed
-            , case ( maybeMaximum, SortColumn.toGetter sortCol savedFeat ) of
+            , case ( maybeMaximum, SavedFeat.sortColumnToGetter sortCol savedFeat ) of
                 ( Just max, Just val ) ->
                     Css.backgroundImage <|
                         Css.linearGradient2

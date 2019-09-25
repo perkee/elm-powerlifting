@@ -1,11 +1,8 @@
-module SortColumn exposing (SortColumn(..), compareSavedFeats, fromColumn, toGetter, toString)
+module SortColumn exposing (SortColumn(..), fromColumn, toString)
 
 -- exposing (SortOrder(..))
 
 import Column exposing (Column)
-import Library
-import SavedFeat exposing (SavedFeat)
-import Scores exposing (featToRecord)
 
 
 type SortColumn
@@ -92,51 +89,3 @@ toString sc =
 
         Index ->
             "Index"
-
-
-toGetter : SortColumn -> SavedFeat -> Maybe Float
-toGetter col =
-    case col of
-        BodyMass ->
-            .feat >> .bodyKilos >> Just
-
-        LiftedMass ->
-            .feat >> .liftedKilos >> Just
-
-        Wilks ->
-            .feat >> featToRecord >> .wilks
-
-        ScaledAllometricIpf ->
-            .feat >> featToRecord >> .scaledAllometricIpf
-
-        ScaledAllometricAtr ->
-            .feat >> featToRecord >> .scaledAllometricAtr
-
-        Allometric ->
-            .feat >> featToRecord >> .allometric
-
-        IPF ->
-            .feat >> featToRecord >> .ipf
-
-        McCulloch ->
-            .feat >> featToRecord >> .mcCulloch
-
-        Index ->
-            .index >> toFloat >> Just
-
-
-compareSavedFeats : Library.SortOrder -> SortColumn -> SavedFeat -> SavedFeat -> Order
-compareSavedFeats sortOrder sortColumn =
-    let
-        toDefault =
-            Maybe.withDefault <|
-                case sortOrder of
-                    Library.Ascending ->
-                        1 / 0
-
-                    Library.Descending ->
-                        -1 / 0
-    in
-    Library.compose2same
-        (toGetter sortColumn >> toDefault)
-        (Library.compareByOrder sortOrder)

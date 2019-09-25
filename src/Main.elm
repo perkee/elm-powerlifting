@@ -18,6 +18,7 @@ import Column
         )
 import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
+import Data.Sort as Sort
 import Feat exposing (Feat, MassUnit, testFeats)
 import Html exposing (Html, div, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
@@ -57,8 +58,7 @@ type alias Model =
     , tableState : ColumnToggles.State
     , deleteConfirmVisibility : Modal.Visibility
     , idxToDelete : Maybe Int
-    , sortColumn : SortColumn.SortColumn
-    , sortOrder : Library.SortOrder
+    , sort : Sort.Status
     , liftCardUnits : MassUnit
     , cardsState : Cards.State
     }
@@ -90,8 +90,7 @@ init nodeEnv =
       , tableState = ColumnToggles.init initTableColumns
       , deleteConfirmVisibility = Modal.hidden
       , idxToDelete = Nothing
-      , sortOrder = Library.Ascending
-      , sortColumn = SortColumn.Index
+      , sort = Sort.init
       , liftCardUnits = Feat.KG
       , cardsState = Cards.init
       }
@@ -196,39 +195,17 @@ update msg model =
 
         ColumnHeaderArrowsClicked sortColumn ->
             { model
-                | sortColumn = sortColumn
-                , sortOrder =
-                    if model.sortColumn /= sortColumn then
-                        Descending
-
-                    else
-                        case model.sortOrder of
-                            Ascending ->
-                                Descending
-
-                            Descending ->
-                                Ascending
+                | sort = Sort.kindaFlip model.sort sortColumn
             }
 
         SortColumnDropdownChanged maybeSortColumn ->
-            case maybeSortColumn of
-                Just sortColumn ->
-                    { model
-                        | sortColumn = sortColumn
-                    }
-
-                Nothing ->
-                    model
+            { model
+                | sort = Sort.setMaybeColumn model.sort maybeSortColumn
+            }
 
         SortOrderToggleClicked ->
             { model
-                | sortOrder =
-                    case model.sortOrder of
-                        Ascending ->
-                            Descending
-
-                        Descending ->
-                            Ascending
+                | sort = Sort.toggleOrder model.sort
             }
 
         LiftCardUnitsToggleClicked ->
@@ -281,8 +258,8 @@ view model =
              ]
                 ++ Cards.view (Array.toList model.feats)
                     model.tableState
-                    (FeatCards.CardSorting model.sortColumn
-                        model.sortOrder
+                    (FeatCards.CardSorting
+                        model.sort
                         SortColumnDropdownChanged
                         ColumnHeaderArrowsClicked
                         NoteChanged
@@ -299,8 +276,8 @@ view model =
                         |> Array.toList
                         |> FeatTable.view
                             model.tableState
-                            (FeatCards.CardSorting model.sortColumn
-                                model.sortOrder
+                            (FeatCards.CardSorting
+                                model.sort
                                 SortColumnDropdownChanged
                                 ColumnHeaderArrowsClicked
                                 NoteChanged

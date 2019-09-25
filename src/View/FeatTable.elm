@@ -30,9 +30,8 @@ view : ColumnToggles.State -> CardSorting msg -> List SavedFeat -> Html msg
 view tableState cardSorting savedFeats =
     savedFeats
         |> List.sortWith
-            (SortColumn.compareSavedFeats
-                cardSorting.sortOrder
-                cardSorting.sortColumn
+            (SavedFeat.compare
+                cardSorting.sort
             )
         |> savedFeatsToTable
             cardSorting
@@ -45,7 +44,7 @@ savedFeatsToTable cardSorting cols savedFeats =
         |> List.map (savedFeatToRow cardSorting cols <| SavedFeat.maxRecord savedFeats)
         >> ([ [ ( "Index"
                 , Renderer.icon
-                    (case ( cardSorting.sortColumn, cardSorting.sortOrder ) of
+                    (case ( cardSorting.sort.sortColumn, cardSorting.sort.sortOrder ) of
                         ( SortColumn.Index, Library.Ascending ) ->
                             "sort-up"
 
@@ -109,10 +108,10 @@ columnToFloatToStyledCell maxes col =
 
 columnAndSortToIcon : CardSorting msg -> Column -> Html msg
 columnAndSortToIcon cardSorting column =
-    case ( cardSorting.sortColumn, SortColumn.fromColumn column ) of
+    case ( cardSorting.sort.sortColumn, SortColumn.fromColumn column ) of
         ( s, Just sc ) ->
             (if s == sc then
-                case cardSorting.sortOrder of
+                case cardSorting.sort.sortOrder of
                     Library.Ascending ->
                         "sort-up"
 
