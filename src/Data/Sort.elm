@@ -1,55 +1,55 @@
-module Data.Sort exposing (Status, init, kindaFlip, setMaybeColumn, toggleOrder)
+module Data.Sort exposing (State, init, kindaFlip, setMaybeColumn, toggleOrder)
 
 import Library
 import SortColumn
 
 
-type alias Status =
+type alias State =
     { sortColumn : SortColumn.SortColumn
     , sortOrder : Library.SortOrder
     }
 
 
-init : Status
+init : State
 init =
     { sortColumn = SortColumn.Index
     , sortOrder = Library.Ascending
     }
 
 
-kindaFlip : Status -> SortColumn.SortColumn -> Status
+kindaFlip : State -> SortColumn.SortColumn -> State
 kindaFlip s column =
     let
-        status =
+        state =
             { s | sortColumn = column }
     in
-    if status.sortColumn /= column then
-        { status | sortOrder = Library.Descending }
+    if state.sortColumn /= column then
+        { state | sortOrder = Library.Descending }
 
     else
-        case status.sortOrder of
+        case state.sortOrder of
             Library.Ascending ->
-                { status | sortOrder = Library.Descending }
+                { state | sortOrder = Library.Descending }
 
             Library.Descending ->
-                { status | sortOrder = Library.Ascending }
+                { state | sortOrder = Library.Ascending }
 
 
-setMaybeColumn : Status -> Maybe SortColumn.SortColumn -> Status
-setMaybeColumn status maybeCol =
+setMaybeColumn : State -> Maybe SortColumn.SortColumn -> State
+setMaybeColumn state maybeCol =
     case maybeCol of
         Just col ->
-            { status | sortColumn = col }
+            { state | sortColumn = col }
 
         Nothing ->
-            status
+            state
 
 
-toggleOrder : Status -> Status
-toggleOrder status =
-    { status
+toggleOrder : State -> State
+toggleOrder state =
+    { state
         | sortOrder =
-            case status.sortOrder of
+            case state.sortOrder of
                 Library.Ascending ->
                     Library.Descending
 

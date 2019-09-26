@@ -90,8 +90,10 @@ columnToLiftCard savedFeats liftCardsUnit massUnitMsg noteChangedMsg ( col, sort
                 |> List.foldl maybeMax (Just (-1 / 0))
 
         rows =
-            savedFeats
-                |> List.sortWith (SavedFeat.compare (Sort.Status sortCol Library.Descending))
+            Sort.State sortCol Library.Descending
+                |> SavedFeat.compare
+                |> List.sortWith
+                |> Library.thrush savedFeats
                 |> List.map
                     (savedFeatToRow
                         noteChangedMsg

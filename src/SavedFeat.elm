@@ -28,12 +28,12 @@ maxRecord =
     List.map (.feat >> featToRecord) >> Scores.maxRecord
 
 
-compare : Sort.Status -> SavedFeat -> SavedFeat -> Order
-compare status =
+compare : Sort.State -> SavedFeat -> SavedFeat -> Order
+compare state =
     let
         toDefault =
             Maybe.withDefault <|
-                case status.sortOrder of
+                case state.sortOrder of
                     Library.Ascending ->
                         1 / 0
 
@@ -41,8 +41,8 @@ compare status =
                         -1 / 0
     in
     Library.compose2same
-        (sortColumnToGetter status.sortColumn >> toDefault)
-        (Library.compareByOrder status.sortOrder)
+        (sortColumnToGetter state.sortColumn >> toDefault)
+        (Library.compareByOrder state.sortOrder)
 
 
 sortColumnToGetter : SortColumn.SortColumn -> SavedFeat -> Maybe Float

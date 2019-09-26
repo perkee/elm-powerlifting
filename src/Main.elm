@@ -57,7 +57,7 @@ type alias Model =
     , tableState : ColumnToggles.State
     , deleteConfirmVisibility : Modal.Visibility
     , idxToDelete : Maybe Int
-    , sort : Sort.Status
+    , sort : Sort.State
     , liftCardUnits : MassUnit
     , cardsState : Cards.State
     }
@@ -113,7 +113,7 @@ type Msg
     | DeleteCanceled
     | DeleteConfirmed
     | LiftCardUnitsToggleClicked
-    | SortChanged Sort.Status
+    | SortChanged Sort.State
 
 
 setNoteOnFeat : String -> Feat -> Feat

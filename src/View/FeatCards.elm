@@ -39,8 +39,8 @@ type alias NoteChangedMsg msg =
 
 
 type alias CardSorting msg =
-    { sort : Sort.Status
-    , sortChanged : Sort.Status -> msg
+    { sort : Sort.State
+    , sortChanged : Sort.State -> msg
     , noteChanged : Int -> String -> msg
     , deleteButtonClicked : Int -> msg
     , scoreMassUnit : Feat.MassUnit
