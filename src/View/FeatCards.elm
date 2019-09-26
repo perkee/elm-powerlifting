@@ -40,10 +40,8 @@ type alias NoteChangedMsg msg =
 
 type alias CardSorting msg =
     { sort : Sort.Status
-    , sortColumnDropdownChanged : Maybe SortColumn.SortColumn -> msg
-    , sortColumnArrowsClicked : SortColumn.SortColumn -> msg
+    , sortChanged : Sort.Status -> msg
     , noteChanged : Int -> String -> msg
-    , sortOrderToggleClicked : msg
     , deleteButtonClicked : Int -> msg
     , scoreMassUnit : Feat.MassUnit
     , massUnitMsg : msg
@@ -73,7 +71,10 @@ view savedFeats tableState cardSorting =
                 )
             |> typedSelect [ Select.small ]
             |> thrush cardSorting.sort.sortColumn
-            |> thrush cardSorting.sortColumnDropdownChanged
+            |> thrush
+                (Sort.setMaybeColumn cardSorting.sort
+                    >> cardSorting.sortChanged
+                )
             |> List.singleton
             |> Grid.col [ Col.xs8 ]
         , icon
@@ -88,7 +89,10 @@ view savedFeats tableState cardSorting =
             |> List.singleton
             |> Button.button
                 [ Button.outlineSecondary
-                , Button.onClick cardSorting.sortOrderToggleClicked
+                , cardSorting.sort
+                    |> Sort.toggleOrder
+                    |> cardSorting.sortChanged
+                    |> Button.onClick
                 , Button.small
                 , Button.block
                 ]

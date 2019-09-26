@@ -26,7 +26,6 @@ import Html.Events exposing (onClick)
 import Library exposing (SortOrder(..), removeAt, updateArrayAt)
 import LiftForm
 import SavedFeat exposing (SavedFeat)
-import SortColumn
 import View.Cards as Cards
 import View.ColumnToggles as ColumnToggles
 import View.CurrentTable as CurrentTable
@@ -113,10 +112,8 @@ type Msg
     | DeleteButtonClicked Int
     | DeleteCanceled
     | DeleteConfirmed
-    | ColumnHeaderArrowsClicked SortColumn.SortColumn
-    | SortColumnDropdownChanged (Maybe SortColumn.SortColumn)
-    | SortOrderToggleClicked
     | LiftCardUnitsToggleClicked
+    | SortChanged Sort.Status
 
 
 setNoteOnFeat : String -> Feat -> Feat
@@ -193,21 +190,6 @@ update msg model =
             -- Just fadein
             { model | deleteConfirmVisibility = visibility }
 
-        ColumnHeaderArrowsClicked sortColumn ->
-            { model
-                | sort = Sort.kindaFlip model.sort sortColumn
-            }
-
-        SortColumnDropdownChanged maybeSortColumn ->
-            { model
-                | sort = Sort.setMaybeColumn model.sort maybeSortColumn
-            }
-
-        SortOrderToggleClicked ->
-            { model
-                | sort = Sort.toggleOrder model.sort
-            }
-
         LiftCardUnitsToggleClicked ->
             { model
                 | liftCardUnits =
@@ -218,6 +200,9 @@ update msg model =
                         Feat.LBM ->
                             Feat.KG
             }
+
+        SortChanged sort ->
+            { model | sort = sort }
     , Cmd.none
     )
 
@@ -260,10 +245,8 @@ view model =
                     model.tableState
                     (FeatCards.CardSorting
                         model.sort
-                        SortColumnDropdownChanged
-                        ColumnHeaderArrowsClicked
+                        SortChanged
                         NoteChanged
-                        SortOrderToggleClicked
                         DeleteButtonClicked
                         model.liftCardUnits
                         LiftCardUnitsToggleClicked
@@ -278,10 +261,8 @@ view model =
                             model.tableState
                             (FeatCards.CardSorting
                                 model.sort
-                                SortColumnDropdownChanged
-                                ColumnHeaderArrowsClicked
+                                SortChanged
                                 NoteChanged
-                                SortOrderToggleClicked
                                 DeleteButtonClicked
                                 model.liftCardUnits
                                 LiftCardUnitsToggleClicked

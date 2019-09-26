@@ -9,6 +9,7 @@ import Column
         , columnToRecordToTextWithMaxes
         )
 import Data.ColumnToggles as ColumnToggles
+import Data.Sort as Sort
 import Html exposing (Html, text)
 import Html.Attributes as HA
 import Html.Events exposing (onClick)
@@ -54,7 +55,11 @@ savedFeatsToTable cardSorting cols savedFeats =
                         ( _, _ ) ->
                             "sort"
                     )
-                    [ onClick <| cardSorting.sortColumnArrowsClicked SortColumn.Index
+                    [ Sort.kindaFlip
+                        cardSorting.sort
+                        SortColumn.Index
+                        |> cardSorting.sortChanged
+                        |> onClick
                     ]
                 )
               ]
@@ -124,7 +129,9 @@ columnAndSortToIcon cardSorting column =
                 |> Renderer.icon
                 |> thrush
                     [ HA.class "sort-button"
-                    , onClick <| cardSorting.sortColumnArrowsClicked sc
+                    , Sort.kindaFlip cardSorting.sort sc
+                        |> cardSorting.sortChanged
+                        |> onClick
                     ]
 
         ( _, Nothing ) ->
