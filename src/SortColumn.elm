@@ -1,4 +1,4 @@
-module SortColumn exposing (SortColumn(..), fromColumn, toString)
+module SortColumn exposing (SortColumn(..), fromColumn, toComparable, toString)
 
 -- exposing (SortOrder(..))
 
@@ -89,3 +89,34 @@ toString sc =
 
         Index ->
             "Index"
+
+-- For Sets or Maps
+toComparable : SortColumn -> number
+toComparable sc =
+    case sc of
+        BodyMass ->
+            0
+
+        LiftedMass ->
+            1
+
+        Wilks ->
+            2
+
+        ScaledAllometricIpf ->
+            3
+
+        ScaledAllometricAtr ->
+            4
+
+        Allometric ->
+            5
+
+        IPF ->
+            6
+
+        McCulloch ->
+            7
+
+        Index ->
+            8

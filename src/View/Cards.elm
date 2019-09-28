@@ -13,7 +13,6 @@ view savedFeats tableState cardSorting =
         []
 
     else
-        -- List SavedFeat -> State -> msg -> NoteChangedMsg msg -> List (Html msg)
         ScoreCards.view
             savedFeats
             (ScoreCards.State cardSorting.scoreMassUnit tableState)

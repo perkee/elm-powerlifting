@@ -27,6 +27,7 @@ import Scores
         ( featToRecord
         , maybeMax
         )
+import Set
 import SortColumn exposing (SortColumn(..))
 
 
@@ -66,15 +67,24 @@ savedFeatsToLiftCards : List Column -> MassUnit -> msg -> NoteChangedMsg msg -> 
 savedFeatsToLiftCards cols massUnit massUnitMsg noteChangedMsg savedFeats =
     cols
         |> List.foldr
-            (\col acc ->
+            (\col ( acc, haves ) ->
                 case SortColumn.fromColumn col of
                     Just sc ->
-                        ( col, sc ) :: acc
+                        let
+                            scName =
+                                SortColumn.toComparable sc
+                        in
+                        if Set.member scName haves then
+                            ( acc, haves )
+
+                        else
+                            ( ( col, sc ) :: acc, Set.insert scName haves )
 
                     Nothing ->
-                        acc
+                        ( acc, haves )
             )
-            []
+            ( [], Set.empty )
+        |> Tuple.first
         |> List.map (columnToLiftCard savedFeats massUnit massUnitMsg noteChangedMsg)
 
 
