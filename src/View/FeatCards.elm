@@ -1,4 +1,4 @@
-module View.FeatCards exposing (CardSorting, view)
+module View.FeatCards exposing (CardMsgs, view)
 
 import Bootstrap.Button as Button
 import Bootstrap.Card as Card
@@ -15,6 +15,7 @@ import Column
         , columnToRecordToTextWithMaxes
         , columnToToggleLabel
         )
+import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
 import Dropdowns exposing (Option, typedSelect)
@@ -38,18 +39,23 @@ type alias NoteChangedMsg msg =
     Int -> String -> msg
 
 
-type alias CardSorting msg =
-    { sort : Sort.State
-    , sortChanged : Sort.State -> msg
+type alias CardMsgs msg =
+    { cardsChanged : Cards.State -> msg
     , noteChanged : Int -> String -> msg
     , deleteButtonClicked : Int -> msg
-    , scoreMassUnit : Feat.MassUnit
-    , massUnitMsg : msg
     }
 
 
-view : List SavedFeat -> ColumnToggles.State -> CardSorting msg -> List (Html msg)
-view savedFeats tableState cardSorting =
+colDropdownFn : Cards.State -> CardMsgs msg -> ((Maybe SortColumn -> msg) -> a) -> a
+colDropdownFn cardsState cardMsgs =
+    Sort.setMaybeColumn cardsState.sort
+        >> Cards.setSort cardsState
+        >> cardMsgs.cardsChanged
+        |> thrush
+
+
+view : List SavedFeat -> ColumnToggles.State -> Cards.State -> CardMsgs msg -> List (Html msg)
+view savedFeats tableState cardsState cardMsgs =
     [ h3 [ class "d-md-none" ] [ text "Grouped by Lifter" ]
     , Grid.row
         [ Row.attrs
@@ -70,15 +76,12 @@ view savedFeats tableState cardSorting =
                         (SortColumn.toString sc)
                 )
             |> typedSelect [ Select.small ]
-            |> thrush cardSorting.sort.sortColumn
-            |> thrush
-                (Sort.setMaybeColumn cardSorting.sort
-                    >> cardSorting.sortChanged
-                )
+            |> thrush cardsState.sort.sortColumn
+            |> colDropdownFn cardsState cardMsgs
             |> List.singleton
             |> Grid.col [ Col.xs8 ]
         , icon
-            (case cardSorting.sort.sortOrder of
+            (case cardsState.sort.sortOrder of
                 Library.Ascending ->
                     "sort-amount-down-alt"
 
@@ -89,9 +92,10 @@ view savedFeats tableState cardSorting =
             |> List.singleton
             |> Button.button
                 [ Button.outlineSecondary
-                , cardSorting.sort
+                , cardsState.sort
                     |> Sort.toggleOrder
-                    |> cardSorting.sortChanged
+                    |> Cards.setSort cardsState
+                    |> cardMsgs.cardsChanged
                     |> Button.onClick
                 , Button.small
                 , Button.block
@@ -101,10 +105,10 @@ view savedFeats tableState cardSorting =
         ]
     , Grid.row []
         [ savedFeats
-            |> List.sortWith (SavedFeat.compare cardSorting.sort)
+            |> List.sortWith (SavedFeat.compare cardsState.sort)
             |> savedFeatsToCards
                 (ColumnToggles.columns tableState)
-                cardSorting
+                cardMsgs
             |> Card.keyedColumns
             |> List.singleton
             |> Grid.col [ Col.xs12, Col.attrs [ class "d-md-none" ] ]
@@ -112,13 +116,13 @@ view savedFeats tableState cardSorting =
     ]
 
 
-savedFeatsToCards : List Column -> CardSorting msg -> List SavedFeat -> List ( String, Card.Config msg )
-savedFeatsToCards cols cardSorting savedFeats =
-    savedFeats |> List.map (savedFeatToCard cols savedFeats cardSorting)
+savedFeatsToCards : List Column -> CardMsgs msg -> List SavedFeat -> List ( String, Card.Config msg )
+savedFeatsToCards cols cardMsgs savedFeats =
+    savedFeats |> List.map (savedFeatToCard cols savedFeats cardMsgs)
 
 
-savedFeatToCard : List Column -> List SavedFeat -> CardSorting msg -> SavedFeat -> ( String, Card.Config msg )
-savedFeatToCard cols feats cardSorting savedFeat =
+savedFeatToCard : List Column -> List SavedFeat -> CardMsgs msg -> SavedFeat -> ( String, Card.Config msg )
+savedFeatToCard cols feats cardMsgs savedFeat =
     ( savedFeat.key |> String.fromInt
     , Card.config
         [ Card.attrs []
@@ -127,12 +131,12 @@ savedFeatToCard cols feats cardSorting savedFeat =
             [ text <| String.fromInt <| savedFeat.index
             , Button.button
                 [ Button.outlineDanger
-                , cardSorting.deleteButtonClicked savedFeat.index |> Button.onClick
+                , cardMsgs.deleteButtonClicked savedFeat.index |> Button.onClick
                 , Button.attrs [ class "card-delete" ]
                 ]
                 [ icon "trash" []
                 ]
-            , savedFeatToNoteInput "card" savedFeat cardSorting.noteChanged
+            , savedFeatToNoteInput "card" savedFeat cardMsgs.noteChanged
             ]
         |> Card.block []
             [ Block.custom <| featToTable feats cols savedFeat.feat ]

@@ -11,6 +11,7 @@ import Column
         ( Column
         )
 import Css
+import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
 import Feat exposing (Feat, MassUnit, liftToLetter)
@@ -46,15 +47,21 @@ init =
     State Feat.KG
 
 
-view : List SavedFeat -> State -> msg -> NoteChangedMsg msg -> List (Html msg)
-view savedFeats state massUnitMsg noteChangedMsg =
+view :
+    List SavedFeat
+    -> State
+    -> Cards.State
+    -> (Cards.State -> msg)
+    -> NoteChangedMsg msg
+    -> List (Html msg)
+view savedFeats state cardsState cardsChangedMsg noteChangedMsg =
     [ h3 [ class "d-md-none" ] [ text "Grouped by Score" ]
     , Grid.row []
         [ savedFeats
             |> savedFeatsToLiftCards
                 (ColumnToggles.columns state.togglesState)
                 state.summaryUnit
-                massUnitMsg
+                (Cards.toggleMassUnit cardsState |> cardsChangedMsg)
                 noteChangedMsg
             |> Card.keyedColumns
             |> List.singleton

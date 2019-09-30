@@ -1,19 +1,27 @@
-module Data.Cards exposing (State, init)
+module Data.Cards exposing (State, init, setSort, toggleMassUnit)
 
+import Data.Sort as Sort
 import Feat
-import Library
-import SortColumn exposing (SortColumn(..))
 
 
 type alias State =
-    { sortColumn : SortColumn.SortColumn
-    , sortOrder : Library.SortOrder
+    { sort : Sort.State
     , scoreMassUnit : Feat.MassUnit
     }
 
 
-init : State
-init =
-    State SortColumn.Index
-        Library.Ascending
-        Feat.KG
+init : Sort.State -> State
+init sort =
+    State sort Feat.KG
+
+
+setSort : State -> Sort.State -> State
+setSort state sort =
+    { state | sort = sort }
+
+
+toggleMassUnit : State -> State
+toggleMassUnit state =
+    { state
+        | scoreMassUnit = Feat.toggleMassUnit state.scoreMassUnit
+    }

@@ -11,6 +11,7 @@ module Feat exposing
     , massToKilos
     , massToPounds
     , testFeats
+    , toggleMassUnit
     )
 
 
@@ -152,3 +153,13 @@ massToPounds u m =
 
         LBM ->
             m
+
+
+toggleMassUnit : MassUnit -> MassUnit
+toggleMassUnit unit =
+    case unit of
+        KG ->
+            LBM
+
+        LBM ->
+            KG

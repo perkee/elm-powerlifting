@@ -8,6 +8,7 @@ import Column
         , columnToColumnLabel
         , columnToRecordToTextWithMaxes
         )
+import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
 import Html exposing (Html, text)
@@ -24,28 +25,39 @@ import Scores
         ( Record
         )
 import SortColumn exposing (SortColumn(..))
-import View.FeatCards exposing (CardSorting)
+import View.FeatCards exposing (CardMsgs)
 
 
-view : ColumnToggles.State -> CardSorting msg -> List SavedFeat -> Html msg
-view tableState cardSorting savedFeats =
+view :
+    ColumnToggles.State
+    -> Cards.State
+    -> CardMsgs msg
+    -> List SavedFeat
+    -> Html msg
+view tableState cardsState cardMsgs savedFeats =
     savedFeats
         |> List.sortWith
             (SavedFeat.compare
-                cardSorting.sort
+                cardsState.sort
             )
         |> savedFeatsToTable
-            cardSorting
+            cardsState
+            cardMsgs
             (ColumnToggles.columns tableState)
 
 
-savedFeatsToTable : CardSorting msg -> List Column -> List SavedFeat -> Html msg
-savedFeatsToTable cardSorting cols savedFeats =
+savedFeatsToTable :
+    Cards.State
+    -> CardMsgs msg
+    -> List Column
+    -> List SavedFeat
+    -> Html msg
+savedFeatsToTable cardsState cardMsgs cols savedFeats =
     savedFeats
-        |> List.map (savedFeatToRow cardSorting cols <| SavedFeat.maxRecord savedFeats)
+        |> List.map (savedFeatToRow cardMsgs cols <| SavedFeat.maxRecord savedFeats)
         >> ([ [ ( "Index"
                 , Renderer.icon
-                    (case ( cardSorting.sort.sortColumn, cardSorting.sort.sortOrder ) of
+                    (case ( cardsState.sort.sortColumn, cardsState.sort.sortOrder ) of
                         ( SortColumn.Index, Library.Ascending ) ->
                             "sort-up"
 
@@ -56,16 +68,17 @@ savedFeatsToTable cardSorting cols savedFeats =
                             "sort"
                     )
                     [ Sort.kindaFlip
-                        cardSorting.sort
+                        cardsState.sort
                         SortColumn.Index
-                        |> cardSorting.sortChanged
+                        |> Cards.setSort cardsState
+                        |> cardMsgs.cardsChanged
                         |> onClick
                     ]
                 )
               ]
             , [ ( "Note", text "" ) ]
             , List.map
-                (\c -> ( columnToColumnLabel c, columnAndSortToIcon cardSorting c ))
+                (\c -> ( columnToColumnLabel c, columnAndSortToIcon cardsState cardMsgs c ))
                 cols
             , [ ( "Delete", text "" ) ]
             ]
@@ -74,10 +87,15 @@ savedFeatsToTable cardSorting cols savedFeats =
            )
 
 
-savedFeatToRow : CardSorting msg -> List Column -> Record -> SavedFeat -> ( String, Html msg )
-savedFeatToRow cardSorting cols maxes savedFeat =
+savedFeatToRow :
+    CardMsgs msg
+    -> List Column
+    -> Record
+    -> SavedFeat
+    -> ( String, Html msg )
+savedFeatToRow cardMsgs cols maxes savedFeat =
     [ [ .index >> String.fromInt >> text >> classToHtmlToStyledCell "body-cell--index"
-      , savedFeatToNoteInput "table" cardSorting
+      , savedFeatToNoteInput "table" cardMsgs
             >> classToHtmlToStyledCell "body-cell--note"
       ]
         |> List.map (thrush savedFeat)
@@ -89,7 +107,7 @@ savedFeatToRow cardSorting cols maxes savedFeat =
         (List.map (columnToFloatToStyledCell maxes) cols)
     , Button.button
         [ Button.outlineDanger
-        , cardSorting.deleteButtonClicked savedFeat.index |> Button.onClick
+        , cardMsgs.deleteButtonClicked savedFeat.index |> Button.onClick
         ]
         [ Renderer.icon "trash" []
         ]
@@ -111,12 +129,16 @@ columnToFloatToStyledCell maxes col =
     columnToRecordToTextWithMaxes maxes col >> classToHtmlToStyledCell (col |> columnToColumnLabel |> (++) "body-cell--")
 
 
-columnAndSortToIcon : CardSorting msg -> Column -> Html msg
-columnAndSortToIcon cardSorting column =
-    case ( cardSorting.sort.sortColumn, SortColumn.fromColumn column ) of
+columnAndSortToIcon :
+    Cards.State
+    -> CardMsgs msg
+    -> Column
+    -> Html msg
+columnAndSortToIcon cardsState cardMsgs column =
+    case ( cardsState.sort.sortColumn, SortColumn.fromColumn column ) of
         ( s, Just sc ) ->
             (if s == sc then
-                case cardSorting.sort.sortOrder of
+                case cardsState.sort.sortOrder of
                     Library.Ascending ->
                         "sort-up"
 
@@ -129,8 +151,9 @@ columnAndSortToIcon cardSorting column =
                 |> Renderer.icon
                 |> thrush
                     [ HA.class "sort-button"
-                    , Sort.kindaFlip cardSorting.sort sc
-                        |> cardSorting.sortChanged
+                    , Sort.kindaFlip cardsState.sort sc
+                        |> Cards.setSort cardsState
+                        |> cardMsgs.cardsChanged
                         |> onClick
                     ]
 
@@ -138,11 +161,11 @@ columnAndSortToIcon cardSorting column =
             text ""
 
 
-savedFeatToNoteInput : String -> CardSorting msg -> SavedFeat -> Html msg
-savedFeatToNoteInput classSuffix cardSorting savedFeat =
+savedFeatToNoteInput : String -> CardMsgs msg -> SavedFeat -> Html msg
+savedFeatToNoteInput classSuffix cardMsgs savedFeat =
     Input.text
         [ Input.placeholder "Note"
         , Input.value <| .note <| savedFeat.feat
-        , Input.onInput <| cardSorting.noteChanged savedFeat.index
+        , Input.onInput <| cardMsgs.noteChanged savedFeat.index
         , Input.attrs [ HA.class <| "note-input note-input--" ++ classSuffix ]
         ]

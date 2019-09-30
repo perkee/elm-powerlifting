@@ -19,7 +19,7 @@ import Column
 import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
-import Feat exposing (Feat, MassUnit, testFeats)
+import Feat exposing (Feat, testFeats)
 import Html exposing (Html, div, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick)
@@ -57,8 +57,6 @@ type alias Model =
     , tableState : ColumnToggles.State
     , deleteConfirmVisibility : Modal.Visibility
     , idxToDelete : Maybe Int
-    , sort : Sort.State
-    , liftCardUnits : MassUnit
     , cardsState : Cards.State
     }
 
@@ -89,9 +87,7 @@ init nodeEnv =
       , tableState = ColumnToggles.init initTableColumns
       , deleteConfirmVisibility = Modal.hidden
       , idxToDelete = Nothing
-      , sort = Sort.init
-      , liftCardUnits = Feat.KG
-      , cardsState = Cards.init
+      , cardsState = Cards.init Sort.init
       }
     , Cmd.none
     )
@@ -112,8 +108,7 @@ type Msg
     | DeleteButtonClicked Int
     | DeleteCanceled
     | DeleteConfirmed
-    | LiftCardUnitsToggleClicked
-    | SortChanged Sort.State
+    | CardsChanged Cards.State
 
 
 setNoteOnFeat : String -> Feat -> Feat
@@ -190,21 +185,18 @@ update msg model =
             -- Just fadein
             { model | deleteConfirmVisibility = visibility }
 
-        LiftCardUnitsToggleClicked ->
-            { model
-                | liftCardUnits =
-                    case model.liftCardUnits of
-                        Feat.KG ->
-                            Feat.LBM
-
-                        Feat.LBM ->
-                            Feat.KG
-            }
-
-        SortChanged sort ->
-            { model | sort = sort }
+        CardsChanged cardsState ->
+            { model | cardsState = cardsState }
     , Cmd.none
     )
+
+
+cardMsgs : FeatCards.CardMsgs Msg
+cardMsgs =
+    FeatCards.CardMsgs
+        CardsChanged
+        NoteChanged
+        DeleteButtonClicked
 
 
 view : Model -> Html Msg
@@ -243,14 +235,8 @@ view model =
              ]
                 ++ Cards.view (Array.toList model.feats)
                     model.tableState
-                    (FeatCards.CardSorting
-                        model.sort
-                        SortChanged
-                        NoteChanged
-                        DeleteButtonClicked
-                        model.liftCardUnits
-                        LiftCardUnitsToggleClicked
-                    )
+                    model.cardsState
+                    cardMsgs
             )
         , Grid.containerFluid [ class "d-none d-md-block" ]
             [ Grid.row []
@@ -259,14 +245,8 @@ view model =
                         |> Array.toList
                         |> FeatTable.view
                             model.tableState
-                            (FeatCards.CardSorting
-                                model.sort
-                                SortChanged
-                                NoteChanged
-                                DeleteButtonClicked
-                                model.liftCardUnits
-                                LiftCardUnitsToggleClicked
-                            )
+                            model.cardsState
+                            cardMsgs
                     ]
                 ]
             ]
