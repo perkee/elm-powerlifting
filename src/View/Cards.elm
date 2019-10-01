@@ -1,8 +1,12 @@
 module View.Cards exposing (view)
 
-import Data.Cards as Cards
+import Css
+import Data.Cards as Cards exposing (Display(..), State, toggleDisplay)
 import Data.ColumnToggles as ColumnToggles
-import Html exposing (Html)
+import Html as H exposing (Html)
+import Html.Styled as HS
+import Html.Styled.Attributes as HSA
+import Html.Styled.Events as HE
 import SavedFeat exposing (SavedFeat)
 import View.FeatCards as FeatCards
 import View.ScoreCards as ScoreCards
@@ -11,21 +15,55 @@ import View.ScoreCards as ScoreCards
 view :
     List SavedFeat
     -> ColumnToggles.State
-    -> Cards.State
+    -> State
+    -> FeatCards.CardMsgs msg
+    -> List (H.Html msg)
+view savedFeats tableState cardsState cardMsgs =
+    ([ HS.h3 [ HSA.class "d-md-none" ]
+        [ HS.text "Grouped by "
+        , HS.button
+            [ HSA.class "btn btn-outline-secondary"
+            , HE.onClick <| cardMsgs.cardsChanged <| toggleDisplay cardsState
+            , HSA.css
+                [ Css.fontSize <| Css.rem 1.75
+                ]
+            ]
+            [ HS.text <|
+                case cardsState.display of
+                    ByFeat ->
+                        "Instance"
+
+                    ByScore ->
+                        "Score"
+            ]
+        ]
+     ]
+        |> List.map HS.toUnstyled
+    )
+        ++ viewCards savedFeats tableState cardsState cardMsgs
+
+
+viewCards :
+    List SavedFeat
+    -> ColumnToggles.State
+    -> State
     -> FeatCards.CardMsgs msg
     -> List (Html msg)
-view savedFeats tableState cardsState cardMsgs =
-    if List.isEmpty savedFeats then
-        []
+viewCards savedFeats tableState cardsState cardMsgs =
+    case ( savedFeats, cardsState.display ) of
+        ( [], _ ) ->
+            []
 
-    else
-        ScoreCards.view
-            savedFeats
-            (ScoreCards.State cardsState.scoreMassUnit tableState)
-            cardsState
-            cardMsgs.cardsChanged
-            cardMsgs.noteChanged
-            ++ FeatCards.view savedFeats
+        ( sf, Cards.ByFeat ) ->
+            FeatCards.view sf
                 tableState
                 cardsState
                 cardMsgs
+
+        ( sf, Cards.ByScore ) ->
+            ScoreCards.view
+                sf
+                (ScoreCards.State cardsState.scoreMassUnit tableState)
+                cardsState
+                cardMsgs
+                |> List.singleton

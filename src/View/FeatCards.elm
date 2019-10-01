@@ -20,7 +20,7 @@ import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
 import Dropdowns exposing (Option, typedSelect)
 import Feat exposing (Feat)
-import Html exposing (Html, h3, text)
+import Html exposing (Html, text)
 import Html.Attributes exposing (class, style)
 import Html.Styled
 import Html.Styled.Attributes as HSA
@@ -56,8 +56,7 @@ colDropdownFn cardsState cardMsgs =
 
 view : List SavedFeat -> ColumnToggles.State -> Cards.State -> CardMsgs msg -> List (Html msg)
 view savedFeats tableState cardsState cardMsgs =
-    [ h3 [ class "d-md-none" ] [ text "Grouped by Lifter" ]
-    , Grid.row
+    [ Grid.row
         [ Row.attrs
             [ style "margin-bottom" ".75rem"
             , class "d-md-none"
