@@ -22,7 +22,7 @@ view savedFeats tableState cardsState cardMsgs =
     ([ HS.h3 [ HSA.class "d-md-none" ]
         [ HS.text "Grouped by "
         , HS.button
-            [ HSA.class "btn btn-outline-secondary"
+            [ HSA.class "btn btn-outline-secondary btn-sm"
             , HE.onClick <| cardMsgs.cardsChanged <| toggleDisplay cardsState
             , HSA.css
                 [ Css.fontSize <| Css.rem 1.75

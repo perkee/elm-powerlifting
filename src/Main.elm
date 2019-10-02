@@ -42,8 +42,7 @@ main =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ LiftForm.subscriptions model.formState FormUpdated
-        , ColumnToggles.subscriptions model.featState FeatDisplayUpdated
+        [ ColumnToggles.subscriptions model.featState FeatDisplayUpdated
         , ColumnToggles.subscriptions model.tableState TableDisplayUpdated
         , Modal.subscriptions model.deleteConfirmVisibility DeleteModalAnimated
         ]

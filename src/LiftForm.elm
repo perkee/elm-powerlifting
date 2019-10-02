@@ -1,7 +1,6 @@
 module LiftForm exposing
     ( State
     , init
-    , subscriptions
     , toFeat
     , view
     )
@@ -13,14 +12,11 @@ import Bootstrap.Form.InputGroup as InputGroup
 import Bootstrap.Form.Select as Select
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
-import Data.UnitDropdown as UnitDropdown
 import Dropdowns exposing (Option, typedSelect)
 import Feat exposing (Equipment(..), Feat, Gender(..), Lift(..), MassUnit(..))
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Library exposing (isStringPositiveFloat)
-import Platform.Sub
-import View.UnitDropdown as UnitDropdown
 
 
 
@@ -29,9 +25,9 @@ import View.UnitDropdown as UnitDropdown
 
 type alias State =
     { liftedMass : String
-    , liftedUnit : UnitDropdown.State
+    , liftedUnit : Feat.MassUnit
     , bodyMass : String
-    , bodyUnit : UnitDropdown.State
+    , bodyUnit : Feat.MassUnit
     , gender : Gender
     , lift : Lift
     , age : String
@@ -45,10 +41,10 @@ toFeat state =
     case ( String.toFloat state.bodyMass, String.toFloat state.liftedMass ) of
         ( Just bodyMass, Just liftedMass ) ->
             Just
-                { bodyKilos = UnitDropdown.toKilos state.bodyUnit bodyMass
-                , bodyPounds = UnitDropdown.toPounds state.bodyUnit bodyMass
-                , liftedKilos = UnitDropdown.toKilos state.liftedUnit liftedMass
-                , liftedPounds = UnitDropdown.toPounds state.liftedUnit liftedMass
+                { bodyKilos = Feat.massToKilos state.bodyUnit bodyMass
+                , bodyPounds = Feat.massToPounds state.bodyUnit bodyMass
+                , liftedKilos = Feat.massToKilos state.liftedUnit liftedMass
+                , liftedPounds = Feat.massToPounds state.liftedUnit liftedMass
                 , gender = state.gender
                 , lift = state.lift
                 , age = String.toFloat state.age
@@ -60,18 +56,6 @@ toFeat state =
             Nothing
 
 
-subscriptions : State -> (State -> msg) -> Platform.Sub.Sub msg
-subscriptions state updateMsg =
-    Sub.batch
-        [ UnitDropdown.subscriptions state.liftedUnit
-            ((\x -> { state | liftedUnit = x })
-                >> updateMsg
-            )
-        , UnitDropdown.subscriptions state.bodyUnit
-            (updateMsg << (\x -> { state | bodyUnit = x }))
-        ]
-
-
 
 -- Init
 
@@ -79,9 +63,9 @@ subscriptions state updateMsg =
 init : State
 init =
     { liftedMass = ""
-    , liftedUnit = UnitDropdown.init
+    , liftedUnit = Feat.KG
     , bodyMass = ""
-    , bodyUnit = UnitDropdown.init
+    , bodyUnit = Feat.KG
     , gender = GNC
     , lift = Total
     , age = ""
@@ -154,14 +138,14 @@ updateNumeric state updateMsg field val =
         |> updateMsg
 
 
-updateUnit : State -> (State -> msg) -> Field -> UnitDropdown.State -> msg
-updateUnit state updateMsg field unitState =
+updateUnit : State -> (State -> msg) -> Field -> Feat.MassUnit -> msg
+updateUnit state updateMsg field unit =
     (case field of
         BodyUnit ->
-            { state | bodyUnit = unitState }
+            { state | bodyUnit = unit }
 
         LiftedUnit ->
-            { state | liftedUnit = unitState }
+            { state | liftedUnit = unit }
 
         _ ->
             state
@@ -252,8 +236,8 @@ massInput :
     { title : String
     , numeric : String
     , updateNumeric : String -> msg
-    , unit : UnitDropdown.State
-    , updateUnit : UnitDropdown.State -> msg
+    , unit : Feat.MassUnit
+    , updateUnit : Feat.MassUnit -> msg
     }
     -> Form.Col msg
 massInput input =
@@ -267,8 +251,20 @@ massInput input =
                     |> InputGroup.text
                     |> InputGroup.config
                     |> InputGroup.successors
-                        [ input.updateUnit
-                            |> UnitDropdown.view input.unit
+                        [ InputGroup.button
+                            [ Button.outlineSecondary
+                            , Feat.toggleMassUnit input.unit
+                                |> input.updateUnit
+                                |> Button.onClick
+                            ]
+                            [ H.text <|
+                                case input.unit of
+                                    KG ->
+                                        "Kilos"
+
+                                    LBM ->
+                                        "Pounds"
+                            ]
                         ]
                     |> InputGroup.small
                     |> InputGroup.view
