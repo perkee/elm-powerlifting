@@ -3,7 +3,6 @@ module Library exposing
     , compareByOrder
     , compose2
     , compose2same
-    , dropNothing
     , filterListByList
     , isStringPositiveFloat
     , maybeListHead
@@ -80,20 +79,6 @@ isStringPositiveFloat =
     Regex.fromString "^\\d*\\.?\\d*$"
         |> Maybe.withDefault Regex.never
         |> Regex.contains
-
-
-dropNothing : List (Maybe a) -> List a
-dropNothing =
-    List.foldr
-        (\maybeA acc ->
-            case maybeA of
-                Just a ->
-                    a :: acc
-
-                Nothing ->
-                    acc
-        )
-        []
 
 
 maybeListMember : List a -> Maybe a -> List a -> List a

@@ -24,7 +24,7 @@ import Html exposing (Html, text)
 import Html.Attributes exposing (class, style)
 import Html.Styled
 import Html.Styled.Attributes as HSA
-import Library exposing (dropNothing, thrush)
+import Library exposing (thrush)
 import Renderer exposing (icon, rowsToHeadedTable)
 import SavedFeat exposing (SavedFeat)
 import Scores
@@ -67,13 +67,13 @@ view savedFeats tableState cardsState cardMsgs =
             |> ColumnToggles.columns
             |> List.map SortColumn.fromColumn
             |> (::) (Just SortColumn.Index)
-            |> dropNothing
-            |> List.map
-                (\sc ->
-                    Option sc
-                        (SortColumn.toString sc)
-                        (SortColumn.toString sc)
-                )
+            |> List.filterMap
+                (Maybe.map ( \sc ->
+                            Option sc
+                                (SortColumn.toString sc)
+                                (SortColumn.toString sc)
+
+                ))
             |> typedSelect [ Select.small ]
             |> thrush cardsState.sort.sortColumn
             |> colDropdownFn cardsState cardMsgs
