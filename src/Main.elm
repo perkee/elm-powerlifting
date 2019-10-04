@@ -200,99 +200,99 @@ cardMsgs =
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ Grid.container []
-            ([ h1 [] [ text "Every Score Calculator" ]
-             , LiftForm.view model.formState FormUpdated <| SaveButtonClicked <| modelToFeat <| model
-             , h2 [] [ text "Current Score" ]
-             , Grid.row [ Row.attrs [ class "current-table" ] ]
-                [ Grid.col [ Col.xs12 ]
-                    (case modelToFeat model of
-                        Just feat ->
-                            [ ColumnToggles.config FeatDisplayUpdated "current-column-toggles"
-                                |> ColumnToggles.title "Current Scores Options"
-                                |> ColumnToggles.view model.featState
-                            , CurrentTable.view
-                                (Array.toList model.feats)
-                                (ColumnToggles.columns model.featState)
-                                feat
-                            ]
+    [ Grid.container []
+        ([ h1 [] [ text "Every Score Calculator" ]
+         , LiftForm.view model.formState FormUpdated <| SaveButtonClicked <| modelToFeat <| model
+         , h2 [] [ text "Current Score" ]
+         , Grid.row [ Row.attrs [ class "current-table" ] ]
+            [ Grid.col [ Col.xs12 ]
+                (case modelToFeat model of
+                    Just feat ->
+                        [ ColumnToggles.config FeatDisplayUpdated "current-column-toggles"
+                            |> ColumnToggles.title "Current Scores Options"
+                            |> ColumnToggles.view model.featState
+                        , CurrentTable.view
+                            (Array.toList model.feats)
+                            (ColumnToggles.columns model.featState)
+                            feat
+                        ]
 
-                        Nothing ->
-                            [ Alert.simpleInfo [] [ text "Enter data to see all scores for a lift" ] ]
-                    )
+                    Nothing ->
+                        [ Alert.simpleInfo [] [ text "Enter data to see all scores for a lift" ] ]
+                )
+            ]
+         , h2 [] [ text "Scores Table" ]
+         , if Array.isEmpty model.feats then
+            Alert.simpleInfo [] [ text "Add scores to the table to compare" ]
+
+           else
+            ColumnToggles.config TableDisplayUpdated "table-column-toggles"
+                |> ColumnToggles.title "Table Options"
+                |> ColumnToggles.view model.tableState
+                |> List.singleton
+                |> Grid.col [ Col.xs12 ]
+                |> List.singleton
+                |> Grid.row [ Row.attrs [ style "margin-bottom" ".75rem" ] ]
+         ]
+            ++ Cards.view (Array.toList model.feats)
+                model.tableState
+                model.cardsState
+                cardMsgs
+        )
+    , case
+        model.feats
+            |> Array.toList
+            |> FeatTable.view
+                model.tableState
+                model.cardsState
+                cardMsgs
+      of
+        Just table ->
+            Grid.containerFluid [ class "d-none d-md-block" ]
+                [ Grid.row []
+                    [ Grid.col [ Col.sm12 ]
+                        [ table ]
+                    ]
                 ]
-             , h2 [] [ text "Scores Table" ]
-             , if Array.isEmpty model.feats then
-                Alert.simpleInfo [] [ text "Add scores to the table to compare" ]
 
-               else
-                ColumnToggles.config TableDisplayUpdated "table-column-toggles"
-                    |> ColumnToggles.title "Table Options"
-                    |> ColumnToggles.view model.tableState
-                    |> List.singleton
-                    |> Grid.col [ Col.xs12 ]
-                    |> List.singleton
-                    |> Grid.row [ Row.attrs [ style "margin-bottom" ".75rem" ] ]
-             ]
-                ++ Cards.view (Array.toList model.feats)
-                    model.tableState
-                    model.cardsState
-                    cardMsgs
-            )
-        , case
-            model.feats
-                |> Array.toList
-                |> FeatTable.view
-                    model.tableState
-                    model.cardsState
-                    cardMsgs
-          of
-            Just table ->
-                Grid.containerFluid [ class "d-none d-md-block" ]
-                    [ Grid.row []
-                        [ Grid.col [ Col.sm12 ]
-                            [ table ]
+        Nothing ->
+            text ""
+    , Modal.config DeleteCanceled
+        |> Modal.withAnimation DeleteModalAnimated
+        |> Modal.large
+        |> Modal.h3 [] [ text "Confirm delete" ]
+        |> Modal.body []
+            [ Grid.containerFluid []
+                [ Grid.row []
+                    [ Grid.col
+                        [ Col.xs12 ]
+                        [ (case model.idxToDelete of
+                            Just idx ->
+                                "Are you sure you want to delete the entry at row "
+                                    ++ String.fromInt idx
+
+                            Nothing ->
+                                ""
+                          )
+                            |> text
                         ]
                     ]
-
-            Nothing ->
-                text ""
-        , Modal.config DeleteCanceled
-            |> Modal.withAnimation DeleteModalAnimated
-            |> Modal.large
-            |> Modal.h3 [] [ text "Confirm delete" ]
-            |> Modal.body []
-                [ Grid.containerFluid []
-                    [ Grid.row []
-                        [ Grid.col
-                            [ Col.xs12 ]
-                            [ (case model.idxToDelete of
-                                Just idx ->
-                                    "Are you sure you want to delete the entry at row "
-                                        ++ String.fromInt idx
-
-                                Nothing ->
-                                    ""
-                              )
-                                |> text
-                            ]
-                        ]
-                    ]
                 ]
-            |> Modal.footer []
-                [ Button.button
-                    [ Button.outlineDanger
+            ]
+        |> Modal.footer []
+            [ Button.button
+                [ Button.outlineDanger
 
-                    -- cannot currently animate this on confirm. Gets into an infinite loop rn. Kinda impresseive!
-                    , Button.attrs [ onClick <| DeleteConfirmed ]
-                    ]
-                    [ text "Yes, Delete this row" ]
-                , Button.button
-                    [ Button.outlineSuccess
-                    , Button.attrs [ onClick <| DeleteCanceled ]
-                    ]
-                    [ text "Nevermind" ]
+                -- cannot currently animate this on confirm. Gets into an infinite loop rn. Kinda impresseive!
+                , Button.attrs [ onClick <| DeleteConfirmed ]
                 ]
-            |> Modal.view model.deleteConfirmVisibility
-        ]
+                [ text "Yes, Delete this row" ]
+            , Button.button
+                [ Button.outlineSuccess
+                , Button.attrs [ onClick <| DeleteCanceled ]
+                ]
+                [ text "Nevermind" ]
+            ]
+        |> Modal.view model.deleteConfirmVisibility
+    ]
+        |> div []
