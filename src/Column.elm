@@ -12,6 +12,7 @@ module Column exposing
 import Bootstrap.Progress as Progress
 import Feat exposing (equipmentToString, genderToString, liftToString)
 import Html as H exposing (Html)
+import Mass
 import Renderer exposing (floatToString, maybeFloatToString)
 import Scores exposing (Record)
 
@@ -186,16 +187,16 @@ columnToRecordToTextWithMaxes maxes column =
             .feat >> .equipment >> equipmentToString >> H.text
 
         LiftedKilos ->
-            .feat >> .liftedKilos >> floatToProgress maxes.feat.liftedKilos
+            .feat >> .liftedMass >> Mass.toKilos >> floatToProgress (Mass.toKilos maxes.feat.liftedMass)
 
         BodyKilos ->
-            .feat >> .bodyKilos >> floatToProgress maxes.feat.bodyKilos
+            .feat >> .bodyMass >> Mass.toKilos >> floatToProgress (Mass.toKilos maxes.feat.bodyMass)
 
         LiftedPounds ->
-            .feat >> .liftedPounds >> floatToProgress maxes.feat.liftedPounds
+            .feat >> .liftedMass >> Mass.toPounds >> floatToProgress (Mass.toPounds maxes.feat.liftedMass)
 
         BodyPounds ->
-            .feat >> .bodyPounds >> floatToProgress maxes.feat.bodyPounds
+            .feat >> .bodyMass >> Mass.toPounds >> floatToProgress (Mass.toPounds maxes.feat.bodyMass)
 
         Wilks ->
             .wilks >> maybeFloatToProgress maxes.wilks
@@ -230,16 +231,16 @@ columnToRecordToText column =
                 .feat >> .equipment >> equipmentToString
 
             LiftedKilos ->
-                .feat >> .liftedKilos >> floatToString
+                .feat >> .liftedMass >> Mass.toKilos >> floatToString
 
             BodyKilos ->
-                .feat >> .bodyKilos >> floatToString
+                .feat >> .bodyMass >> Mass.toKilos >> floatToString
 
             LiftedPounds ->
-                .feat >> .liftedPounds >> floatToString
+                .feat >> .liftedMass >> Mass.toPounds >> floatToString
 
             BodyPounds ->
-                .feat >> .bodyPounds >> floatToString
+                .feat >> .bodyMass >> Mass.toPounds >> floatToString
 
             Wilks ->
                 .wilks >> maybeFloatToString

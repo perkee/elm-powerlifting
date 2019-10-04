@@ -14,13 +14,14 @@ import Css
 import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
-import Feat exposing (Feat, MassUnit, liftToLetter)
+import Feat exposing (Feat, liftToLetter)
 import Html exposing (Html, text)
 import Html.Attributes exposing (class)
 import Html.Styled
 import Html.Styled.Attributes as HSA
 import Html.Styled.Keyed
 import Library exposing (snocnu)
+import Mass exposing (MassUnit)
 import Renderer exposing (floatToString, rowsToHeadedTable, styledIcon)
 import SavedFeat exposing (SavedFeat)
 import Scores
@@ -45,7 +46,7 @@ type alias State =
 
 init : ColumnToggles.State -> State
 init =
-    State Feat.KG
+    State Mass.KG
 
 
 view :
@@ -147,10 +148,10 @@ columnToLiftCard savedFeats liftCardsUnit massUnitMsg noteChangedMsg ( col, sort
                                 ]
                                 [ text <|
                                     case liftCardsUnit of
-                                        Feat.KG ->
+                                        Mass.KG ->
                                             "Kg"
 
-                                        Feat.LBM ->
+                                        Mass.LBM ->
                                             "Lb."
                                 ]
                             )
@@ -252,10 +253,10 @@ summaryCell massUnit feat =
     let
         ( featToSummary, classModifier ) =
             case massUnit of
-                Feat.LBM ->
+                Mass.LBM ->
                     ( featToSummaryPounds, "lbm" )
 
-                Feat.KG ->
+                Mass.KG ->
                     ( featToSummaryKilos, "kg" )
 
         genderIcon =
@@ -295,12 +296,15 @@ savedFeatToNoteInput classSuffix savedFeat noteChangedMsg =
         , Input.attrs [ class <| "note-input note-input--" ++ classSuffix ]
         ]
 
-
 featToSummaryPounds : Feat -> String
 featToSummaryPounds f =
-    floatToString f.liftedPounds ++ " @ " ++ floatToString f.bodyPounds
+    (f.liftedMass |> Mass.toPounds |> floatToString)
+        ++ " @ "
+        ++ (f.bodyMass |> Mass.toPounds |> floatToString)
 
 
 featToSummaryKilos : Feat -> String
 featToSummaryKilos f =
-    floatToString f.liftedKilos ++ " @ " ++ floatToString f.bodyKilos
+    (f.liftedMass |> Mass.toKilos |> floatToString)
+        ++ " @ "
+        ++ (f.bodyMass |> Mass.toKilos |> floatToString)

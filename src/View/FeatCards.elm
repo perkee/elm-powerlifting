@@ -8,31 +8,18 @@ import Bootstrap.Form.Select as Select
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
-import Column
-    exposing
-        ( Column
-        , columnToRecordToText
-        , columnToRecordToTextWithMaxes
-        , columnToToggleLabel
-        )
+import Column exposing (Column)
 import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
 import Dropdowns exposing (Option, typedSelect)
-import Feat exposing (Feat)
 import Html exposing (Html, text)
 import Html.Attributes exposing (class, style)
-import Html.Styled
-import Html.Styled.Attributes as HSA
 import Library exposing (thrush)
-import Renderer exposing (icon, rowsToHeadedTable)
+import Renderer exposing (icon)
 import SavedFeat exposing (SavedFeat)
-import Scores
-    exposing
-        ( featToRecord
-        , maxRecord
-        )
 import SortColumn exposing (SortColumn(..))
+import View.CurrentTable as CurrentTable
 
 
 type alias NoteChangedMsg msg =
@@ -68,12 +55,13 @@ view savedFeats tableState cardsState cardMsgs =
             |> List.map SortColumn.fromColumn
             |> (::) (Just SortColumn.Index)
             |> List.filterMap
-                (Maybe.map ( \sc ->
-                            Option sc
-                                (SortColumn.toString sc)
-                                (SortColumn.toString sc)
-
-                ))
+                (Maybe.map
+                    (\sc ->
+                        Option sc
+                            (SortColumn.toString sc)
+                            (SortColumn.toString sc)
+                    )
+                )
             |> typedSelect [ Select.small ]
             |> thrush cardsState.sort.sortColumn
             |> colDropdownFn cardsState cardMsgs
@@ -138,43 +126,8 @@ savedFeatToCard cols feats cardMsgs savedFeat =
             , savedFeatToNoteInput "card" savedFeat cardMsgs.noteChanged
             ]
         |> Card.block []
-            [ Block.custom <| featToTable feats cols savedFeat.feat ]
+            [ Block.custom <| CurrentTable.view feats cols savedFeat.feat ]
     )
-
-
-featToTable : List SavedFeat -> List Column -> Feat -> Html msg
-featToTable savedFeats cols =
-    let
-        recordsToText =
-            cols
-                |> List.map
-                    (if List.isEmpty savedFeats then
-                        \c r -> columnToRecordToText c r |> Html.Styled.fromUnstyled
-
-                     else
-                        savedFeats
-                            |> List.map (.feat >> featToRecord)
-                            |> maxRecord
-                            |> (\m c r -> columnToRecordToTextWithMaxes m c r |> Html.Styled.fromUnstyled)
-                    )
-    in
-    featToRecord
-        >> thrush
-        >> List.map
-        >> thrush recordsToText
-        >> List.map2
-            (\label value ->
-                ( label |> columnToToggleLabel
-                , Html.Styled.tr
-                    []
-                    [ label |> columnToToggleLabel |> Html.Styled.text |> List.singleton |> Html.Styled.td [ "body-cell--label" |> HSA.class ]
-                    , value |> List.singleton |> Html.Styled.td [ "body-cell--value" |> HSA.class ]
-                    ]
-                )
-            )
-            cols
-        >> List.map (Tuple.mapSecond Html.Styled.toUnstyled)
-        >> rowsToHeadedTable [ ( "Label", text "" ), ( "Value", text "" ) ]
 
 
 savedFeatToNoteInput : String -> SavedFeat -> NoteChangedMsg msg -> Html msg

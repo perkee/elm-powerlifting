@@ -15,6 +15,7 @@ import Feat
         , Lift(..)
         )
 import Library exposing (thrush)
+import Mass
 
 
 
@@ -110,10 +111,8 @@ maybeMax current new =
 
 maxFeat : Feat -> Feat -> Feat
 maxFeat current new =
-    { bodyKilos = max current.bodyKilos new.bodyKilos
-    , bodyPounds = max current.bodyPounds new.bodyPounds
-    , liftedKilos = max current.liftedKilos new.liftedKilos
-    , liftedPounds = max current.liftedPounds new.liftedPounds
+    { bodyMass = Mass.max current.bodyMass new.bodyMass
+    , liftedMass = Mass.max current.liftedMass new.liftedMass
     , gender = GNC
     , lift = Total
     , age = maybeMax current.age new.age
@@ -122,38 +121,28 @@ maxFeat current new =
     }
 
 
-maxRecord : List Record -> Record
-maxRecord =
-    List.foldl
-        (\maxes record ->
-            { maxes
-                | wilks = maybeMax maxes.wilks record.wilks
-                , scaledAllometricIpf = maybeMax maxes.scaledAllometricIpf record.scaledAllometricIpf
-                , scaledAllometricAtr = maybeMax maxes.scaledAllometricAtr record.scaledAllometricAtr
-                , allometric = maybeMax maxes.allometric record.allometric
-                , ipf = maybeMax maxes.ipf record.ipf
-                , mcCulloch = maybeMax maxes.mcCulloch record.mcCulloch
-                , feat = maxFeat maxes.feat record.feat
-            }
-        )
-        { feat =
-            { bodyKilos = -1 / 0
-            , bodyPounds = -1 / 0
-            , liftedKilos = -1 / 0
-            , liftedPounds = -1 / 0
-            , gender = GNC
-            , lift = Total
-            , age = Nothing
-            , equipment = Raw
-            , note = ""
-            }
-        , wilks = Nothing
-        , scaledAllometricIpf = Nothing
-        , scaledAllometricAtr = Nothing
-        , allometric = Nothing
-        , ipf = Nothing
-        , mcCulloch = Nothing
-        }
+maxRecord : List Record -> Maybe Record
+maxRecord records =
+    case records of
+        r :: rs ->
+            List.foldl
+                (\maxes record ->
+                    { maxes
+                        | wilks = maybeMax maxes.wilks record.wilks
+                        , scaledAllometricIpf = maybeMax maxes.scaledAllometricIpf record.scaledAllometricIpf
+                        , scaledAllometricAtr = maybeMax maxes.scaledAllometricAtr record.scaledAllometricAtr
+                        , allometric = maybeMax maxes.allometric record.allometric
+                        , ipf = maybeMax maxes.ipf record.ipf
+                        , mcCulloch = maybeMax maxes.mcCulloch record.mcCulloch
+                        , feat = maxFeat maxes.feat record.feat
+                    }
+                )
+                r
+                rs
+                |> Just
+
+        [] ->
+            Nothing
 
 
 
@@ -163,9 +152,9 @@ maxRecord =
 
 allometric : Feat -> Score
 allometric m =
-    m.bodyKilos
+    Mass.toKilos m.bodyMass
         ^ (-2 / 3)
-        * m.liftedKilos
+        * Mass.toKilos m.liftedMass
         |> Allometric
 
 
@@ -297,19 +286,19 @@ scaledAllometricAtr feat =
 
 ipf : Feat -> Score
 ipf m =
-    if abs m.liftedKilos < 0.25 then
+    if abs (Mass.toKilos m.liftedMass) < 0.25 then
         Ipf 0
 
     else
         let
             scale =
-                m.bodyKilos |> logBase e |> (*)
+                Mass.toKilos m.bodyMass |> logBase e |> (*)
         in
         case ipfCoefficients m of
             Just cs ->
                 500
                     + 100
-                    * (m.liftedKilos - (scale cs.c1 - cs.c2))
+                    * (Mass.toKilos m.liftedMass - (scale cs.c1 - cs.c2))
                     / (scale cs.c3 - cs.c4)
                     |> Ipf
 
@@ -413,7 +402,7 @@ wilksCoefficients m =
 
 polynomialMultiply : Feat -> Int -> Float -> Float
 polynomialMultiply m index const =
-    const * m.bodyKilos ^ toFloat index
+    const * Mass.toKilos m.bodyMass ^ toFloat index
 
 
 wilks : Feat -> Score
@@ -423,7 +412,7 @@ wilks m =
             coefficients
                 |> List.indexedMap (polynomialMultiply m)
                 |> List.foldl (+) 0
-                |> (/) (m.liftedKilos * 500)
+                |> (/) (Mass.toKilos m.liftedMass * 500)
                 |> Wilks
 
         Nothing ->

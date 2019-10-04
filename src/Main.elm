@@ -212,7 +212,10 @@ view model =
                             [ ColumnToggles.config FeatDisplayUpdated "current-column-toggles"
                                 |> ColumnToggles.title "Current Scores Options"
                                 |> ColumnToggles.view model.featState
-                            , (CurrentTable.view model.feats <| ColumnToggles.columns model.featState) <| feat
+                            , CurrentTable.view
+                                (Array.toList model.feats)
+                                (ColumnToggles.columns model.featState)
+                                feat
                             ]
 
                         Nothing ->
@@ -237,18 +240,24 @@ view model =
                     model.cardsState
                     cardMsgs
             )
-        , Grid.containerFluid [ class "d-none d-md-block" ]
-            [ Grid.row []
-                [ Grid.col [ Col.sm12 ]
-                    [ model.feats
-                        |> Array.toList
-                        |> FeatTable.view
-                            model.tableState
-                            model.cardsState
-                            cardMsgs
+        , case
+            model.feats
+                |> Array.toList
+                |> FeatTable.view
+                    model.tableState
+                    model.cardsState
+                    cardMsgs
+          of
+            Just table ->
+                Grid.containerFluid [ class "d-none d-md-block" ]
+                    [ Grid.row []
+                        [ Grid.col [ Col.sm12 ]
+                            [ table ]
+                        ]
                     ]
-                ]
-            ]
+
+            Nothing ->
+                text ""
         , Modal.config DeleteCanceled
             |> Modal.withAnimation DeleteModalAnimated
             |> Modal.large

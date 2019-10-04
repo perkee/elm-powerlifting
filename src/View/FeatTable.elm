@@ -33,7 +33,7 @@ view :
     -> Cards.State
     -> CardMsgs msg
     -> List SavedFeat
-    -> Html msg
+    -> Maybe (Html msg)
 view tableState cardsState cardMsgs savedFeats =
     savedFeats
         |> List.sortWith
@@ -51,40 +51,47 @@ savedFeatsToTable :
     -> CardMsgs msg
     -> List Column
     -> List SavedFeat
-    -> Html msg
+    -> Maybe (Html msg)
 savedFeatsToTable cardsState cardMsgs cols savedFeats =
     savedFeats
-        |> List.map (savedFeatToRow cardMsgs cols <| SavedFeat.maxRecord savedFeats)
-        >> ([ [ ( "Index"
-                , Renderer.icon
-                    (case ( cardsState.sort.sortColumn, cardsState.sort.sortOrder ) of
-                        ( SortColumn.Index, Library.Ascending ) ->
-                            "sort-up"
-
-                        ( SortColumn.Index, Library.Descending ) ->
-                            "sort-down"
-
-                        ( _, _ ) ->
-                            "sort"
-                    )
-                    [ Sort.kindaFlip
-                        cardsState.sort
-                        SortColumn.Index
-                        |> Cards.setSort cardsState
-                        |> cardMsgs.cardsChanged
-                        |> onClick
-                    ]
-                )
-              ]
-            , [ ( "Note", text "" ) ]
-            , List.map
-                (\c -> ( columnToColumnLabel c, columnAndSortToIcon cardsState cardMsgs c ))
+        |> SavedFeat.maxRecord
+        |> Maybe.map
+            (savedFeatToRow
+                cardMsgs
                 cols
-            , [ ( "Delete", text "" ) ]
-            ]
-                |> List.concat
-                |> Renderer.rowsToHeadedTable
-           )
+                >> List.map
+                >> thrush savedFeats
+                >> ([ [ ( "Index"
+                        , Renderer.icon
+                            (case ( cardsState.sort.sortColumn, cardsState.sort.sortOrder ) of
+                                ( SortColumn.Index, Library.Ascending ) ->
+                                    "sort-up"
+
+                                ( SortColumn.Index, Library.Descending ) ->
+                                    "sort-down"
+
+                                ( _, _ ) ->
+                                    "sort"
+                            )
+                            [ Sort.kindaFlip
+                                cardsState.sort
+                                SortColumn.Index
+                                |> Cards.setSort cardsState
+                                |> cardMsgs.cardsChanged
+                                |> onClick
+                            ]
+                        )
+                      ]
+                    , [ ( "Note", text "" ) ]
+                    , List.map
+                        (\c -> ( columnToColumnLabel c, columnAndSortToIcon cardsState cardMsgs c ))
+                        cols
+                    , [ ( "Delete", text "" ) ]
+                    ]
+                        |> List.concat
+                        |> Renderer.rowsToHeadedTable
+                   )
+            )
 
 
 savedFeatToRow :

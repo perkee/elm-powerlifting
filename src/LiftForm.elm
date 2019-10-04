@@ -13,10 +13,11 @@ import Bootstrap.Form.Select as Select
 import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
 import Dropdowns exposing (Option, typedSelect)
-import Feat exposing (Equipment(..), Feat, Gender(..), Lift(..), MassUnit(..))
+import Feat exposing (Equipment(..), Feat, Gender(..), Lift(..))
 import Html as H exposing (Html)
 import Html.Attributes as HA
 import Library exposing (isStringPositiveFloat)
+import Mass
 
 
 
@@ -25,9 +26,9 @@ import Library exposing (isStringPositiveFloat)
 
 type alias State =
     { liftedMass : String
-    , liftedUnit : Feat.MassUnit
+    , liftedUnit : Mass.MassUnit
     , bodyMass : String
-    , bodyUnit : Feat.MassUnit
+    , bodyUnit : Mass.MassUnit
     , gender : Gender
     , lift : Lift
     , age : String
@@ -41,10 +42,8 @@ toFeat state =
     case ( String.toFloat state.bodyMass, String.toFloat state.liftedMass ) of
         ( Just bodyMass, Just liftedMass ) ->
             Just
-                { bodyKilos = Feat.massToKilos state.bodyUnit bodyMass
-                , bodyPounds = Feat.massToPounds state.bodyUnit bodyMass
-                , liftedKilos = Feat.massToKilos state.liftedUnit liftedMass
-                , liftedPounds = Feat.massToPounds state.liftedUnit liftedMass
+                { bodyMass = Mass.fromUnitAndFloat state.bodyUnit bodyMass
+                , liftedMass = Mass.fromUnitAndFloat state.liftedUnit liftedMass
                 , gender = state.gender
                 , lift = state.lift
                 , age = String.toFloat state.age
@@ -63,9 +62,9 @@ toFeat state =
 init : State
 init =
     { liftedMass = ""
-    , liftedUnit = Feat.KG
+    , liftedUnit = Mass.KG
     , bodyMass = ""
-    , bodyUnit = Feat.KG
+    , bodyUnit = Mass.KG
     , gender = GNC
     , lift = Total
     , age = ""
@@ -138,7 +137,7 @@ updateNumeric state updateMsg field val =
         |> updateMsg
 
 
-updateUnit : State -> (State -> msg) -> Field -> Feat.MassUnit -> msg
+updateUnit : State -> (State -> msg) -> Field -> Mass.MassUnit -> msg
 updateUnit state updateMsg field unit =
     (case field of
         BodyUnit ->
@@ -236,8 +235,8 @@ massInput :
     { title : String
     , numeric : String
     , updateNumeric : String -> msg
-    , unit : Feat.MassUnit
-    , updateUnit : Feat.MassUnit -> msg
+    , unit : Mass.MassUnit
+    , updateUnit : Mass.MassUnit -> msg
     }
     -> Form.Col msg
 massInput input =
@@ -253,16 +252,16 @@ massInput input =
                     |> InputGroup.successors
                         [ InputGroup.button
                             [ Button.outlineSecondary
-                            , Feat.toggleMassUnit input.unit
+                            , Mass.toggleMassUnit input.unit
                                 |> input.updateUnit
                                 |> Button.onClick
                             ]
                             [ H.text <|
                                 case input.unit of
-                                    KG ->
+                                    Mass.KG ->
                                         "Kilos"
 
-                                    LBM ->
+                                    Mass.LBM ->
                                         "Pounds"
                             ]
                         ]

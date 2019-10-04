@@ -1,7 +1,7 @@
 module Data.Cards exposing (Display(..), State, init, setSort, toggleDisplay, toggleMassUnit)
 
 import Data.Sort as Sort
-import Feat
+import Mass
 
 
 type Display
@@ -11,14 +11,14 @@ type Display
 
 type alias State =
     { sort : Sort.State
-    , scoreMassUnit : Feat.MassUnit
+    , scoreMassUnit : Mass.MassUnit
     , display : Display
     }
 
 
 init : Sort.State -> State
 init sort =
-    State sort Feat.KG ByFeat
+    State sort Mass.KG ByFeat
 
 
 setSort : State -> Sort.State -> State
@@ -29,7 +29,7 @@ setSort state sort =
 toggleMassUnit : State -> State
 toggleMassUnit state =
     { state
-        | scoreMassUnit = Feat.toggleMassUnit state.scoreMassUnit
+        | scoreMassUnit = Mass.toggleMassUnit state.scoreMassUnit
     }
 
 

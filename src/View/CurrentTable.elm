@@ -1,6 +1,5 @@
 module View.CurrentTable exposing (view)
 
-import Array exposing (Array)
 import Column
     exposing
         ( Column
@@ -22,21 +21,18 @@ import Scores
         )
 
 
-view : Array SavedFeat -> List Column -> Feat -> Html msg
+view : List SavedFeat -> List Column -> Feat -> Html msg
 view savedFeats cols =
     let
         recordsToText =
             cols
                 |> List.map
-                    (if Array.isEmpty savedFeats then
-                        \c r -> columnToRecordToText c r |> Html.Styled.fromUnstyled
+                    (case SavedFeat.maxRecord savedFeats of
+                        Nothing ->
+                            \c r -> columnToRecordToText c r |> Html.Styled.fromUnstyled
 
-                     else
-                        savedFeats
-                            |> Array.toList
-                            |> List.map (.feat >> featToRecord)
-                            |> maxRecord
-                            |> (\m c r -> columnToRecordToTextWithMaxes m c r |> Html.Styled.fromUnstyled)
+                        Just mr ->
+                            \c r -> columnToRecordToTextWithMaxes mr c r |> Html.Styled.fromUnstyled
                     )
     in
     featToRecord

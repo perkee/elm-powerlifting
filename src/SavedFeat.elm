@@ -8,6 +8,7 @@ module SavedFeat exposing
 import Data.Sort as Sort
 import Feat exposing (Feat)
 import Library
+import Mass
 import Scores
     exposing
         ( Record
@@ -23,7 +24,7 @@ type alias SavedFeat =
     }
 
 
-maxRecord : List SavedFeat -> Record
+maxRecord : List SavedFeat -> Maybe Record
 maxRecord =
     List.map (.feat >> featToRecord) >> Scores.maxRecord
 
@@ -49,10 +50,10 @@ sortColumnToGetter : SortColumn.SortColumn -> SavedFeat -> Maybe Float
 sortColumnToGetter col =
     case col of
         SortColumn.BodyMass ->
-            .feat >> .bodyKilos >> Just
+            .feat >> .bodyMass >> Mass.toKilos >> Just
 
         SortColumn.LiftedMass ->
-            .feat >> .liftedKilos >> Just
+            .feat >> .liftedMass >> Mass.toKilos >> Just
 
         SortColumn.Wilks ->
             .feat >> featToRecord >> .wilks
