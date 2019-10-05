@@ -13,9 +13,9 @@ import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
 import Html exposing (Html, text)
 import Html.Attributes as HA
-import Html.Events exposing (onClick)
 import Html.Styled
 import Html.Styled.Attributes as HSA
+import Html.Styled.Events as HE
 import Html.Styled.Keyed
 import Library exposing (thrush)
 import Renderer
@@ -33,7 +33,7 @@ view :
     -> Cards.State
     -> CardMsgs msg
     -> List SavedFeat
-    -> Maybe (Html msg)
+    -> Maybe (Html.Styled.Html msg)
 view tableState cardsState cardMsgs savedFeats =
     savedFeats
         |> List.sortWith
@@ -51,7 +51,7 @@ savedFeatsToTable :
     -> CardMsgs msg
     -> List Column
     -> List SavedFeat
-    -> Maybe (Html msg)
+    -> Maybe (Html.Styled.Html msg)
 savedFeatsToTable cardsState cardMsgs cols savedFeats =
     savedFeats
         |> SavedFeat.maxRecord
@@ -62,7 +62,7 @@ savedFeatsToTable cardsState cardMsgs cols savedFeats =
                 >> List.map
                 >> thrush savedFeats
                 >> ([ [ ( "Index"
-                        , Renderer.icon
+                        , Renderer.styledIcon
                             (case ( cardsState.sort.sortColumn, cardsState.sort.sortOrder ) of
                                 ( SortColumn.Index, Library.Ascending ) ->
                                     "sort-up"
@@ -78,15 +78,19 @@ savedFeatsToTable cardsState cardMsgs cols savedFeats =
                                 SortColumn.Index
                                 |> Cards.setSort cardsState
                                 |> cardMsgs.cardsChanged
-                                |> onClick
+                                |> HE.onClick
                             ]
                         )
                       ]
-                    , [ ( "Note", text "" ) ]
+                    , [ ( "Note", Html.Styled.text "" ) ]
                     , List.map
-                        (\c -> ( columnToColumnLabel c, columnAndSortToIcon cardsState cardMsgs c ))
+                        (\c ->
+                            ( columnToColumnLabel c
+                            , columnAndSortToIcon cardsState cardMsgs c
+                            )
+                        )
                         cols
-                    , [ ( "Delete", text "" ) ]
+                    , [ ( "Delete", Html.Styled.text "" ) ]
                     ]
                         |> List.concat
                         |> Renderer.rowsToHeadedTable
@@ -99,7 +103,7 @@ savedFeatToRow :
     -> List Column
     -> Record
     -> SavedFeat
-    -> ( String, Html msg )
+    -> ( String, Html.Styled.Html msg )
 savedFeatToRow cardMsgs cols maxes savedFeat =
     [ [ .index >> String.fromInt >> text >> classToHtmlToStyledCell "body-cell--index"
       , savedFeatToNoteInput "table" cardMsgs
@@ -123,7 +127,7 @@ savedFeatToRow cardMsgs cols maxes savedFeat =
     ]
         |> List.concat
         |> Html.Styled.Keyed.node "tr" []
-        |> (\row -> ( savedFeat.key |> String.fromInt, row |> Html.Styled.toUnstyled ))
+        |> (\row -> ( savedFeat.key |> String.fromInt, row ))
 
 
 classToHtmlToStyledCell : String -> Html msg -> ( String, Html.Styled.Html msg )
@@ -140,7 +144,7 @@ columnAndSortToIcon :
     Cards.State
     -> CardMsgs msg
     -> Column
-    -> Html msg
+    -> Html.Styled.Html msg
 columnAndSortToIcon cardsState cardMsgs column =
     case ( cardsState.sort.sortColumn, SortColumn.fromColumn column ) of
         ( s, Just sc ) ->
@@ -155,17 +159,17 @@ columnAndSortToIcon cardsState cardMsgs column =
              else
                 "sort"
             )
-                |> Renderer.icon
+                |> Renderer.styledIcon
                 |> thrush
-                    [ HA.class "sort-button"
+                    [ HSA.class "sort-button"
                     , Sort.kindaFlip cardsState.sort sc
                         |> Cards.setSort cardsState
                         |> cardMsgs.cardsChanged
-                        |> onClick
+                        |> HE.onClick
                     ]
 
         ( _, Nothing ) ->
-            text ""
+            Html.Styled.text ""
 
 
 savedFeatToNoteInput : String -> CardMsgs msg -> SavedFeat -> Html msg

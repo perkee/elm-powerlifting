@@ -22,7 +22,8 @@ import Data.Sort as Sort
 import Feat exposing (Feat, testFeats)
 import Html exposing (Html, div, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
-import Html.Events exposing (onClick)
+import Html.Events as HE
+import Html.Styled
 import Library exposing (SortOrder(..), removeAt, updateArrayAt)
 import LiftForm
 import SavedFeat exposing (SavedFeat)
@@ -215,6 +216,7 @@ view model =
                             (Array.toList model.feats)
                             (ColumnToggles.columns model.featState)
                             feat
+                            |> Html.Styled.toUnstyled
                         ]
 
                     Nothing ->
@@ -251,7 +253,7 @@ view model =
             Grid.containerFluid [ class "d-none d-md-block" ]
                 [ Grid.row []
                     [ Grid.col [ Col.sm12 ]
-                        [ table ]
+                        [ table |> Html.Styled.toUnstyled ]
                     ]
                 ]
 
@@ -284,12 +286,12 @@ view model =
                 [ Button.outlineDanger
 
                 -- cannot currently animate this on confirm. Gets into an infinite loop rn. Kinda impresseive!
-                , Button.attrs [ onClick <| DeleteConfirmed ]
+                , Button.attrs [ HE.onClick <| DeleteConfirmed ]
                 ]
                 [ text "Yes, Delete this row" ]
             , Button.button
                 [ Button.outlineSuccess
-                , Button.attrs [ onClick <| DeleteCanceled ]
+                , Button.attrs [ HE.onClick <| DeleteCanceled ]
                 ]
                 [ text "Nevermind" ]
             ]

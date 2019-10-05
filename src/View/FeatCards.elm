@@ -15,6 +15,7 @@ import Data.Sort as Sort
 import Dropdowns exposing (Option, typedSelect)
 import Html exposing (Html, text)
 import Html.Attributes exposing (class, style)
+import Html.Styled
 import Library exposing (thrush)
 import Renderer exposing (icon)
 import SavedFeat exposing (SavedFeat)
@@ -126,7 +127,7 @@ savedFeatToCard cols feats cardMsgs savedFeat =
             , savedFeatToNoteInput "card" savedFeat cardMsgs.noteChanged
             ]
         |> Card.block []
-            [ Block.custom <| CurrentTable.view feats cols savedFeat.feat ]
+            [ Block.custom <| Html.Styled.toUnstyled <| CurrentTable.view feats cols savedFeat.feat ]
     )
 
 

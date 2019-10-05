@@ -128,41 +128,43 @@ columnToLiftCard savedFeats liftCardsUnit massUnitMsg noteChangedMsg ( col, sort
             ]
         |> Card.block [ Block.attrs [ class "lift-card__block" ] ]
             [ Block.custom <|
-                rowsToHeadedTable
-                    ([ ( "", text "" )
-                     , ( "Note", text "" )
-                     ]
-                        |> (if showLift savedFeats then
-                                snocnu ( "Lift", text "" )
+                Html.Styled.toUnstyled <|
+                    rowsToHeadedTable
+                        ([ ( "", Html.Styled.text "" )
+                         , ( "Note", Html.Styled.text "" )
+                         ]
+                            |> (if showLift savedFeats then
+                                    snocnu ( "Lift", Html.Styled.text "" )
 
-                            else
-                                identity
-                           )
-                        |> snocnu
-                            ( ""
-                            , Button.button
-                                [ Button.outlineSecondary
-                                , Button.onClick massUnitMsg
-                                , Button.small
-                                , Button.block
-                                ]
-                                [ text <|
-                                    case liftCardsUnit of
-                                        Mass.KG ->
-                                            "Kg"
+                                else
+                                    identity
+                               )
+                            |> snocnu
+                                ( ""
+                                , Button.button
+                                    [ Button.outlineSecondary
+                                    , Button.onClick massUnitMsg
+                                    , Button.small
+                                    , Button.block
+                                    ]
+                                    [ text <|
+                                        case liftCardsUnit of
+                                            Mass.KG ->
+                                                "Kg"
 
-                                        Mass.LBM ->
-                                            "Lb."
-                                ]
-                            )
-                        |> (if sortCol == SortColumn.LiftedMass || sortCol == SortColumn.BodyMass then
-                                identity
+                                            Mass.LBM ->
+                                                "Lb."
+                                    ]
+                                    |> Html.Styled.fromUnstyled
+                                )
+                            |> (if sortCol == SortColumn.LiftedMass || sortCol == SortColumn.BodyMass then
+                                    identity
 
-                            else
-                                snocnu ( "Value", text "" )
-                           )
-                    )
-                    rows
+                                else
+                                    snocnu ( "Value", Html.Styled.text "" )
+                               )
+                        )
+                        rows
             ]
     )
 
@@ -187,7 +189,7 @@ liftCardCell className =
         ]
 
 
-savedFeatToRow : NoteChangedMsg msg -> ( Column, SortColumn.SortColumn ) -> Bool -> MassUnit -> Maybe Float -> SavedFeat -> ( String, Html msg )
+savedFeatToRow : NoteChangedMsg msg -> ( Column, SortColumn.SortColumn ) -> Bool -> MassUnit -> Maybe Float -> SavedFeat -> ( String, Html.Styled.Html msg )
 savedFeatToRow noteChangedMsg ( col, sortCol ) shouldShowLift liftCardsUnit maybeMaximum savedFeat =
     let
         key =
@@ -244,7 +246,6 @@ savedFeatToRow noteChangedMsg ( col, sortCol ) shouldShowLift liftCardsUnit mayb
                     snocnu ( key ++ "score", liftCardCell "value" [ record |> Column.columnToRecordToText col |> Html.Styled.fromUnstyled ] )
                )
         )
-        |> Html.Styled.toUnstyled
     )
 
 
@@ -295,6 +296,7 @@ savedFeatToNoteInput classSuffix savedFeat noteChangedMsg =
         , Input.onInput <| noteChangedMsg savedFeat.index
         , Input.attrs [ class <| "note-input note-input--" ++ classSuffix ]
         ]
+
 
 featToSummaryPounds : Feat -> String
 featToSummaryPounds f =

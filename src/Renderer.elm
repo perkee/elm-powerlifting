@@ -44,28 +44,24 @@ stringToHeaderCell ( title, arrows ) =
     )
 
 
-rowsToHeadedTable : List ( String, Raw.Html msg ) -> List ( String, Raw.Html msg ) -> Raw.Html msg
+rowsToHeadedTable : List ( String, Html msg ) -> List ( String, Html msg ) -> Html msg
 rowsToHeadedTable titles rows =
-    H.toUnstyled <|
-        if List.isEmpty rows then
-            H.text ""
+    if List.isEmpty rows then
+        H.text ""
 
-        else
-            H.table
-                [ HA.class "table table-striped table-hover table-sm"
-                ]
-                [ titles
-                    |> List.map
-                        (Tuple.mapSecond H.fromUnstyled
-                            >> stringToHeaderCell
-                        )
-                    |> Html.Styled.Keyed.node "tr" []
-                    |> List.singleton
-                    |> H.thead []
-                , rows
-                    |> List.map (Tuple.mapSecond H.fromUnstyled)
-                    |> Html.Styled.Keyed.node "tbody" []
-                ]
+    else
+        H.table
+            [ HA.class "table table-striped table-hover table-sm"
+            ]
+            [ titles
+                |> List.map
+                    stringToHeaderCell
+                |> Html.Styled.Keyed.node "tr" []
+                |> List.singleton
+                |> H.thead []
+            , rows
+                |> Html.Styled.Keyed.node "tbody" []
+            ]
 
 
 maybeFloatToString : Maybe Float -> String
