@@ -14,7 +14,7 @@ import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
 import Dropdowns exposing (Option, typedSelect)
 import Html exposing (Html, text)
-import Html.Attributes exposing (class, style)
+import Html.Attributes as HA
 import Html.Styled
 import Library exposing (thrush)
 import Renderer exposing (icon)
@@ -31,6 +31,7 @@ type alias CardMsgs msg =
     { cardsChanged : Cards.State -> msg
     , noteChanged : Int -> String -> msg
     , deleteButtonClicked : Int -> msg
+    , editButtonClicked : SavedFeat -> msg
     }
 
 
@@ -46,8 +47,8 @@ view : List SavedFeat -> ColumnToggles.State -> Cards.State -> CardMsgs msg -> L
 view savedFeats tableState cardsState cardMsgs =
     [ Grid.row
         [ Row.attrs
-            [ style "margin-bottom" ".75rem"
-            , class "d-md-none"
+            [ HA.style "margin-bottom" ".75rem"
+            , HA.class "d-md-none"
             ]
         ]
         [ Grid.col [ Col.xs2 ] [ text "Sort by:" ]
@@ -99,7 +100,7 @@ view savedFeats tableState cardsState cardMsgs =
                 cardMsgs
             |> Card.keyedColumns
             |> List.singleton
-            |> Grid.col [ Col.xs12, Col.attrs [ class "d-md-none" ] ]
+            |> Grid.col [ Col.xs12, Col.attrs [ HA.class "d-md-none" ] ]
         ]
     ]
 
@@ -118,9 +119,22 @@ savedFeatToCard cols feats cardMsgs savedFeat =
         |> Card.headerH4 []
             [ text <| String.fromInt <| savedFeat.index
             , Button.button
+                [ Button.outlineSecondary
+                , cardMsgs.editButtonClicked savedFeat |> Button.onClick
+                , Button.attrs
+                    [ HA.class "card-edit"
+                    , HA.title "Edit this"
+                    ]
+                ]
+                [ icon "edit" []
+                ]
+            , Button.button
                 [ Button.outlineDanger
                 , cardMsgs.deleteButtonClicked savedFeat.index |> Button.onClick
-                , Button.attrs [ class "card-delete" ]
+                , Button.attrs
+                    [ HA.class "card-delete"
+                    , HA.title "Delete this"
+                    ]
                 ]
                 [ icon "trash" []
                 ]
@@ -137,5 +151,5 @@ savedFeatToNoteInput classSuffix savedFeat noteChangedMsg =
         [ Input.placeholder "Note"
         , Input.value <| .note <| savedFeat.feat
         , Input.onInput <| noteChangedMsg savedFeat.index
-        , Input.attrs [ class <| "note-input note-input--" ++ classSuffix ]
+        , Input.attrs [ HA.class <| "note-input note-input--" ++ classSuffix ]
         ]

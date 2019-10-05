@@ -106,6 +106,7 @@ type Msg
     | FeatDisplayUpdated ColumnToggles.State
     | TableDisplayUpdated ColumnToggles.State
     | DeleteButtonClicked Int
+    | EditButtonClicked SavedFeat
     | DeleteCanceled
     | DeleteConfirmed
     | CardsChanged Cards.State
@@ -181,6 +182,11 @@ update msg model =
                 , idxToDelete = Just idx
             }
 
+        EditButtonClicked savedFeat ->
+            { model
+                | formState = LiftForm.fromFeat savedFeat.feat
+            }
+
         DeleteModalAnimated visibility ->
             -- Just fadein
             { model | deleteConfirmVisibility = visibility }
@@ -197,6 +203,7 @@ cardMsgs =
         CardsChanged
         NoteChanged
         DeleteButtonClicked
+        EditButtonClicked
 
 
 view : Model -> Html Msg

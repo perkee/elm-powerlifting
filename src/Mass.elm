@@ -5,6 +5,7 @@ module Mass exposing
     , max
     , toKilos
     , toPounds
+    , toUnitAndFloat
     , toggleMassUnit
     )
 
@@ -52,6 +53,16 @@ fromUnitAndFloat u f =
 
         LBM ->
             LbmMass f
+
+
+toUnitAndFloat : Mass -> ( MassUnit, Float )
+toUnitAndFloat mass =
+    case mass of
+        KgMass f ->
+            ( KG, f )
+
+        LbmMass f ->
+            ( LBM, f )
 
 
 compare : Mass -> Mass -> Order

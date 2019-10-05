@@ -1,5 +1,6 @@
 module LiftForm exposing
     ( State
+    , fromFeat
     , init
     , toFeat
     , view
@@ -55,6 +56,33 @@ toFeat state =
             Nothing
 
 
+fromFeat : Feat -> State
+fromFeat feat =
+    let
+        ( liftUnit, liftFloat ) =
+            Mass.toUnitAndFloat feat.liftedMass
+
+        ( bodyUnit, bodyFloat ) =
+            Mass.toUnitAndFloat feat.bodyMass
+    in
+    { liftedMass = String.fromFloat liftFloat
+    , liftedUnit = liftUnit
+    , bodyMass = String.fromFloat bodyFloat
+    , bodyUnit = bodyUnit
+    , gender = feat.gender
+    , lift = feat.lift
+    , age =
+        case feat.age of
+            Just age ->
+                String.fromFloat age
+
+            Nothing ->
+                ""
+    , equipment = feat.equipment
+    , note = feat.note
+    }
+
+
 
 -- Init
 
@@ -105,6 +133,11 @@ updateLift state updateMsg maybeLift =
 
         Nothing ->
             updateMsg state
+
+
+updateNote : State -> (State -> msg) -> String -> msg
+updateNote state updateMsg note =
+    updateMsg { state | note = note }
 
 
 type Field
@@ -290,7 +323,8 @@ thirdRow state updateMsg =
                 [ Form.colLabel [ Col.xs4, Col.sm3 ] [ H.text "Note" ]
                 , Form.col [ Col.xs8, Col.sm9 ]
                     [ Input.text
-                        [ Input.onInput (updateMsg << (\s -> { state | note = s }))
+                        [ Input.onInput <| updateNote state updateMsg
+                        , Input.value state.note
                         ]
                     ]
                 ]

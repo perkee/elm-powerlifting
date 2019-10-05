@@ -116,13 +116,24 @@ savedFeatToRow cardMsgs cols maxes savedFeat =
         |> List.map
       )
         (List.map (columnToFloatToStyledCell maxes) cols)
-    , Button.button
-        [ Button.outlineDanger
-        , cardMsgs.deleteButtonClicked savedFeat.index |> Button.onClick
+    , ( "body-cell--tools"
+      , [ Button.button
+            [ Button.outlineDanger
+            , cardMsgs.deleteButtonClicked savedFeat.index |> Button.onClick
+            ]
+            [ Renderer.icon "trash" []
+            ]
+        , Button.button
+            [ Button.outlineSecondary
+            , cardMsgs.editButtonClicked savedFeat |> Button.onClick
+            ]
+            [ Renderer.icon "edit" []
+            ]
         ]
-        [ Renderer.icon "trash" []
-        ]
-        |> classToHtmlToStyledCell "body-cell--delete"
+            |> List.map Html.Styled.fromUnstyled
+            |> Html.Styled.td
+                []
+      )
         |> List.singleton
     ]
         |> List.concat
