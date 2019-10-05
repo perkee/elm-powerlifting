@@ -8,6 +8,7 @@ module Library exposing
     , maybeListHead
     , maybeListMember
     , maybeSnocnu
+    , pam
     , phi
     , removeAt
     , replace
@@ -25,6 +26,11 @@ import Regex
 thrush : a -> (a -> b) -> b
 thrush input fn =
     fn input
+
+
+pam : a -> List (a -> b) -> List b
+pam arg =
+    List.map (thrush arg)
 
 
 updateArrayAt : Int -> (a -> a) -> Array a -> Array a
