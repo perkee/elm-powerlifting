@@ -1,6 +1,5 @@
 module View.FeatTable exposing (view)
 
-import Bootstrap.Button as Button
 import Bootstrap.Form.Input as Input
 import Column
     exposing
@@ -8,6 +7,7 @@ import Column
         , columnToColumnLabel
         , columnToRecordToTextWithMaxes
         )
+import Css
 import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
@@ -90,7 +90,7 @@ savedFeatsToTable cardsState cardMsgs cols savedFeats =
                             )
                         )
                         cols
-                    , [ ( "Delete", Html.Styled.text "" ) ]
+                    , [ ( "Tools", Html.Styled.text "" ) ]
                     ]
                         |> List.concat
                         |> Renderer.rowsToHeadedTable
@@ -117,22 +117,27 @@ savedFeatToRow cardMsgs cols maxes savedFeat =
       )
         (List.map (columnToFloatToStyledCell maxes) cols)
     , ( "body-cell--tools"
-      , [ Button.button
-            [ Button.outlineDanger
-            , cardMsgs.deleteButtonClicked savedFeat.index |> Button.onClick
+      , [ Html.Styled.button
+            [ HSA.class "btn btn-outline-danger"
+            , HSA.css
+                [ Css.marginRight <| Css.rem 0.5
+                ]
+            , cardMsgs.deleteButtonClicked savedFeat.index |> HE.onClick
             ]
-            [ Renderer.icon "trash" []
+            [ Renderer.styledIcon "trash" []
             ]
-        , Button.button
-            [ Button.outlineSecondary
-            , cardMsgs.editButtonClicked savedFeat |> Button.onClick
+        , Html.Styled.button
+            [ HSA.class "btn btn-outline-secondary"
+            , cardMsgs.editButtonClicked savedFeat |> HE.onClick
             ]
-            [ Renderer.icon "edit" []
+            [ Renderer.styledIcon "edit" []
             ]
         ]
-            |> List.map Html.Styled.fromUnstyled
             |> Html.Styled.td
-                []
+                [ HSA.css
+                    [ Css.minWidth <| Css.rem 6.5
+                    ]
+                ]
       )
         |> List.singleton
     ]
