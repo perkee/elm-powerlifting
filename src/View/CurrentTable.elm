@@ -20,10 +20,17 @@ import Scores
 view : List SavedFeat -> List Column -> Feat -> H.Html msg
 view savedFeats cols feat =
     List.map (featToColumnToRow savedFeats feat) cols
-        |> rowsToHeadedTable [ ( "Label", H.text "" ), ( "Value", H.text "" ) ]
+        |> rowsToHeadedTable
+            [ ( "Label", H.text "" )
+            , ( "Value", H.text "" )
+            ]
 
 
-featToColumnToRow : List SavedFeat -> Feat -> Column -> ( String, Html msg )
+featToColumnToRow :
+    List SavedFeat
+    -> Feat
+    -> Column
+    -> ( String, Html msg )
 featToColumnToRow savedFeats feat column =
     ( columnToToggleLabel column
     , H.tr
@@ -45,7 +52,11 @@ columnToFeatToText savedFeats col =
     featToRecord >> columnToRecordToText savedFeats col
 
 
-columnToRecordToText : List SavedFeat -> Column -> Scores.Record -> Html msg
+columnToRecordToText :
+    List SavedFeat
+    -> Column
+    -> Scores.Record
+    -> Html msg
 columnToRecordToText savedFeats col =
     (case SavedFeat.maxRecord savedFeats of
         Nothing ->

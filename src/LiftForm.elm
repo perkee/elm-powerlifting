@@ -1,7 +1,8 @@
 module LiftForm exposing
     ( State
-    , fromFeat
     , init
+    , popState
+    , pushFeat
     , toFeat
     , view
     )
@@ -25,22 +26,48 @@ import Mass
 -- Model
 
 
-type alias State =
-    { liftedMass : String
-    , liftedUnit : Mass.MassUnit
-    , bodyMass : String
-    , bodyUnit : Mass.MassUnit
-    , gender : Gender
-    , lift : Lift
-    , age : String
-    , equipment : Equipment
-    , note : String
-    }
+type State
+    = State
+        { liftedMass : String
+        , liftedUnit : Mass.MassUnit
+        , bodyMass : String
+        , bodyUnit : Mass.MassUnit
+        , gender : Gender
+        , lift : Lift
+        , age : String
+        , equipment : Equipment
+        , note : String
+        , pushedState : Maybe State
+        }
+
+
+pushFeat : State -> Feat -> State
+pushFeat oldState feat =
+    pushState oldState <| fromFeat feat
+
+
+pushState : State -> State -> State
+pushState oldState (State newState) =
+    State { newState | pushedState = Just oldState }
+
+
+popState : State -> State
+popState (State state) =
+    case state.pushedState of
+        Just oldState ->
+            oldState
+
+        Nothing ->
+            State state
 
 
 toFeat : State -> Maybe Feat
-toFeat state =
-    case ( String.toFloat state.bodyMass, String.toFloat state.liftedMass ) of
+toFeat (State state) =
+    case
+        ( String.toFloat state.bodyMass
+        , String.toFloat state.liftedMass
+        )
+    of
         ( Just bodyMass, Just liftedMass ) ->
             Just
                 { bodyMass = Mass.fromUnitAndFloat state.bodyUnit bodyMass
@@ -80,7 +107,9 @@ fromFeat feat =
                 ""
     , equipment = feat.equipment
     , note = feat.note
+    , pushedState = Nothing
     }
+        |> State
 
 
 
@@ -98,7 +127,9 @@ init =
     , age = ""
     , equipment = Raw
     , note = ""
+    , pushedState = Nothing
     }
+        |> State
 
 
 
@@ -106,38 +137,49 @@ init =
 
 
 updateEquipment : State -> (State -> msg) -> Maybe Equipment -> msg
-updateEquipment state updateMsg maybeEquipment =
-    case maybeEquipment of
+updateEquipment (State state) updateMsg maybeEquipment =
+    (case maybeEquipment of
         Just equipment ->
-            updateMsg { state | equipment = equipment }
+            { state | equipment = equipment }
 
         Nothing ->
-            updateMsg state
+            state
+    )
+        |> State
+        |> updateMsg
 
 
 updateGender : State -> (State -> msg) -> Maybe Gender -> msg
-updateGender state updateMsg maybeGender =
-    case maybeGender of
+updateGender (State state) updateMsg maybeGender =
+    (case maybeGender of
         Just gender ->
-            updateMsg { state | gender = gender }
+            { state | gender = gender }
 
         Nothing ->
-            updateMsg state
+            state
+    )
+        |> State
+        |> updateMsg
 
 
 updateLift : State -> (State -> msg) -> Maybe Lift -> msg
-updateLift state updateMsg maybeLift =
-    case maybeLift of
+updateLift (State state) updateMsg maybeLift =
+    (case maybeLift of
         Just lift ->
-            updateMsg { state | lift = lift }
+            { state | lift = lift }
 
         Nothing ->
-            updateMsg state
+            state
+    )
+        |> State
+        |> updateMsg
 
 
 updateNote : State -> (State -> msg) -> String -> msg
-updateNote state updateMsg note =
-    updateMsg { state | note = note }
+updateNote (State state) updateMsg note =
+    { state | note = note }
+        |> State
+        |> updateMsg
 
 
 type Field
@@ -149,7 +191,7 @@ type Field
 
 
 updateNumeric : State -> (State -> msg) -> Field -> String -> msg
-updateNumeric state updateMsg field val =
+updateNumeric (State state) updateMsg field val =
     (if isStringPositiveFloat val then
         case field of
             BodyMass ->
@@ -167,11 +209,12 @@ updateNumeric state updateMsg field val =
      else
         state
     )
+        |> State
         |> updateMsg
 
 
 updateUnit : State -> (State -> msg) -> Field -> Mass.MassUnit -> msg
-updateUnit state updateMsg field unit =
+updateUnit (State state) updateMsg field unit =
     (case field of
         BodyUnit ->
             { state | bodyUnit = unit }
@@ -182,6 +225,7 @@ updateUnit state updateMsg field unit =
         _ ->
             state
     )
+        |> State
         |> updateMsg
 
 
@@ -201,7 +245,7 @@ view state updateMsg saveMsg =
 
 
 topRow : State -> (State -> msg) -> Html msg
-topRow state updateMsg =
+topRow (State state) updateMsg =
     Form.row [ Row.attrs [ HA.class " mb-0" ] ]
         [ Form.col [ Col.xs12, Col.md6 ]
             [ Form.row []
@@ -214,7 +258,7 @@ topRow state updateMsg =
                         ]
                         state.gender
                       <|
-                        updateGender state updateMsg
+                        updateGender (State state) updateMsg
                     ]
                 ]
             ]
@@ -230,7 +274,7 @@ topRow state updateMsg =
                         ]
                         state.lift
                       <|
-                        updateLift state updateMsg
+                        updateLift (State state) updateMsg
                     ]
                 ]
             ]
@@ -238,13 +282,13 @@ topRow state updateMsg =
 
 
 middleRow : State -> (State -> msg) -> Html msg
-middleRow state updateMsg =
+middleRow (State state) updateMsg =
     let
         updateNumeric_ =
-            updateNumeric state updateMsg
+            updateNumeric (State state) updateMsg
 
         updateUnit_ =
-            updateUnit state updateMsg
+            updateUnit (State state) updateMsg
     in
     Form.row [ Row.attrs [ HA.class " mb-0" ] ]
         [ massInput
@@ -316,14 +360,14 @@ numericInputOpts value toMsg =
 
 
 thirdRow : State -> (State -> msg) -> Html msg
-thirdRow state updateMsg =
+thirdRow (State state) updateMsg =
     Form.row [ Row.attrs [ HA.class " mb-0" ] ]
         [ Form.col [ Col.xs12, Col.md6 ]
             [ Form.row []
                 [ Form.colLabel [ Col.xs4, Col.sm3 ] [ H.text "Note" ]
                 , Form.col [ Col.xs8, Col.sm9 ]
                     [ Input.text
-                        [ Input.onInput <| updateNote state updateMsg
+                        [ Input.onInput <| updateNote (State state) updateMsg
                         , Input.value state.note
                         ]
                     ]
@@ -333,12 +377,12 @@ thirdRow state updateMsg =
 
 
 bottomRow : State -> (State -> msg) -> msg -> Html msg
-bottomRow state updateMsg saveMsg =
+bottomRow (State state) updateMsg saveMsg =
     Form.row [ Row.attrs [ HA.class " mb-0" ] ]
         [ Form.col [ Col.xs12, Col.md6 ]
             [ Form.row []
                 [ Form.colLabel [ Col.xs4, Col.sm3 ] [ H.text "Equipment" ]
-                , updateEquipment state updateMsg
+                , updateEquipment (State state) updateMsg
                     |> typedSelect [ Select.small ]
                         [ Option Raw "raw" "R"
                         , Option SinglePly "single ply" "SP"
@@ -353,7 +397,7 @@ bottomRow state updateMsg saveMsg =
                 [ Form.col [ Col.xs7, Col.sm7 ]
                     [ Form.row []
                         [ Form.colLabel [ Col.xs7, Col.sm5 ] [ H.text "Age" ]
-                        , updateNumeric state updateMsg Age
+                        , updateNumeric (State state) updateMsg Age
                             |> numericInputOpts
                                 state.age
                             |> Input.text
@@ -361,7 +405,7 @@ bottomRow state updateMsg saveMsg =
                             |> Form.col [ Col.xs5, Col.sm7 ]
                         ]
                     ]
-                , ((case toFeat state of
+                , ((case toFeat (State state) of
                         Just _ ->
                             [ Button.success
                             , Button.onClick saveMsg

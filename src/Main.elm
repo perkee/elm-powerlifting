@@ -140,6 +140,7 @@ update msg model =
                     { model
                         | feats = Array.push (SavedFeat feat (Array.length model.feats) model.featKey) model.feats
                         , featKey = model.featKey + 1
+                        , formState = LiftForm.popState model.formState
                     }
 
                 Nothing ->
@@ -184,7 +185,11 @@ update msg model =
 
         EditButtonClicked savedFeat ->
             { model
-                | formState = LiftForm.fromFeat savedFeat.feat
+                | formState =
+                    LiftForm.pushFeat
+                        model.formState
+                        savedFeat.feat
+                , feats = removeAt savedFeat.index model.feats
             }
 
         DeleteModalAnimated visibility ->
