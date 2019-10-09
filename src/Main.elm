@@ -104,10 +104,7 @@ modelToFeat =
 
 
 type Msg
-    = FormUpdated LiftForm.State
-    | SaveButtonClicked Feat
-    | UpdateButtonClicked SavedFeat
-    | DiscardButtonClicked
+    = Form LiftForm.Intent
     | NoteChanged Int String
     | DeleteModalAnimated Modal.Visibility
     | FeatDisplayUpdated ColumnToggles.State
@@ -117,15 +114,6 @@ type Msg
     | DeleteCanceled
     | DeleteConfirmed
     | CardsChanged Cards.State
-
-
-liftFormMessages : LiftForm.Messages Msg
-liftFormMessages =
-    { state = FormUpdated
-    , createRow = SaveButtonClicked
-    , updateRow = UpdateButtonClicked
-    , discard = DiscardButtonClicked
-    }
 
 
 setNoteOnFeat : String -> Feat -> Feat
@@ -147,26 +135,23 @@ update msg model =
         TableDisplayUpdated state ->
             { model | tableState = state }
 
-        FormUpdated state ->
-            { model | formState = state }
+        Form intent ->
+            case intent of
+                LiftForm.State state ->
+                    { model | formState = state }
 
-        SaveButtonClicked feat ->
-            { model
-                | feats = Dict.insert model.featKey (SavedFeat model.featKey feat) model.feats
-                , featKey = model.featKey + 1
-                , formState = LiftForm.popState model.formState
-            }
+                LiftForm.Update state savedFeat ->
+                    { model
+                        | feats = Dict.insert savedFeat.key savedFeat model.feats
+                        , formState = state
+                    }
 
-        UpdateButtonClicked savedFeat ->
-            { model
-                | feats = Dict.insert savedFeat.key savedFeat model.feats
-                , formState = LiftForm.popState model.formState
-            }
-
-        DiscardButtonClicked ->
-            { model
-                | formState = LiftForm.popState model.formState
-            }
+                LiftForm.Create state feat ->
+                    { model
+                        | feats = Dict.insert model.featKey (SavedFeat model.featKey feat) model.feats
+                        , featKey = model.featKey + 1
+                        , formState = state
+                    }
 
         NoteChanged key note ->
             { model
@@ -229,7 +214,7 @@ view : Model -> Html Msg
 view model =
     [ Grid.container []
         ([ h1 [] [ text "Every Score Calculator" ]
-         , LiftForm.view model.formState liftFormMessages
+         , LiftForm.view model.formState Form
          , h2 [] [ text "Current Score" ]
          , Grid.row [ Row.attrs [ class "current-table" ] ]
             [ Grid.col [ Col.xs12 ]

@@ -1,5 +1,5 @@
 module LiftForm exposing
-    ( Messages
+    ( Intent(..)
     , State
     , fieldsToFeat
     , init
@@ -58,10 +58,9 @@ type Result
     | Incomplete
 
 
-type Outcome
-    = Update SavedFeat
-    | Create Feat
-    | Discard
+type Intent
+    = Update State SavedFeat
+    | Create State Feat
     | State State
 
 
@@ -328,26 +327,22 @@ updateUnit state updateMsg field unit =
         |> updateMsg
 
 
-type alias Messages msg =
-    { state : State -> msg
-    , createRow : Feat -> msg
-    , updateRow : SavedFeat -> msg
-    , discard : msg
-    }
-
-
 
 -- View
 
 
-view : State -> Messages msg -> Html msg
-view state messages =
+view : State -> (Intent -> msg) -> Html msg
+view state msg =
+    let
+        stateMsg =
+            State >> msg
+    in
     Form.form []
         [ H.h2 [] [ H.text "Lift input" ]
-        , topRow state messages.state
-        , middleRow state messages.state
-        , thirdRow state messages.state
-        , bottomRow state messages
+        , topRow state stateMsg
+        , middleRow state stateMsg
+        , thirdRow state stateMsg
+        , bottomRow state msg
         ]
 
 
@@ -494,17 +489,20 @@ thirdRow state updateMsg =
         ]
 
 
-bottomRow : State -> Messages msg -> Html msg
-bottomRow state msgs =
+bottomRow : State -> (Intent -> msg) -> Html msg
+bottomRow state msg =
     let
         fields =
             toFieldsState state
+
+        stateMsg =
+            State >> msg
     in
     Form.row [ Row.attrs [ HA.class " mb-0" ] ]
         [ Form.col [ Col.xs12, Col.md6 ]
             [ Form.row []
                 [ Form.colLabel [ Col.xs4, Col.sm3 ] [ H.text "Equipment" ]
-                , updateEquipment state msgs.state
+                , updateEquipment state stateMsg
                     |> typedSelect [ Select.small ]
                         [ Option Raw "raw" "R"
                         , Option SinglePly "single ply" "SP"
@@ -519,7 +517,7 @@ bottomRow state msgs =
                 [ Form.col [ Col.xs7, Col.sm7 ]
                     [ Form.row []
                         [ Form.colLabel [ Col.xs7, Col.sm5 ] [ H.text "Age" ]
-                        , updateNumeric state msgs.state Age
+                        , updateNumeric state stateMsg Age
                             |> numericInputOpts
                                 fields.age
                             |> Input.text
@@ -533,7 +531,10 @@ bottomRow state msgs =
                             [ Button.block
                             , Button.small
                             , Button.outlineDanger
-                            , Button.onClick <| msgs.discard
+                            , state
+                                |> popState
+                                |> stateMsg
+                                |> Button.onClick
                             ]
                             [ H.text "Discard"
                             ]
@@ -541,7 +542,9 @@ bottomRow state msgs =
                             [ Button.block
                             , Button.small
                             , Button.success
-                            , Button.onClick <| msgs.updateRow savedFeat
+                            , Update (popState state) savedFeat
+                                |> msg
+                                |> Button.onClick
                             ]
                             [ H.text "Update"
                             ]
@@ -552,7 +555,9 @@ bottomRow state msgs =
                             [ Button.block
                             , Button.small
                             , Button.success
-                            , Button.onClick <| msgs.createRow feat
+                            , Create state feat
+                                |> msg
+                                |> Button.onClick
                             ]
                             [ H.text "Add to table"
                             ]
