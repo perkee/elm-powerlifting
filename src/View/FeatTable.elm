@@ -105,7 +105,7 @@ savedFeatToRow :
     -> SavedFeat
     -> ( String, Html.Styled.Html msg )
 savedFeatToRow cardMsgs cols maxes savedFeat =
-    [ [ .index >> String.fromInt >> text >> classToHtmlToStyledCell "body-cell--index"
+    [ [ .key >> String.fromInt >> text >> classToHtmlToStyledCell "body-cell--index"
       , savedFeatToNoteInput "table" cardMsgs
             >> classToHtmlToStyledCell "body-cell--note"
       ]
@@ -122,7 +122,7 @@ savedFeatToRow cardMsgs cols maxes savedFeat =
             , HSA.css
                 [ Css.marginRight <| Css.rem 0.5
                 ]
-            , cardMsgs.deleteButtonClicked savedFeat.index |> HE.onClick
+            , cardMsgs.deleteButtonClicked savedFeat.key |> HE.onClick
             ]
             [ Renderer.styledIcon "trash" []
             ]
@@ -193,6 +193,6 @@ savedFeatToNoteInput classSuffix cardMsgs savedFeat =
     Input.text
         [ Input.placeholder "Note"
         , Input.value <| .note <| savedFeat.feat
-        , Input.onInput <| cardMsgs.noteChanged savedFeat.index
+        , Input.onInput <| cardMsgs.noteChanged savedFeat.key
         , Input.attrs [ HA.class <| "note-input note-input--" ++ classSuffix ]
         ]

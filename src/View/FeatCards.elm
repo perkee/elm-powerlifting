@@ -117,7 +117,7 @@ savedFeatToCard cols feats cardMsgs savedFeat =
         [ Card.attrs []
         ]
         |> Card.headerH4 []
-            [ text <| String.fromInt <| savedFeat.index
+            [ text <| String.fromInt <| savedFeat.key
             , Button.button
                 [ Button.outlineSecondary
                 , cardMsgs.editButtonClicked savedFeat |> Button.onClick
@@ -130,7 +130,7 @@ savedFeatToCard cols feats cardMsgs savedFeat =
                 ]
             , Button.button
                 [ Button.outlineDanger
-                , cardMsgs.deleteButtonClicked savedFeat.index |> Button.onClick
+                , cardMsgs.deleteButtonClicked savedFeat.key |> Button.onClick
                 , Button.attrs
                     [ HA.class "card-delete"
                     , HA.title "Delete this"
@@ -150,6 +150,6 @@ savedFeatToNoteInput classSuffix savedFeat noteChangedMsg =
     Input.text
         [ Input.placeholder "Note"
         , Input.value <| .note <| savedFeat.feat
-        , Input.onInput <| noteChangedMsg savedFeat.index
+        , Input.onInput <| noteChangedMsg savedFeat.key
         , Input.attrs [ HA.class <| "note-input note-input--" ++ classSuffix ]
         ]

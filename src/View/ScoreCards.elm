@@ -228,7 +228,7 @@ savedFeatToRow noteChangedMsg ( col, sortCol ) shouldShowLift liftCardsUnit mayb
            , Html.Styled.th
                 [ HSA.class "index"
                 ]
-                [ savedFeat.index |> String.fromInt |> Html.Styled.text ]
+                [ savedFeat.key |> String.fromInt |> Html.Styled.text ]
            )
          , ( key ++ "note", liftCardCell "note" [ savedFeatToNoteInput "lift-card" savedFeat noteChangedMsg |> Html.Styled.fromUnstyled ] )
          ]
@@ -293,7 +293,7 @@ savedFeatToNoteInput classSuffix savedFeat noteChangedMsg =
     Input.text
         [ Input.placeholder "Note"
         , Input.value <| .note <| savedFeat.feat
-        , Input.onInput <| noteChangedMsg savedFeat.index
+        , Input.onInput <| noteChangedMsg savedFeat.key
         , Input.attrs [ class <| "note-input note-input--" ++ classSuffix ]
         ]
 

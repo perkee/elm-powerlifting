@@ -18,9 +18,8 @@ import SortColumn
 
 
 type alias SavedFeat =
-    { feat : Feat
-    , index : Int
-    , key : Int
+    { key : Int
+    , feat : Feat
     }
 
 
@@ -74,4 +73,4 @@ sortColumnToGetter col =
             .feat >> featToRecord >> .mcCulloch
 
         SortColumn.Index ->
-            .index >> toFloat >> Just
+            .key >> toFloat >> Just

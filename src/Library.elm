@@ -17,6 +17,7 @@ module Library exposing
     , thrush
     , truncate
     , updateArrayAt
+    , updateListAt
     )
 
 import Array exposing (Array)
@@ -31,6 +32,18 @@ thrush input fn =
 pam : a -> List (a -> b) -> List b
 pam arg =
     List.map (thrush arg)
+
+
+updateListAt : Int -> (a -> a) -> List a -> List a
+updateListAt index updater =
+    List.indexedMap
+        (\i a ->
+            if i == index then
+                updater a
+
+            else
+                a
+        )
 
 
 updateArrayAt : Int -> (a -> a) -> Array a -> Array a
