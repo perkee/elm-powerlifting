@@ -24,7 +24,6 @@ import Html exposing (Html, div, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
 import Html.Events as HE
 import Html.Styled
-import Library as L exposing (SortOrder(..))
 import LiftForm
 import SavedFeat exposing (SavedFeat)
 import View.Cards as Cards
@@ -77,7 +76,6 @@ init nodeEnv =
     ( { formState = LiftForm.init
       , feats =
             if nodeEnv == "development" then
-                --Array.empty
                 someFeats
 
             else

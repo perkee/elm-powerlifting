@@ -68,10 +68,6 @@ type Intent
 
 toResult : State -> Result
 toResult state =
-    let
-        fields =
-            toFieldsState state
-    in
     case ( toFeat state, state ) of
         ( Nothing, _ ) ->
             Incomplete
@@ -129,7 +125,7 @@ popState state =
         UpdatingState s ->
             s.pushedState
 
-        NormalState s ->
+        NormalState _ ->
             state
 
 
