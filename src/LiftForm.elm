@@ -35,6 +35,7 @@ type State
         { pushedState : State
         , key : Int
         , fields : FieldsState
+        , backup : SavedFeat
         }
     | NormalState FieldsState
 
@@ -53,7 +54,8 @@ type alias FieldsState =
 
 
 type Result
-    = UpdateSavedFeat SavedFeat
+    = UpdateSavedFeat SavedFeat State
+    | CannotUpdateSavedFeat SavedFeat
     | NewFeat Feat
     | Incomplete
 
@@ -78,7 +80,17 @@ toResult state =
             NewFeat feat
 
         ( Just feat, UpdatingState s ) ->
-            UpdateSavedFeat <| SavedFeat.SavedFeat s.key feat
+            let
+                savedFeat =
+                    SavedFeat.SavedFeat s.key feat
+            in
+            if s.backup == savedFeat then
+                CannotUpdateSavedFeat s.backup
+
+            else
+                UpdateSavedFeat savedFeat <|
+                    UpdatingState
+                        { s | fields = fromFeat s.backup.feat }
 
 
 toFieldsState : State -> FieldsState
@@ -107,6 +119,7 @@ pushSavedFeat oldState savedFeat =
         { pushedState = oldState
         , key = savedFeat.key
         , fields = fromFeat savedFeat.feat
+        , backup = savedFeat
         }
 
 
@@ -526,17 +539,31 @@ bottomRow state msg =
                         ]
                     ]
                 , (case toResult state of
-                    UpdateSavedFeat savedFeat ->
+                    CannotUpdateSavedFeat savedFeat ->
                         [ Button.button
                             [ Button.block
                             , Button.small
                             , Button.outlineDanger
-                            , state
-                                |> popState
+                            , Update
+                                (popState state)
+                                savedFeat
+                                |> msg
+                                |> Button.onClick
+                            ]
+                            [ H.text "Cancel update"
+                            ]
+                        ]
+
+                    UpdateSavedFeat savedFeat backupState ->
+                        [ Button.button
+                            [ Button.block
+                            , Button.small
+                            , Button.outlineDanger
+                            , backupState
                                 |> stateMsg
                                 |> Button.onClick
                             ]
-                            [ H.text "Discard"
+                            [ H.text "Reset Changes"
                             ]
                         , Button.button
                             [ Button.block

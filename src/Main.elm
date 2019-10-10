@@ -189,6 +189,7 @@ update msg model =
                     LiftForm.pushSavedFeat
                         model.formState
                         savedFeat
+                , feats = Dict.remove savedFeat.key model.feats
             }
 
         DeleteModalAnimated visibility ->
