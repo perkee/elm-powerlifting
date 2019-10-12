@@ -10,11 +10,13 @@ module Library exposing
     , maybeSnocnu
     , pam
     , phi
+    , pipe2
     , removeAt
     , replace
     , snocnu
     , stringToAttr
     , thrush
+    , toDouble
     , truncate
     , updateArrayAt
     , updateListAt
@@ -169,3 +171,13 @@ compose2 aToB mToN binaryFn a m =
 compose2same : (a -> b) -> (b -> b -> x) -> (a -> a -> x)
 compose2same aToB binaryFn =
     compose2 aToB aToB binaryFn
+
+
+pipe2 : (a -> b -> c) -> (c -> d) -> a -> b -> d
+pipe2 abc cd a =
+    abc a >> cd
+
+
+toDouble : a -> ( a, a )
+toDouble a =
+    ( a, a )

@@ -2,11 +2,13 @@ module SavedFeat exposing
     ( SavedFeat
     , compare
     , maxRecord
+    , serialize
     , sortColumnToGetter
     )
 
 import Data.Sort as Sort
 import Feat exposing (Feat)
+import Json.Encode as E
 import Library
 import Mass
 import Scores
@@ -21,6 +23,11 @@ type alias SavedFeat =
     { key : Int
     , feat : Feat
     }
+
+
+serialize : SavedFeat -> E.Value
+serialize =
+    .feat >> Feat.serialize
 
 
 maxRecord : List SavedFeat -> Maybe Record

@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 -- (Html, button, div, text, input, option, select)
 -- imports used
@@ -19,12 +19,16 @@ import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
 import Dict exposing (Dict)
-import Feat exposing (Feat, testFeats)
+import Feat exposing (Feat, decode, testFeats)
 import Html exposing (Html, div, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
 import Html.Events as HE
 import Html.Styled
+import Json.Decode as D
+import Json.Encode as E
+import Library as L
 import LiftForm
+import Result
 import SavedFeat exposing (SavedFeat)
 import View.Cards as Cards
 import View.ColumnToggles as ColumnToggles
@@ -33,9 +37,46 @@ import View.FeatCards as FeatCards
 import View.FeatTable as FeatTable
 
 
-main : Platform.Program String Model Msg
+port cache : E.Value -> Cmd msg
+
+
+port log : E.Value -> Cmd msg
+
+
+serialize : Model -> E.Value
+serialize m =
+    E.object
+        [ ( "feats", E.list SavedFeat.serialize <| Dict.values m.feats )
+        ]
+
+
+serializeParseError : D.Error -> E.Value
+serializeParseError e =
+    E.object
+        [ ( "issue", E.string "decode JSON" )
+        , ( "level", E.string "error" )
+        , ( "error", E.string <| D.errorToString e )
+        ]
+
+
+featsToDict : List Feat -> Dict Int SavedFeat
+featsToDict =
+    List.indexedMap (L.pipe2 SavedFeat (L.toDouble >> Tuple.mapBoth .key identity)) >> Dict.fromList
+
+
+featsDecoder : D.Decoder (List Feat)
+featsDecoder =
+    D.field "feats" (D.list Feat.decode)
+
+
+type alias Flags =
+    { cache : String
+    , env : String
+    }
+
+
+main : Platform.Program Flags Model Msg
 main =
-    -- Flags is only one field, so type is String.
     Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
 
@@ -62,37 +103,47 @@ type alias Model =
 
 someFeats : Dict Int SavedFeat
 someFeats =
-    testFeats
-        |> List.map2 (\key feat -> ( key, SavedFeat key feat ))
-            [ 1
-            , 2
-            , 3
-            ]
-        |> Dict.fromList
+    featsToDict testFeats
 
 
-init : String -> ( Model, Cmd Msg )
-init nodeEnv =
-    ( { formState = LiftForm.init
-      , feats =
-            if nodeEnv == "development" then
+initFeats : Flags -> ( Dict Int SavedFeat, Cmd Msg )
+initFeats flags =
+    case
+        D.decodeString featsDecoder flags.cache
+    of
+        Result.Ok loadedFeats ->
+            ( featsToDict loadedFeats, Cmd.none )
+
+        Result.Err error ->
+            ( if flags.env == "development" then
                 someFeats
 
-            else
+              else
                 Dict.empty
-      , featKey =
-            if nodeEnv == "development" then
-                4
+            , serializeParseError error |> log
+            )
 
-            else
-                0
+
+
+--Dict.empty
+
+
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    let
+        ( feats, cmd ) =
+            initFeats flags
+    in
+    ( { formState = LiftForm.init
+      , feats = feats
+      , featKey = Dict.size feats
       , featState = ColumnToggles.init initCurrentColumns
       , tableState = ColumnToggles.init initTableColumns
       , deleteConfirmVisibility = Modal.hidden
       , keyToDelete = Nothing
       , cardsState = Cards.init Sort.init
       }
-    , Cmd.none
+    , cmd
     )
 
 
@@ -196,7 +247,7 @@ update msg model =
 
         CardsChanged cardsState ->
             { model | cardsState = cardsState }
-    , Cmd.none
+    , model |> serialize |> cache
     )
 
 
