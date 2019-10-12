@@ -10,7 +10,7 @@ var app = Elm.Main.init({
   node: document.getElementById('main'),
   flags: {
     env: process.env.NODE_ENV, // magic compile-time constant from Parcel; not a real variable!
-    cache: localStorage.getItem('cache')
+    cache: localStorage.getItem('cache') || ''
   }
 });
 
