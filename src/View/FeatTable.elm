@@ -19,7 +19,7 @@ import Html.Styled.Events as HE
 import Html.Styled.Keyed
 import Library exposing (thrush)
 import Renderer
-import SavedFeat exposing (SavedFeat)
+import SavedFeat exposing (IndexedSavedFeat, SavedFeat)
 import Scores
     exposing
         ( Record
@@ -32,10 +32,10 @@ view :
     ColumnToggles.State
     -> Cards.State
     -> CardMsgs msg
-    -> List SavedFeat
+    -> List IndexedSavedFeat
     -> Maybe (Html.Styled.Html msg)
-view tableState cardsState cardMsgs savedFeats =
-    savedFeats
+view tableState cardsState cardMsgs indexedSavedFeats =
+    indexedSavedFeats
         |> List.sortWith
             (SavedFeat.compare
                 cardsState.sort
@@ -50,17 +50,18 @@ savedFeatsToTable :
     Cards.State
     -> CardMsgs msg
     -> List Column
-    -> List SavedFeat
+    -> List IndexedSavedFeat
     -> Maybe (Html.Styled.Html msg)
-savedFeatsToTable cardsState cardMsgs cols savedFeats =
-    savedFeats
+savedFeatsToTable cardsState cardMsgs cols indexedSavedFeats =
+    indexedSavedFeats
+        |> List.map .savedFeat
         |> SavedFeat.maxRecord
         |> Maybe.map
-            (savedFeatToRow
+            (row
                 cardMsgs
                 cols
                 >> List.map
-                >> thrush savedFeats
+                >> thrush indexedSavedFeats
                 >> ([ [ ( "Index"
                         , Renderer.styledIcon
                             (case ( cardsState.sort.sortColumn, cardsState.sort.sortOrder ) of
@@ -98,19 +99,20 @@ savedFeatsToTable cardsState cardMsgs cols savedFeats =
             )
 
 
-savedFeatToRow :
+row :
     CardMsgs msg
     -> List Column
     -> Record
-    -> SavedFeat
+    -> IndexedSavedFeat
     -> ( String, Html.Styled.Html msg )
-savedFeatToRow cardMsgs cols maxes savedFeat =
-    [ [ .key >> String.fromInt >> text >> classToHtmlToStyledCell "body-cell--index"
-      , savedFeatToNoteInput "table" cardMsgs
+row cardMsgs cols maxes indexedSavedFeat =
+    [ [ .index >> String.fromInt >> text >> classToHtmlToStyledCell "body-cell--index"
+      , .savedFeat
+            >> savedFeatToNoteInput "table" cardMsgs
             >> classToHtmlToStyledCell "body-cell--note"
       ]
-        |> List.map (thrush savedFeat)
-    , (savedFeat.feat
+        |> List.map (thrush indexedSavedFeat)
+    , (indexedSavedFeat.savedFeat.feat
         |> Scores.featToRecord
         |> thrush
         |> List.map
@@ -122,13 +124,13 @@ savedFeatToRow cardMsgs cols maxes savedFeat =
             , HSA.css
                 [ Css.marginRight <| Css.rem 0.5
                 ]
-            , cardMsgs.deleteButtonClicked savedFeat.key |> HE.onClick
+            , cardMsgs.deleteButtonClicked indexedSavedFeat.savedFeat.key |> HE.onClick
             ]
             [ Renderer.styledIcon "trash" []
             ]
         , Html.Styled.button
             [ HSA.class "btn btn-outline-secondary"
-            , cardMsgs.editButtonClicked savedFeat |> HE.onClick
+            , cardMsgs.editButtonClicked indexedSavedFeat.savedFeat |> HE.onClick
             ]
             [ Renderer.styledIcon "edit" []
             ]
@@ -143,7 +145,7 @@ savedFeatToRow cardMsgs cols maxes savedFeat =
     ]
         |> List.concat
         |> Html.Styled.Keyed.node "tr" []
-        |> (\row -> ( savedFeat.key |> String.fromInt, row ))
+        |> (\r -> ( indexedSavedFeat.savedFeat.key |> String.fromInt, r ))
 
 
 classToHtmlToStyledCell : String -> Html msg -> ( String, Html.Styled.Html msg )

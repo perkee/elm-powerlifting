@@ -17,9 +17,27 @@ import Scores
         )
 
 
+keepColumn : Column -> Bool
+keepColumn c =
+    case c of
+        Column.Gender ->
+            False
+
+        Column.Equipment ->
+            False
+
+        Column.Lift ->
+            False
+
+        _ ->
+            True
+
+
 view : List SavedFeat -> List Column -> Feat -> H.Html msg
 view savedFeats cols feat =
-    List.map (featToColumnToRow savedFeats feat) cols
+    List.map
+        (featToColumnToRow savedFeats feat)
+        (List.filter keepColumn cols)
         |> rowsToHeadedTable
             [ ( "Label", H.text "" )
             , ( "Value", H.text "" )

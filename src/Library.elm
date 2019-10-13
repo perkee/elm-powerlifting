@@ -9,6 +9,7 @@ module Library exposing
     , maybeListMember
     , maybeSnocnu
     , pam
+    , pct
     , phi
     , pipe2
     , removeAt
@@ -23,6 +24,7 @@ module Library exposing
     )
 
 import Array exposing (Array)
+import Css
 import Regex
 
 
@@ -181,3 +183,8 @@ pipe2 abc cd a =
 toDouble : a -> ( a, a )
 toDouble a =
     ( a, a )
+
+
+pct : Float -> Float -> Css.Pct
+pct val max =
+    val / max * 100 |> Css.pct

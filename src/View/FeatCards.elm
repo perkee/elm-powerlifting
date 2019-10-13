@@ -18,7 +18,7 @@ import Html.Attributes as HA
 import Html.Styled
 import Library exposing (thrush)
 import Renderer exposing (icon)
-import SavedFeat exposing (SavedFeat)
+import SavedFeat exposing (IndexedSavedFeat, SavedFeat)
 import SortColumn exposing (SortColumn(..))
 import View.CurrentTable as CurrentTable
 
@@ -43,7 +43,7 @@ colDropdownFn cardsState cardMsgs =
         |> thrush
 
 
-view : List SavedFeat -> ColumnToggles.State -> Cards.State -> CardMsgs msg -> List (Html msg)
+view : List IndexedSavedFeat -> ColumnToggles.State -> Cards.State -> CardMsgs msg -> List (Html msg)
 view savedFeats tableState cardsState cardMsgs =
     [ Grid.row
         [ Row.attrs
@@ -95,7 +95,7 @@ view savedFeats tableState cardsState cardMsgs =
     , Grid.row []
         [ savedFeats
             |> List.sortWith (SavedFeat.compare cardsState.sort)
-            |> savedFeatsToCards
+            |> cards
                 (ColumnToggles.columns tableState)
                 cardMsgs
             |> Card.keyedColumns
@@ -105,22 +105,22 @@ view savedFeats tableState cardsState cardMsgs =
     ]
 
 
-savedFeatsToCards : List Column -> CardMsgs msg -> List SavedFeat -> List ( String, Card.Config msg )
-savedFeatsToCards cols cardMsgs savedFeats =
-    savedFeats |> List.map (savedFeatToCard cols savedFeats cardMsgs)
+cards : List Column -> CardMsgs msg -> List IndexedSavedFeat -> List ( String, Card.Config msg )
+cards cols cardMsgs indexedSavedFeats =
+    indexedSavedFeats |> List.map (card cols (List.map .savedFeat indexedSavedFeats) cardMsgs)
 
 
-savedFeatToCard : List Column -> List SavedFeat -> CardMsgs msg -> SavedFeat -> ( String, Card.Config msg )
-savedFeatToCard cols feats cardMsgs savedFeat =
-    ( savedFeat.key |> String.fromInt
+card : List Column -> List SavedFeat -> CardMsgs msg -> IndexedSavedFeat -> ( String, Card.Config msg )
+card cols feats cardMsgs indexedSavedFeat =
+    ( indexedSavedFeat.savedFeat.key |> String.fromInt
     , Card.config
         [ Card.attrs []
         ]
         |> Card.headerH4 []
-            [ text <| String.fromInt <| savedFeat.key
+            [ text <| String.fromInt <| indexedSavedFeat.index
             , Button.button
                 [ Button.outlineSecondary
-                , cardMsgs.editButtonClicked savedFeat |> Button.onClick
+                , cardMsgs.editButtonClicked indexedSavedFeat.savedFeat |> Button.onClick
                 , Button.attrs
                     [ HA.class "card-edit"
                     , HA.title "Edit this"
@@ -130,7 +130,7 @@ savedFeatToCard cols feats cardMsgs savedFeat =
                 ]
             , Button.button
                 [ Button.outlineDanger
-                , cardMsgs.deleteButtonClicked savedFeat.key |> Button.onClick
+                , cardMsgs.deleteButtonClicked indexedSavedFeat.savedFeat.key |> Button.onClick
                 , Button.attrs
                     [ HA.class "card-delete"
                     , HA.title "Delete this"
@@ -138,10 +138,10 @@ savedFeatToCard cols feats cardMsgs savedFeat =
                 ]
                 [ icon "trash" []
                 ]
-            , savedFeatToNoteInput "card" savedFeat cardMsgs.noteChanged
+            , savedFeatToNoteInput "card" indexedSavedFeat.savedFeat cardMsgs.noteChanged
             ]
         |> Card.block []
-            [ Block.custom <| Html.Styled.toUnstyled <| CurrentTable.view feats cols savedFeat.feat ]
+            [ Block.custom <| Html.Styled.toUnstyled <| CurrentTable.view feats cols indexedSavedFeat.savedFeat.feat ]
     )
 
 

@@ -177,7 +177,7 @@ setNoteOnSavedFeat note savedFeat =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    ( case msg of
+    (case msg of
         FeatDisplayUpdated state ->
             { model | featState = state }
 
@@ -247,8 +247,9 @@ update msg model =
 
         CardsChanged cardsState ->
             { model | cardsState = cardsState }
-    , model |> serialize |> cache
     )
+        |> L.toDouble
+        |> Tuple.mapSecond (serialize >> cache)
 
 
 cardMsgs : FeatCards.CardMsgs Msg
@@ -297,14 +298,14 @@ view model =
                 |> List.singleton
                 |> Grid.row [ Row.attrs [ style "margin-bottom" ".75rem" ] ]
          ]
-            ++ Cards.view (Dict.values model.feats)
+            ++ Cards.view (SavedFeat.toList model.feats)
                 model.tableState
                 model.cardsState
                 cardMsgs
         )
     , case
         model.feats
-            |> Dict.values
+            |> SavedFeat.toList
             |> FeatTable.view
                 model.tableState
                 model.cardsState

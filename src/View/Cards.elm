@@ -7,13 +7,13 @@ import Html as H exposing (Html)
 import Html.Styled as HS
 import Html.Styled.Attributes as HSA
 import Html.Styled.Events as HE
-import SavedFeat exposing (SavedFeat)
+import SavedFeat exposing (IndexedSavedFeat)
 import View.FeatCards as FeatCards
 import View.ScoreCards as ScoreCards
 
 
 view :
-    List SavedFeat
+    List IndexedSavedFeat
     -> ColumnToggles.State
     -> State
     -> FeatCards.CardMsgs msg
@@ -55,7 +55,7 @@ viewHeadline cardsState cardMsgs =
 
 
 viewCards :
-    List SavedFeat
+    List IndexedSavedFeat
     -> ColumnToggles.State
     -> State
     -> FeatCards.CardMsgs msg

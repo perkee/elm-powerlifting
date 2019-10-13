@@ -1,12 +1,15 @@
 module SavedFeat exposing
-    ( SavedFeat
+    ( IndexedSavedFeat
+    , SavedFeat
     , compare
     , maxRecord
     , serialize
     , sortColumnToGetter
+    , toList
     )
 
 import Data.Sort as Sort
+import Dict exposing (Dict)
 import Feat exposing (Feat)
 import Json.Encode as E
 import Library
@@ -25,6 +28,17 @@ type alias SavedFeat =
     }
 
 
+type alias IndexedSavedFeat =
+    { index : Int
+    , savedFeat : SavedFeat
+    }
+
+
+toList : Dict Int SavedFeat -> List IndexedSavedFeat
+toList =
+    Dict.values >> List.indexedMap ((+) 1 >> IndexedSavedFeat)
+
+
 serialize : SavedFeat -> E.Value
 serialize =
     .feat >> Feat.serialize
@@ -35,7 +49,7 @@ maxRecord =
     List.map (.feat >> featToRecord) >> Scores.maxRecord
 
 
-compare : Sort.State -> SavedFeat -> SavedFeat -> Order
+compare : Sort.State -> IndexedSavedFeat -> IndexedSavedFeat -> Order
 compare state =
     let
         toDefault =
@@ -48,7 +62,7 @@ compare state =
                         -1 / 0
     in
     Library.compose2same
-        (sortColumnToGetter state.sortColumn >> toDefault)
+        (.savedFeat >> sortColumnToGetter state.sortColumn >> toDefault)
         (Library.compareByOrder state.sortOrder)
 
 
@@ -80,4 +94,5 @@ sortColumnToGetter col =
             .feat >> featToRecord >> .mcCulloch
 
         SortColumn.Index ->
+            -- same as sorting by actual index since keys are monotonic
             .key >> toFloat >> Just
