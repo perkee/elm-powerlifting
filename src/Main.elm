@@ -47,6 +47,7 @@ serialize : Model -> E.Value
 serialize m =
     E.object
         [ ( "feats", E.list SavedFeat.serialize <| Dict.values m.feats )
+        , ( "version", E.int 0 )
         ]
 
 
@@ -66,7 +67,21 @@ featsToDict =
 
 featsDecoder : D.Decoder (List Feat)
 featsDecoder =
-    D.field "feats" (D.list Feat.decode)
+    D.maybe (D.field "version" D.int)
+        |> D.andThen versionedFeatsDecoder
+
+
+versionedFeatsDecoder : Maybe Int -> D.Decoder (List Feat)
+versionedFeatsDecoder maybeVersion =
+    case Maybe.withDefault 0 maybeVersion of
+        0 ->
+            D.field "feats" (D.list Feat.decode)
+
+        n ->
+            D.fail <|
+                "Trying to decode info, but version "
+                    ++ String.fromInt n
+                    ++ " is not supported."
 
 
 type alias Flags =
