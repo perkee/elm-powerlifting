@@ -1,20 +1,63 @@
 {
-  "scripts": {
-    "dev": "parcel index.html --open",
-    "build-local": "rm -r dist; parcel build index.html --detailed-report --no-source-maps --public-url='/powerlifting' && ls -l dist && echo \"compiled elm-powerlifting @ $(git rev-parse --short HEAD)\" && echo \"compiled elm-powerlifting @ $(git rev-parse --short HEAD)\" | pbcopy",
-    "build": "rm -r dist; parcel build index.html --detailed-report --no-source-maps --public-url='/'",
-    "analyze": "elm-analyse --serve --port=1235 --open"
-  },
+  "name": "elm-powerlifting",
+  "version": "0.0.0",
+  "description": "Powerlifting score calculator",
+  "author": "Alexander Perkins",
+  "contributors": [
+    {
+      "name": "Cédric Soulas",
+      "email": "soulascedric@gmail.com",
+      "url": "https://github.com/cedricss/elm-batteries"
+    }
+  ],
+  "private": false,
+  "main": "index.js",
   "dependencies": {
+    "angry-purple-tiger": "^1.0.5",
     "bootstrap": "^4.3.1",
-    "elm": "^0.19.0-no-deps",
     "font-awesome": "^4.7.0",
-    "lodash": "^4.17.13",
-    "parcel-bundler": "^1.12.3",
-    "set-value": "^2.0.1"
+    "jsonschema": "^1.2.4",
+    "mongodb": "^3.3.3",
+    "object-hash": "^2.0.0",
+    "ramda": "^0.26.1"
   },
   "devDependencies": {
+    "@fullhuman/postcss-purgecss": "^1.2.0",
+    "autoprefixer": "^9.6.1",
+    "cypress": "^3.4.0",
+    "elm": "0.19.1",
     "elm-hot": "^1.0.1",
-    "node-elm-compiler": "^5.0.3"
-  }
+    "netlify-cli": "^2.11.23",
+    "node-elm-compiler": "^5.0.3",
+    "parcel-bundler": "^1.12.3",
+    "sass": "^1.22.4",
+    "tailwindcss": "^1.0.5"
+  },
+  "scripts": {
+    "dev": "netlify dev",
+    "dev:live": "netlify dev --live",
+    "deploy": "npm run build && netlify deploy",
+    "deploy:prod": "netlify deploy --prod",
+    "start": "npm run build-img && parcel index.html",
+    "build-img": "parcel build img/*",
+    "build": "npm run build-img && parcel build index.html --no-cache",
+    "test": "elm-test",
+    "test:watch": "elm-test --watch",
+    "cypress": "cypress run",
+    "cypress:open": "cypress open",
+    "analyze": "elm-analyse --serve --port=1235 --open"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/perkee/elm-powerlifting.git"
+  },
+  "keywords": [
+    "elm",
+    "parcel",
+    "cypress",
+    "netlify",
+    "serverless",
+    "powerlifting",
+    "strength sports"
+  ]
 }

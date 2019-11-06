@@ -1,5 +1,10 @@
-elm-stuff
-node_modules
-compiled
 .cache
 dist
+.DS_Store
+elm-stuff
+node_modules/
+npm-debug.log*
+.netlify
+repl-temp-*
+cypress/screenshots/*
+cypress/videos/*

@@ -4,7 +4,36 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>Powerlifting score calculator by @perkee</title><!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"> -->
+  <title>Powerlifting score calculator by @perkee</title>
+  <meta
+    name="description"
+    content="Multiple score powerlifiting calculator"
+  />
+  <meta
+    property="og:url"
+    content="https://plcalc.com"
+  />
+  <meta property="og:title" content="Powerlifting Calculator" />
+  <meta property="og:type" content="website" />
+  <meta
+    property="og:description"
+    content="Multiple score powerlifiting calculator"
+  />
+  <meta property="og:image" content="/img/content_preview.jpg" />
+  <meta property="og:site_name" content="Powerlifting Calculator" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@perkee" />
+  <meta name="twitter:creator" content="@perkee" />
+  <meta name="twitter:image:alt" content="Powerlifitng Calculator demo depicting inputs and outputs" />
+
+  <script>
+    var key = localStorage.getItem('key');
+    if (key && window.location.pathname !== key) {
+      window.location.pathname = key;
+    }
+  </script>
+  <script src="https://browser.sentry-cdn.com/5.7.0/bundle.min.js" integrity="sha384-pHnCJ3bbzJ+LzI19wAdyBvGAjJ5vNAC59uxeRpw5WpgkSlZUQstEADxkSbBnI95q" crossorigin="anonymous"></script>
+  <script async src="./index.js"></script>
   <link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css" integrity="sha256-UzFD2WYH2U1dQpKDjjZK72VtPeWP50NoJjd26rnAdUI=" crossorigin="anonymous" />
   <!-- <link rel="stylesheet" href="./node_modules/font-awesome/css/font-awesome.min.css"> -->
@@ -120,8 +149,5 @@
 </head>
 <body>
   <div id="main"></div>
-  <script src="https://browser.sentry-cdn.com/5.7.0/bundle.min.js" integrity="sha384-pHnCJ3bbzJ+LzI19wAdyBvGAjJ5vNAC59uxeRpw5WpgkSlZUQstEADxkSbBnI95q" crossorigin="anonymous">
-  </script>
-  <script src="./index.js"></script>
 </body>
 </html>
