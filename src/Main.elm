@@ -19,6 +19,7 @@ import Column
 import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
+import Debounce exposing (Debounce)
 import Dict exposing (Dict)
 import Feat exposing (Feat, decode)
 import Html exposing (Html, div, h1, h2, h3, text)
@@ -30,7 +31,6 @@ import Json.Decode as D
 import Json.Encode as E
 import Library as L
 import LiftForm
-import Route exposing (Route(..))
 import SavedFeat exposing (SavedFeat)
 import Url exposing (Url)
 import View.Cards as Cards
@@ -118,6 +118,13 @@ saveDecoder =
     D.field "key" D.string
 
 
+noteDebounceConfig : Debounce.Config Msg
+noteDebounceConfig =
+    { strategy = Debounce.later 1000
+    , transform = NoteDebounceMsg
+    }
+
+
 type alias Flags =
     { env : String
     }
@@ -138,6 +145,7 @@ type Msg
     | DeleteCanceled
     | DeleteConfirmed
     | CardsChanged Cards.State
+    | NoteDebounceMsg Debounce.Msg
 
 
 main : Platform.Program Flags Model Msg
@@ -172,6 +180,7 @@ type alias Model =
     , keyToDelete : Maybe Int
     , cardsState : Cards.State
     , parentCacheKey : Maybe String
+    , noteDebounce : Debounce E.Value
     }
 
 
@@ -201,6 +210,7 @@ init _ url key =
       , keyToDelete = Nothing
       , cardsState = Cards.init Sort.init
       , parentCacheKey = Nothing
+      , noteDebounce = Debounce.init
       }
     , loadCacheFromUrl url
     )
@@ -283,10 +293,19 @@ update msg model =
                         |> andSave
 
         NoteChanged key note ->
-            { model
-                | feats = Dict.update key (Maybe.map <| setNoteOnSavedFeat note) model.feats
-            }
-                |> andSave
+            let
+                feats =
+                    Dict.update key (Maybe.map <| setNoteOnSavedFeat note) model.feats
+
+                newModel =
+                    { model
+                        | feats = Dict.update key (Maybe.map <| setNoteOnSavedFeat note) model.feats
+                    }
+
+                ( debounce, cmd ) =
+                    Debounce.push noteDebounceConfig (newModel |> serialize) model.noteDebounce
+            in
+            ( { newModel | noteDebounce = debounce }, cmd )
 
         DeleteCanceled ->
             ( { model
@@ -352,6 +371,19 @@ update msg model =
                 Err e ->
                     ( model, serverError "ServerRespondedWithSave" e )
 
+        NoteDebounceMsg debounceMsg ->
+            let
+                ( debounce, cmd ) =
+                    Debounce.update
+                        noteDebounceConfig
+                        (Debounce.takeLast saveRemoteCache)
+                        debounceMsg
+                        model.noteDebounce
+            in
+            ( { model | noteDebounce = debounce }
+            , cmd
+            )
+
 
 cardMsgs : FeatCards.CardMsgs Msg
 cardMsgs =
@@ -364,12 +396,12 @@ cardMsgs =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "here is a title"
-    , body = [ body model ]
+    { title = "Powerlifting score calculator by @perk.ee"
+    , body = body model
     }
 
 
-body : Model -> Html Msg
+body : Model -> List (Html Msg)
 body model =
     [ Grid.container []
         ([ h1 [] [ text "Every Score Calculator" ]
@@ -467,4 +499,3 @@ body model =
             ]
         |> Modal.view model.deleteConfirmVisibility
     ]
-        |> div []

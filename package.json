@@ -27,6 +27,7 @@
     "cypress": "^3.4.0",
     "elm": "0.19.1",
     "elm-hot": "^1.0.1",
+    "elm-test": "^0.19.1",
     "netlify-cli": "^2.11.23",
     "node-elm-compiler": "^5.0.3",
     "parcel-bundler": "^1.12.3",
