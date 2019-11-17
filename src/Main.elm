@@ -404,7 +404,7 @@ view model =
 body : Model -> List (Html Msg)
 body model =
     [ Grid.container []
-        ([ h1 [] [ text "Every Score Calculator" ]
+        ([ h1 [ Html.Attributes.attribute "data-test" "title" ] [ text "Every Score Calculator" ]
          , LiftForm.view model.formState UserChangedForm
          , h2 [] [ text "Current Score" ]
          , Grid.row [ Row.attrs [ class "current-table" ] ]
