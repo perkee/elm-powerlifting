@@ -223,7 +223,7 @@ init _ url key =
 getRemoteCache : String -> Cmd Msg
 getRemoteCache key =
     Http.get
-        { url = "/.netlify/functions/cache.search?key=" ++ key
+        { url = "/.netlify/functions/cache-search?key=" ++ key
         , expect = Http.expectJson ServerRespondedWithCache featsDecoder
         }
 
@@ -231,7 +231,7 @@ getRemoteCache key =
 saveRemoteCache : E.Value -> Cmd Msg
 saveRemoteCache v =
     Http.post
-        { url = "/.netlify/functions/cache.save"
+        { url = "/.netlify/functions/cache-save"
         , body = Http.jsonBody v
         , expect = Http.expectJson ServerRespondedWithSave saveDecoder
         }
