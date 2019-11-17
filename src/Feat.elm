@@ -9,6 +9,9 @@ module Feat exposing
     , liftToLetter
     , liftToString
     , serialize
+    ,  stringToEquipmentDecoder
+       -- just for tests
+
     , testFeats
     )
 

@@ -10,6 +10,7 @@ import Bootstrap.Grid.Col as Col
 import Bootstrap.Grid.Row as Row
 import Bootstrap.Modal as Modal
 import Browser
+import Browser.Navigation as Nav
 import Column
     exposing
         ( initCurrentColumns
@@ -18,18 +19,20 @@ import Column
 import Data.Cards as Cards
 import Data.ColumnToggles as ColumnToggles
 import Data.Sort as Sort
+import Debounce exposing (Debounce)
 import Dict exposing (Dict)
-import Feat exposing (Feat, decode, testFeats)
+import Feat exposing (Feat, decode)
 import Html exposing (Html, div, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
 import Html.Events as HE
 import Html.Styled
+import Http
 import Json.Decode as D
 import Json.Encode as E
 import Library as L
 import LiftForm
-import Result
 import SavedFeat exposing (SavedFeat)
+import Url exposing (Url)
 import View.Cards as Cards
 import View.ColumnToggles as ColumnToggles
 import View.CurrentTable as CurrentTable
@@ -37,27 +40,53 @@ import View.FeatCards as FeatCards
 import View.FeatTable as FeatTable
 
 
-port cache : E.Value -> Cmd msg
-
-
 port log : E.Value -> Cmd msg
+
+
+port setPath : String -> Cmd msg
 
 
 serialize : Model -> E.Value
 serialize m =
-    E.object
-        [ ( "feats", E.list SavedFeat.serialize <| Dict.values m.feats )
-        , ( "version", E.int 0 )
-        ]
+    [ ( "feats", E.list SavedFeat.serialize <| Dict.values m.feats )
+    , ( "version", E.int 0 )
+    ]
+        |> (case m.parentCacheKey of
+                Just p ->
+                    (::) ( "parent", E.string p )
+
+                Nothing ->
+                    identity
+           )
+        |> E.object
 
 
-serializeParseError : D.Error -> E.Value
-serializeParseError e =
+serverError : String -> Http.Error -> Cmd msg
+serverError label error =
     E.object
-        [ ( "issue", E.string "decode JSON" )
+        [ ( "issue", E.string label )
         , ( "level", E.string "error" )
-        , ( "error", E.string <| D.errorToString e )
+        , ( "error"
+          , (case error of
+                Http.BadUrl s ->
+                    "BadUrl " ++ s
+
+                Http.Timeout ->
+                    "Timeout"
+
+                Http.NetworkError ->
+                    "Network Error"
+
+                Http.BadStatus r ->
+                    "BadStatus " ++ String.fromInt r
+
+                Http.BadBody badBody ->
+                    "BadBody: " ++ badBody
+            )
+                |> E.string
+          )
         ]
+        |> log
 
 
 featsToDict : List Feat -> Dict Int SavedFeat
@@ -84,15 +113,51 @@ versionedFeatsDecoder maybeVersion =
                     ++ " is not supported."
 
 
-type alias Flags =
-    { cache : String
-    , env : String
+saveDecoder : D.Decoder String
+saveDecoder =
+    D.field "key" D.string
+
+
+noteDebounceConfig : Debounce.Config Msg
+noteDebounceConfig =
+    { strategy = Debounce.later 1000
+    , transform = NoteDebounceMsg
     }
+
+
+type alias Flags =
+    { env : String
+    }
+
+
+type Msg
+    = UserClickedLink Browser.UrlRequest
+    | BrowserChangedUrl Url
+    | ServerRespondedWithCache (Result Http.Error (List Feat))
+    | ServerRespondedWithSave (Result Http.Error String)
+    | UserChangedForm LiftForm.Intent
+    | NoteChanged Int String
+    | DeleteModalAnimated Modal.Visibility
+    | FeatDisplayUpdated ColumnToggles.State
+    | TableDisplayUpdated ColumnToggles.State
+    | DeleteButtonClicked Int
+    | EditButtonClicked SavedFeat
+    | DeleteCanceled
+    | DeleteConfirmed
+    | CardsChanged Cards.State
+    | NoteDebounceMsg Debounce.Msg
 
 
 main : Platform.Program Flags Model Msg
 main =
-    Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
+    Browser.application
+        { init = init
+        , onUrlRequest = UserClickedLink
+        , onUrlChange = BrowserChangedUrl
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }
 
 
 subscriptions : Model -> Sub Msg
@@ -105,7 +170,8 @@ subscriptions model =
 
 
 type alias Model =
-    { formState : LiftForm.State
+    { key : Nav.Key
+    , formState : LiftForm.State
     , feats : Dict Int SavedFeat
     , featKey : Int
     , featState : ColumnToggles.State
@@ -113,71 +179,67 @@ type alias Model =
     , deleteConfirmVisibility : Modal.Visibility
     , keyToDelete : Maybe Int
     , cardsState : Cards.State
+    , parentCacheKey : Maybe String
+    , noteDebounce : Debounce E.Value
     }
-
-
-someFeats : Dict Int SavedFeat
-someFeats =
-    featsToDict testFeats
-
-
-initFeats : Flags -> ( Dict Int SavedFeat, Cmd Msg )
-initFeats flags =
-    case
-        D.decodeString featsDecoder flags.cache
-    of
-        Result.Ok loadedFeats ->
-            ( featsToDict loadedFeats, Cmd.none )
-
-        Result.Err error ->
-            ( if flags.env == "development" then
-                someFeats
-
-              else
-                Dict.empty
-            , serializeParseError error |> log
-            )
 
 
 
 --Dict.empty
 
 
-init : Flags -> ( Model, Cmd Msg )
-init flags =
-    let
-        ( feats, cmd ) =
-            initFeats flags
-    in
-    ( { formState = LiftForm.init
-      , feats = feats
-      , featKey = Dict.size feats
+loadCacheFromUrl : Url -> Cmd Msg
+loadCacheFromUrl url =
+    case url.path |> String.dropLeft 1 of
+        "" ->
+            Cmd.none
+
+        x ->
+            getRemoteCache x
+
+
+init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init _ url key =
+    ( { key = key
+      , formState = LiftForm.init
+      , feats = Dict.empty
+      , featKey = 0
       , featState = ColumnToggles.init initCurrentColumns
       , tableState = ColumnToggles.init initTableColumns
       , deleteConfirmVisibility = Modal.hidden
       , keyToDelete = Nothing
       , cardsState = Cards.init Sort.init
+      , parentCacheKey = Nothing
+      , noteDebounce = Debounce.init
       }
-    , cmd
+    , loadCacheFromUrl url
     )
+
+
+
+-- HTTP
+
+
+getRemoteCache : String -> Cmd Msg
+getRemoteCache key =
+    Http.get
+        { url = "/.netlify/functions/cache.search?key=" ++ key
+        , expect = Http.expectJson ServerRespondedWithCache featsDecoder
+        }
+
+
+saveRemoteCache : E.Value -> Cmd Msg
+saveRemoteCache v =
+    Http.post
+        { url = "/.netlify/functions/cache.save"
+        , body = Http.jsonBody v
+        , expect = Http.expectJson ServerRespondedWithSave saveDecoder
+        }
 
 
 modelToFeat : Model -> Maybe Feat
 modelToFeat =
     .formState >> LiftForm.toFeat
-
-
-type Msg
-    = Form LiftForm.Intent
-    | NoteChanged Int String
-    | DeleteModalAnimated Modal.Visibility
-    | FeatDisplayUpdated ColumnToggles.State
-    | TableDisplayUpdated ColumnToggles.State
-    | DeleteButtonClicked Int
-    | EditButtonClicked SavedFeat
-    | DeleteCanceled
-    | DeleteConfirmed
-    | CardsChanged Cards.State
 
 
 setNoteOnFeat : String -> Feat -> Feat
@@ -190,25 +252,37 @@ setNoteOnSavedFeat note savedFeat =
     { savedFeat | feat = setNoteOnFeat note savedFeat.feat }
 
 
+andSave : Model -> ( Model, Cmd Msg )
+andSave m =
+    ( m, m |> serialize |> saveRemoteCache )
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    (case msg of
+    case msg of
+        BrowserChangedUrl _ ->
+            ( model, Cmd.none )
+
+        UserClickedLink _ ->
+            ( model, Cmd.none )
+
         FeatDisplayUpdated state ->
-            { model | featState = state }
+            ( { model | featState = state }, Cmd.none )
 
         TableDisplayUpdated state ->
-            { model | tableState = state }
+            ( { model | tableState = state }, Cmd.none )
 
-        Form intent ->
+        UserChangedForm intent ->
             case intent of
                 LiftForm.State state ->
-                    { model | formState = state }
+                    ( { model | formState = state }, Cmd.none )
 
                 LiftForm.Update state savedFeat ->
                     { model
                         | feats = Dict.insert savedFeat.key savedFeat model.feats
                         , formState = state
                     }
+                        |> andSave
 
                 LiftForm.Create state feat ->
                     { model
@@ -216,17 +290,30 @@ update msg model =
                         , featKey = model.featKey + 1
                         , formState = state
                     }
+                        |> andSave
 
         NoteChanged key note ->
-            { model
-                | feats = Dict.update key (Maybe.map <| setNoteOnSavedFeat note) model.feats
-            }
+            let
+                feats =
+                    Dict.update key (Maybe.map <| setNoteOnSavedFeat note) model.feats
+
+                newModel =
+                    { model
+                        | feats = Dict.update key (Maybe.map <| setNoteOnSavedFeat note) model.feats
+                    }
+
+                ( debounce, cmd ) =
+                    Debounce.push noteDebounceConfig (newModel |> serialize) model.noteDebounce
+            in
+            ( { newModel | noteDebounce = debounce }, cmd )
 
         DeleteCanceled ->
-            { model
+            ( { model
                 | deleteConfirmVisibility = Modal.hidden
                 , keyToDelete = Nothing
-            }
+              }
+            , Cmd.none
+            )
 
         DeleteConfirmed ->
             { model
@@ -240,31 +327,62 @@ update msg model =
                             model.feats
                 , keyToDelete = Nothing
             }
+                |> andSave
 
         DeleteButtonClicked key ->
-            { model
+            ( { model
                 | deleteConfirmVisibility = Modal.shown
                 , keyToDelete = Just key
-            }
+              }
+            , Cmd.none
+            )
 
         EditButtonClicked savedFeat ->
-            { model
+            ( { model
                 | formState =
                     LiftForm.pushSavedFeat
                         model.formState
                         savedFeat
                 , feats = Dict.remove savedFeat.key model.feats
-            }
+              }
+            , Cmd.none
+            )
 
         DeleteModalAnimated visibility ->
             -- Just fadein
-            { model | deleteConfirmVisibility = visibility }
+            ( { model | deleteConfirmVisibility = visibility }, Cmd.none )
 
         CardsChanged cardsState ->
-            { model | cardsState = cardsState }
-    )
-        |> L.toDouble
-        |> Tuple.mapSecond (serialize >> cache)
+            ( { model | cardsState = cardsState }, Cmd.none )
+
+        ServerRespondedWithCache result ->
+            case result of
+                Ok feats ->
+                    ( { model | feats = featsToDict feats }, Cmd.none )
+
+                Err e ->
+                    ( model, serverError "ServerRespondedWithCache" e )
+
+        ServerRespondedWithSave result ->
+            case result of
+                Ok key ->
+                    ( { model | parentCacheKey = Just key }, setPath key )
+
+                Err e ->
+                    ( model, serverError "ServerRespondedWithSave" e )
+
+        NoteDebounceMsg debounceMsg ->
+            let
+                ( debounce, cmd ) =
+                    Debounce.update
+                        noteDebounceConfig
+                        (Debounce.takeLast saveRemoteCache)
+                        debounceMsg
+                        model.noteDebounce
+            in
+            ( { model | noteDebounce = debounce }
+            , cmd
+            )
 
 
 cardMsgs : FeatCards.CardMsgs Msg
@@ -276,11 +394,18 @@ cardMsgs =
         EditButtonClicked
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
+    { title = "Powerlifting score calculator by @perk.ee"
+    , body = body model
+    }
+
+
+body : Model -> List (Html Msg)
+body model =
     [ Grid.container []
-        ([ h1 [] [ text "Every Score Calculator" ]
-         , LiftForm.view model.formState Form
+        ([ h1 [ Html.Attributes.attribute "data-test" "title" ] [ text "Every Score Calculator" ]
+         , LiftForm.view model.formState UserChangedForm
          , h2 [] [ text "Current Score" ]
          , Grid.row [ Row.attrs [ class "current-table" ] ]
             [ Grid.col [ Col.xs12 ]
@@ -374,4 +499,3 @@ view model =
             ]
         |> Modal.view model.deleteConfirmVisibility
     ]
-        |> div []

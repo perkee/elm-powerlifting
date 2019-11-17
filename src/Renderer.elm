@@ -14,7 +14,7 @@ import Html.Attributes
 import Html.Styled as H exposing (Html)
 import Html.Styled.Attributes as HA
 import Html.Styled.Keyed
-import Library exposing (stringToAttr, thrush, truncate)
+import Library as L
 
 
 
@@ -26,7 +26,7 @@ stringToHeaderCell ( title, arrows ) =
     let
         class =
             title
-                |> stringToAttr
+                |> L.stringToAttr
                 |> (++) "title-cell--"
                 |> (++)
                     (if arrows /= H.text "" then
@@ -76,7 +76,7 @@ maybeFloatToString f =
 
 floatToString : Float -> String
 floatToString =
-    truncate 2 >> String.fromFloat
+    L.truncate 2 >> String.fromFloat
 
 
 icon : String -> List (Raw.Attribute msg) -> Raw.Html msg
@@ -85,9 +85,9 @@ icon faClass attrs =
         |> (++) "fa fa-"
         |> Html.Attributes.class
         |> (::)
-        |> thrush attrs
+        |> L.thrush attrs
         |> Raw.span
-        |> thrush []
+        |> L.thrush []
 
 
 styledIcon : String -> List (H.Attribute msg) -> Html msg
@@ -96,6 +96,6 @@ styledIcon faClass attrs =
         |> (++) "fa fa-"
         |> HA.class
         |> (::)
-        |> thrush attrs
+        |> L.thrush attrs
         |> H.span
-        |> thrush []
+        |> L.thrush []
