@@ -40,7 +40,11 @@ exports.handler = (event, context, callback) => {
   try {
     MongoClient.connect(DB_URL, DB_OPTS, (error, client) => {
       if(error) {
-          throw error;
+          console.error('error connecting', error);
+          callback(null, {
+            statusCode: 500,
+            body: JSON.stringify({ error })
+          });
       }
       const database = client.db(DB_NAME);
       const collection = database.collection('caches');
@@ -59,21 +63,29 @@ exports.handler = (event, context, callback) => {
 
       collection.findOne(decoration, (findError, doc) => {
         if (doc) {
+          console.error('succeeded find', doc);
           callback(null, {
             statusCode: 200,
             body: JSON.stringify(doc)
           });
         } else {
+          console.error('failed find');
           Object.assign(cache, decoration);
 
           collection.insertOne(cache, (insertError, result) => {
             if (result && result.ops && result.ops[0]) {
+              console.log('succeeded insert', { result });
               callback(null, {
                 statusCode: 200,
                 body: JSON.stringify(result.ops[0])
               });
             } else {
-              callback({
+              console.error('errored insert', {
+                insertResult: result,
+                insertError,
+                findError
+              });
+              callback(null, {
                 statusCode: 500,
                 body: JSON.stringify({
                   insertResult: result,
@@ -87,7 +99,8 @@ exports.handler = (event, context, callback) => {
       });
     });
   } catch (err) {
-    callback({
+    console.error('errored connect', err);
+    callback(null, {
       statusCode: 500,
       body: err.toString()
     });
