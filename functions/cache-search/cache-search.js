@@ -12,7 +12,12 @@ exports.handler = (event, context, callback) => {
     console.log('trying to connect to ', DB_URL, DB_OPTS);
     MongoClient.connect(DB_URL, DB_OPTS, (error, client) => {
       if(error) {
-          throw error;
+        console.error('error connecting', error);
+        client.close();
+        callback(null, {
+          statusCode: 500,
+          body: JSON.stringify({ error })
+        });
       }
       const database = client.db(DB_NAME);
       const collection = database.collection('caches');
@@ -23,11 +28,13 @@ exports.handler = (event, context, callback) => {
 
       collection.findOne({ key }, (findError, doc) => {
         if (doc) {
+          client.close();
           callback(null, {
             statusCode: 200,
             body: JSON.stringify(doc)
           });
         } else {
+          client.close();
           callback(findError, {
             statusCode: 404,
             body: JSON.stringify(findError)
@@ -36,6 +43,7 @@ exports.handler = (event, context, callback) => {
       });
     });
   } catch (err) {
+    client.close();
     callback({
       statusCode: 500,
       body: err.toString()
