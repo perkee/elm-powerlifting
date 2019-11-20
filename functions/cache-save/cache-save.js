@@ -26,6 +26,8 @@ const isRootCache = cache => validate(cache, {
 }).valid;
 
 exports.handler = (event, context, callback) => {
+  context.callbackWaitsForEmptyEventLoop = false;
+  console.log('full context', context);
   let cache
   try {
     cache = JSON.parse(event.body);
@@ -38,13 +40,15 @@ exports.handler = (event, context, callback) => {
   }
 
   try {
+    console.log('b4 connect', context.getRemainingTimeInMillis());
     MongoClient.connect(DB_URL, DB_OPTS, (error, client) => {
       if(error) {
-          console.error('error connecting', error);
-          callback(null, {
-            statusCode: 500,
-            body: JSON.stringify({ error })
-          });
+        console.error('error connecting', error);
+        client.close();
+        callback(null, {
+          statusCode: 500,
+          body: JSON.stringify({ error })
+        });
       }
       const database = client.db(DB_NAME);
       const collection = database.collection('caches');
@@ -59,32 +63,35 @@ exports.handler = (event, context, callback) => {
         R.set(R.lensProp('key'), R.__, {})
       )(cache);
 
-      console.log('hunting', decoration);
-
+      console.log('hunting', context.getRemainingTimeInMillis(), decoration);
       collection.findOne(decoration, (findError, doc) => {
         if (doc) {
           console.error('succeeded find', doc);
+          client.close();
           callback(null, {
             statusCode: 200,
             body: JSON.stringify(doc)
           });
         } else {
-          console.error('failed find');
+          console.error('failed find', context.getRemainingTimeInMillis());
           Object.assign(cache, decoration);
 
           collection.insertOne(cache, (insertError, result) => {
+            console.log('succeed insert', context.getRemainingTimeInMillis());
             if (result && result.ops && result.ops[0]) {
               console.log('succeeded insert', { result });
+              client.close();
               callback(null, {
                 statusCode: 200,
                 body: JSON.stringify(result.ops[0])
               });
             } else {
-              console.error('errored insert', {
+              console.error('errored insert', context.getRemainingTimeInMillis(), {
                 insertResult: result,
                 insertError,
                 findError
               });
+              client.close();
               callback(null, {
                 statusCode: 500,
                 body: JSON.stringify({
@@ -99,7 +106,7 @@ exports.handler = (event, context, callback) => {
       });
     });
   } catch (err) {
-    console.error('errored connect', err);
+    console.error('errored connect', context.getRemainingTimeInMillis(), err);
     callback(null, {
       statusCode: 500,
       body: err.toString()
