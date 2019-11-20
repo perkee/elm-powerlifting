@@ -21,3 +21,4 @@
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false # to get the preview image correctly
