@@ -1,4 +1,4 @@
-module Example exposing (suite)
+module FeatTest exposing (suite)
 
 import Expect exposing (Expectation)
 import Feat exposing (..)
