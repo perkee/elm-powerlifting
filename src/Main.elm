@@ -1,8 +1,5 @@
 port module Main exposing (main)
 
--- (Html, button, div, text, input, option, select)
--- imports used
-
 import Bootstrap.Alert as Alert
 import Bootstrap.Button as Button
 import Bootstrap.Grid as Grid
@@ -22,7 +19,7 @@ import Data.Sort as Sort
 import Debounce exposing (Debounce)
 import Dict exposing (Dict)
 import Feat exposing (Feat, decode)
-import Html exposing (Html, div, h1, h2, h3, text)
+import Html exposing (Html, h1, h2, h3, text)
 import Html.Attributes exposing (class, style)
 import Html.Events as HE
 import Html.Styled
@@ -216,6 +213,7 @@ init _ url key =
     )
 
 
+
 -- HTTP
 
 
@@ -293,9 +291,6 @@ update msg model =
 
         NoteChanged key note ->
             let
-                feats =
-                    Dict.update key (Maybe.map <| setNoteOnSavedFeat note) model.feats
-
                 newModel =
                     { model
                         | feats = Dict.update key (Maybe.map <| setNoteOnSavedFeat note) model.feats

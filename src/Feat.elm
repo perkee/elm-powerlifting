@@ -4,15 +4,20 @@ module Feat exposing
     , Gender(..)
     , Lift(..)
     , decode
+    ,  decodeEquipment
+       -- test
+
+    ,  decodeGender
+       -- test
+
+    ,  decodeLift
+       -- test
+
     , equipmentToString
     , genderToString
     , liftToLetter
     , liftToString
     , serialize
-    ,  stringToEquipmentDecoder
-       -- just for tests
-
-    , testFeats
     )
 
 import Dict
@@ -188,35 +193,6 @@ type Gender
 type Equipment
     = Raw
     | SinglePly
-
-
-testFeats : List Feat
-testFeats =
-    [ { bodyMass = Mass.fromUnitAndFloat KG 100
-      , liftedMass = Mass.fromUnitAndFloat KG 400
-      , gender = Male
-      , lift = Bench
-      , age = Just 40
-      , equipment = SinglePly
-      , note = "first"
-      }
-    , { bodyMass = Mass.fromUnitAndFloat KG 99
-      , liftedMass = Mass.fromUnitAndFloat KG 1007.5
-      , gender = Female
-      , lift = Total
-      , age = Just 45
-      , equipment = Raw
-      , note = "second"
-      }
-    , { bodyMass = Mass.fromUnitAndFloat KG 60
-      , liftedMass = Mass.fromUnitAndFloat KG 505
-      , gender = GNC
-      , lift = Total
-      , age = Just 50
-      , equipment = Raw
-      , note = "third"
-      }
-    ]
 
 
 genderToString : Gender -> String

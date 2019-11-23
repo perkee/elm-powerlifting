@@ -1,10 +1,10 @@
 module Mass exposing
     ( Mass
     , MassUnit(..)
+    , decode
     , fromUnitAndFloat
     , max
     , serialize
-    , decode
     , toKilos
     , toPounds
     , toUnitAndFloat
