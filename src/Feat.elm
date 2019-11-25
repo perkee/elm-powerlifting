@@ -1,6 +1,6 @@
 module Feat exposing
     ( Equipment(..)
-    , Feat
+    , Feat(..)
     , Gender(..)
     , Lift(..)
     , decode
@@ -33,89 +33,200 @@ type Lift
     | Total
 
 
-type alias Feat =
+type alias Demographic =
     { bodyMass : Mass
-    , liftedMass : Mass
     , gender : Gender
-    , lift : Lift
     , age : Maybe Float
-    , equipment : Equipment
     , note : String
     }
 
 
+type alias LiftAttempt =
+    { liftedMass : Mass
+    , equipment : Equipment
+    }
+
+
+type Feat
+    = Single Demographic Lift LiftAttempt
+    | Sum
+        Demographic
+        { squat : LiftAttempt
+        , bench : LiftAttempt
+        , deadlift : LiftAttempt
+        }
+
+
 serialize : Feat -> E.Value
-serialize f =
-    E.object
-        [ ( "bodyMass", Mass.serialize f.bodyMass )
-        , ( "liftedMass", Mass.serialize f.liftedMass )
-        , ( "gender"
-          , E.string <|
-                case f.gender of
-                    Male ->
-                        "M"
+serialize feat =
+    E.object <|
+        case feat of
+            Single demo lift liftAttempt ->
+                serializeDemographic demo
+                    ++ [ ( "lift"
+                         , E.string <|
+                            case lift of
+                                Squat ->
+                                    "S"
 
-                    Female ->
-                        "F"
+                                Bench ->
+                                    "B"
 
-                    GNC ->
-                        "GNC"
-          )
-        , ( "lift"
-          , E.string <|
-                case f.lift of
-                    Squat ->
-                        "S"
+                                Deadlift ->
+                                    "D"
 
-                    Bench ->
-                        "B"
+                                Total ->
+                                    "T"
+                         )
+                       , ( "type", E.string "single" )
+                       ]
+                    ++ serializeLiftAttempt liftAttempt
 
-                    Deadlift ->
-                        "D"
+            Sum demo { squat, bench, deadlift } ->
+                serializeDemographic demo
+                    ++ [ ( "type", E.string "sum" )
+                       , ( "squat", E.object <| serializeLiftAttempt squat )
+                       , ( "bench", E.object <| serializeLiftAttempt bench )
+                       , ( "deadlift", E.object <| serializeLiftAttempt deadlift )
+                       ]
 
-                    Total ->
-                        "T"
-          )
-        , ( "age"
-          , case f.age of
-                Just age ->
-                    E.float age
 
-                Nothing ->
-                    E.null
-          )
-        , ( "equipment"
-          , E.string <|
-                case f.equipment of
-                    Raw ->
-                        "R"
+serializeDemographic : Demographic -> List ( String, E.Value )
+serializeDemographic d =
+    [ ( "bodyMass", Mass.serialize d.bodyMass )
+    , ( "gender"
+      , E.string <|
+            case d.gender of
+                Male ->
+                    "M"
 
-                    SinglePly ->
-                        "SP"
-          )
-        , ( "note", E.string f.note )
-        ]
+                Female ->
+                    "F"
+
+                GNC ->
+                    "GNC"
+      )
+    , ( "age"
+      , case d.age of
+            Just age ->
+                E.float age
+
+            Nothing ->
+                E.null
+      )
+    , ( "note", E.string d.note )
+    ]
+
+
+serializeLiftAttempt : LiftAttempt -> List ( String, E.Value )
+serializeLiftAttempt la =
+    [ ( "equipment"
+      , E.string <|
+            case la.equipment of
+                Raw ->
+                    "R"
+
+                SinglePly ->
+                    "SP"
+      )
+    , ( "liftedMass", Mass.serialize la.liftedMass )
+    ]
 
 
 decode : D.Decoder Feat
 decode =
-    D.map7 Feat
-        (D.field "bodyMass" Mass.decode)
+    D.maybe (D.field "type" D.string)
+        |> D.andThen versionedDecode
+
+
+versionedDecode : Maybe String -> D.Decoder Feat
+versionedDecode maybeType =
+    case Maybe.withDefault "single" maybeType of
+        "single" ->
+            D.map7 buildSingle
+                (D.field "bodyMass" Mass.decode)
+                (D.field "liftedMass" Mass.decode)
+                (D.field "gender" decodeGender)
+                (D.field "lift" decodeLift)
+                (D.maybe (D.field "age" D.float))
+                (D.field "equipment" decodeEquipment)
+                (D.map
+                    -- If the note is indecipherable OR absent
+                    --that's cool just make it an empty string
+                    (Maybe.withDefault "")
+                    (D.maybe <| D.field "note" D.string)
+                )
+
+        "sum" ->
+            D.map7 buildSum
+                (D.field "bodyMass" Mass.decode)
+                (D.field "gender" decodeGender)
+                (D.maybe (D.field "age" D.float))
+                (D.map
+                    -- If the note is indecipherable OR absent
+                    --that's cool just make it an empty string
+                    (Maybe.withDefault "")
+                    (D.maybe <| D.field "note" D.string)
+                )
+                (D.field "squat" decodeLiftAttempt)
+                (D.field "bench" decodeLiftAttempt)
+                (D.field "deadlift" decodeLiftAttempt)
+
+        s ->
+            D.fail <|
+                "Trying to decode feat, but type \""
+                    ++ s
+                    ++ "\" is unknown"
+
+
+buildSingle :
+    Mass
+    -> Mass
+    -> Gender
+    -> Lift
+    -> Maybe Float
+    -> Equipment
+    -> String
+    -> Feat
+buildSingle bodyMass liftedMass gender lift age equipment note =
+    Single
+        { bodyMass = bodyMass
+        , gender = gender
+        , age = age
+        , note = note
+        }
+        lift
+    <|
+        LiftAttempt liftedMass equipment
+
+
+buildSum :
+    Mass
+    -> Gender
+    -> Maybe Float
+    -> String
+    -> LiftAttempt
+    -> LiftAttempt
+    -> LiftAttempt
+    -> Feat
+buildSum bodyMass gender age note squat bench deadlift =
+    Sum
+        { bodyMass = bodyMass
+        , gender = gender
+        , age = age
+        , note = note
+        }
+        { squat = squat
+        , bench = bench
+        , deadlift = deadlift
+        }
+
+
+decodeLiftAttempt : D.Decoder LiftAttempt
+decodeLiftAttempt =
+    D.map2 LiftAttempt
         (D.field "liftedMass" Mass.decode)
-        (D.field "gender" decodeGender)
-        (D.field "lift" decodeLift)
-        (D.maybe (D.field "age" D.float))
         (D.field "equipment" decodeEquipment)
-        (D.map
-            -- If the note is indecipherable OR absent
-            --that's cool just make it an empty string
-            (Maybe.withDefault "")
-            (D.maybe <| D.field "note" D.string)
-        )
-
-
-
--- (D.field "note" decodeNote)
 
 
 decodeEquipment : D.Decoder Equipment

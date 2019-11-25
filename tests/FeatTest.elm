@@ -133,7 +133,7 @@ suite =
                                 )
                 ]
             , describe "decode"
-                [ test "complete" <|
+                [ test "implicit single encoding" <|
                     \_ ->
                         D.decodeString Feat.decode
                             """
@@ -154,16 +154,205 @@ suite =
                                 }
                             """
                             |> Expect.equal
-                                (Ok
-                                    { bodyMass = Mass.fromUnitAndFloat KG 123.21
-                                    , liftedMass = Mass.fromUnitAndFloat LBM 321.23
+                                (Ok <|
+                                    Single
+                                        { bodyMass =
+                                            Mass.fromUnitAndFloat
+                                                KG
+                                                123.21
+                                        , gender = Male
+                                        , age = Just 22.22
+                                        , note = "the note"
+                                        }
+                                        Squat
+                                        { equipment = Raw
+                                        , liftedMass =
+                                            Mass.fromUnitAndFloat
+                                                LBM
+                                                321.23
+                                        }
+                                )
+                , test "explicit single encoding" <|
+                    \_ ->
+                        D.decodeString Feat.decode
+                            """
+                                {
+                                    "bodyMass": {
+                                        "number": 123.21,
+                                        "unit": "KG"
+                                    },
+                                    "liftedMass": {
+                                        "number": 321.23,
+                                        "unit": "LBM"
+                                    },
+                                    "age": 22.22,
+                                    "gender": "M",
+                                    "lift": "S",
+                                    "equipment": "R",
+                                    "note": "the note",
+                                    "type": "single"
+                                }
+                            """
+                            |> Expect.equal
+                                (Ok <|
+                                    Single
+                                        { bodyMass =
+                                            Mass.fromUnitAndFloat
+                                                KG
+                                                123.21
+                                        , gender = Male
+                                        , age = Just 22.22
+                                        , note = "the note"
+                                        }
+                                        Squat
+                                        { equipment = Raw
+                                        , liftedMass =
+                                            Mass.fromUnitAndFloat
+                                                LBM
+                                                321.23
+                                        }
+                                )
+                , test "explicit sum encoding" <|
+                    \_ ->
+                        D.decodeString Feat.decode
+                            """
+                                {
+                                    "bodyMass": {
+                                        "number": 123.21,
+                                        "unit": "KG"
+                                    },
+                                    "liftedMass": {
+                                        "number": 321.23,
+                                        "unit": "LBM"
+                                    },
+                                    "age": 22.22,
+                                    "gender": "M",
+                                    "note": "the note",
+                                    "type": "sum",
+                                    "squat" : {
+                                        "equipment": "R",
+                                        "liftedMass": {
+                                            "number": 111.11,
+                                            "unit": "KG"
+                                        }
+                                    },
+                                    "bench" : {
+                                        "equipment": "R",
+                                        "liftedMass": {
+                                            "number": 222.22,
+                                            "unit": "LBM"
+                                        }
+                                    },
+                                    "deadlift" : {
+                                        "equipment": "SP",
+                                        "liftedMass": {
+                                            "number": 333.33,
+                                            "unit": "KG"
+                                        }
+                                    }
+                                }
+                            """
+                            |> Expect.equal
+                                (Ok <|
+                                    Sum
+                                        { bodyMass =
+                                            Mass.fromUnitAndFloat
+                                                KG
+                                                123.21
+                                        , gender = Male
+                                        , age = Just 22.22
+                                        , note = "the note"
+                                        }
+                                        { squat =
+                                            { equipment = Raw
+                                            , liftedMass =
+                                                Mass.fromUnitAndFloat
+                                                    KG
+                                                    111.11
+                                            }
+                                        , bench =
+                                            { equipment = Raw
+                                            , liftedMass =
+                                                Mass.fromUnitAndFloat
+                                                    LBM
+                                                    222.22
+                                            }
+                                        , deadlift =
+                                            { equipment = SinglePly
+                                            , liftedMass =
+                                                Mass.fromUnitAndFloat
+                                                    KG
+                                                    333.33
+                                            }
+                                        }
+                                )
+                , test "symmetric sum start with encode" <|
+                    \_ ->
+                        let
+                            feat =
+                                Sum
+                                    { bodyMass =
+                                        Mass.fromUnitAndFloat
+                                            KG
+                                            123.21
                                     , gender = Male
-                                    , lift = Squat
                                     , age = Just 22.22
-                                    , equipment = Raw
                                     , note = "the note"
                                     }
-                                )
+                                    { squat =
+                                        { equipment = Raw
+                                        , liftedMass =
+                                            Mass.fromUnitAndFloat
+                                                KG
+                                                111.11
+                                        }
+                                    , bench =
+                                        { equipment = Raw
+                                        , liftedMass =
+                                            Mass.fromUnitAndFloat
+                                                LBM
+                                                222.22
+                                        }
+                                    , deadlift =
+                                        { equipment = SinglePly
+                                        , liftedMass =
+                                            Mass.fromUnitAndFloat
+                                                KG
+                                                333.33
+                                        }
+                                    }
+                        in
+                        feat
+                            |> Feat.serialize
+                            |> D.decodeValue Feat.decode
+                            |> Expect.equal
+                                (Ok <| feat)
+                , test "symmetric single start with encode" <|
+                    \_ ->
+                        let
+                            feat =
+                                Single
+                                    { bodyMass =
+                                        Mass.fromUnitAndFloat
+                                            KG
+                                            123.21
+                                    , gender = Male
+                                    , age = Just 22.22
+                                    , note = "the note"
+                                    }
+                                    Squat
+                                    { equipment = Raw
+                                    , liftedMass =
+                                        Mass.fromUnitAndFloat
+                                            LBM
+                                            321.23
+                                    }
+                        in
+                        feat
+                            |> Feat.serialize
+                            |> D.decodeValue Feat.decode
+                            |> Expect.equal
+                                (Ok <| feat)
                 ]
             ]
         ]
