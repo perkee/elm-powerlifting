@@ -461,6 +461,9 @@ massInput input =
                                     Mass.KG ->
                                         "Kilos"
 
+                                    Mass.Zero ->
+                                        "Kilos"
+
                                     Mass.LBM ->
                                         "Pounds"
                             ]

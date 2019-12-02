@@ -1,8 +1,14 @@
 module Feat exposing
     ( Equipment(..)
+    , ExtremeFeat(..)
     , Feat(..)
     , Gender(..)
+    , LastFeatPromise(..)
     , Lift(..)
+    , SingleExtremeFeatInternal(..)
+    , SingleFeatInternal(..)
+    , SumExtremeFeatInternal(..)
+    , SumFeatInternal(..)
     , decode
     ,  decodeEquipment
        -- test
@@ -13,16 +19,20 @@ module Feat exposing
     ,  decodeLift
        -- test
 
+    , demoToComparable
     , equipmentToString
     , genderToString
     , liftToLetter
     , liftToString
+    , max
     , serialize
+    , toExtreme
     )
 
 import Dict
 import Json.Decode as D
 import Json.Encode as E
+import Library as L
 import Mass exposing (Mass, MassUnit(..))
 
 
@@ -47,21 +57,165 @@ type alias LiftAttempt =
     }
 
 
+type alias SumLiftAttempt =
+    { squat : LiftAttempt
+    , bench : LiftAttempt
+    , deadlift : LiftAttempt
+    }
+
+
 type Feat
-    = Single Demographic Lift LiftAttempt
-    | Sum
-        Demographic
-        { squat : LiftAttempt
-        , bench : LiftAttempt
-        , deadlift : LiftAttempt
+    = Single SingleFeatInternal
+    | Sum SumFeatInternal
+
+
+type SingleFeatInternal
+    = SingleFeatInternal Demographic Lift LiftAttempt
+
+
+type SumFeatInternal
+    = SumFeatInternal Demographic SumLiftAttempt
+
+
+type DecoratedFeat
+    = SingleDecoratedFeat Demographic Lift LiftAttempt SingleExtremeFeatInternal
+    | SumDecoratedFeat Demographic SumLiftAttempt SingleExtremeFeatInternal
+
+
+type ExtremeFeat
+    = SingleExtremeFeat Demographic Lift LiftAttempt SingleExtremeFeatInternal
+    | SumExtremeFeat Demographic SumLiftAttempt SumExtremeFeatInternal
+
+
+type LastFeatPromise
+    = SingleLast SingleExtremeFeatInternal
+    | SumLast SumExtremeFeatInternal
+
+
+type alias ComparableDemographic =
+    { age : Maybe Float
+    , bodyMass : Mass
+    }
+
+
+demoToComparable : Demographic -> ComparableDemographic
+demoToComparable demo =
+    { age = demo.age
+    , bodyMass = demo.bodyMass
+    }
+
+
+type SumExtremeFeatInternal
+    = SumExtremeFeatInternal
+        ComparableDemographic
+        { squat : Mass
+        , bench : Mass
+        , deadlift : Mass
+        , total : Mass
         }
+
+
+type SingleExtremeFeatInternal
+    = SingleExtremeFeatInternal Lift ComparableDemographic Mass
+
+
+toExtreme : Feat -> ExtremeFeat
+toExtreme feat =
+    case feat of
+        Single (SingleFeatInternal demo lift attempt) ->
+            SingleExtremeFeat demo lift attempt <|
+                SingleExtremeFeatInternal
+                    lift
+                    (demoToComparable demo)
+                    attempt.liftedMass
+
+        Sum (SumFeatInternal demo { squat, bench, deadlift }) ->
+            SumExtremeFeat demo { squat = squat, bench = bench, deadlift = deadlift } <|
+                SumExtremeFeatInternal
+                    (demoToComparable demo)
+                    { squat = squat.liftedMass
+                    , bench = bench.liftedMass
+                    , deadlift = deadlift.liftedMass
+                    , total =
+                        Mass.sum
+                            [ squat.liftedMass
+                            , bench.liftedMass
+                            , deadlift.liftedMass
+                            ]
+                    }
+
+
+maxInternal : LastFeatPromise -> SumExtremeFeatInternal -> SumExtremeFeatInternal
+maxInternal right (SumExtremeFeatInternal leftDemo leftMasses) =
+    case right of
+        SingleLast (SingleExtremeFeatInternal rightLift rightDemo rightLiftedMass) ->
+            SumExtremeFeatInternal
+                { age = L.maybeMax leftDemo.age rightDemo.age
+                , bodyMass = Mass.max leftDemo.bodyMass rightDemo.bodyMass
+                }
+                (case rightLift of
+                    Squat ->
+                        { squat = Mass.max leftMasses.squat rightLiftedMass
+                        , bench = leftMasses.bench
+                        , deadlift = leftMasses.deadlift
+                        , total = leftMasses.total
+                        }
+
+                    Bench ->
+                        { bench = Mass.max leftMasses.bench rightLiftedMass
+                        , squat = leftMasses.squat
+                        , deadlift = leftMasses.deadlift
+                        , total = leftMasses.total
+                        }
+
+                    Deadlift ->
+                        { deadlift = Mass.max leftMasses.deadlift rightLiftedMass
+                        , squat = leftMasses.squat
+                        , bench = leftMasses.bench
+                        , total = leftMasses.total
+                        }
+
+                    Total ->
+                        { total = Mass.max leftMasses.total rightLiftedMass
+                        , squat = leftMasses.squat
+                        , bench = leftMasses.bench
+                        , deadlift = leftMasses.deadlift
+                        }
+                )
+
+        SumLast (SumExtremeFeatInternal rightDemo rightMasses) ->
+            SumExtremeFeatInternal
+                { age = L.maybeMax leftDemo.age rightDemo.age
+                , bodyMass = Mass.max leftDemo.bodyMass rightDemo.bodyMass
+                }
+                { squat = Mass.max leftMasses.squat rightMasses.squat
+                , bench = Mass.max leftMasses.bench rightMasses.bench
+                , deadlift = Mass.max leftMasses.deadlift rightMasses.deadlift
+                , total = Mass.max leftMasses.total rightMasses.total
+                }
+
+
+max : List LastFeatPromise -> SumExtremeFeatInternal
+max =
+    List.foldl
+        maxInternal
+        (SumExtremeFeatInternal
+            { bodyMass = Mass.zero
+            , age = Nothing
+            }
+            { squat = Mass.zero
+            , bench = Mass.zero
+            , deadlift = Mass.zero
+            , total = Mass.zero
+            }
+        )
 
 
 serialize : Feat -> E.Value
 serialize feat =
     E.object <|
         case feat of
-            Single demo lift liftAttempt ->
+            Single (SingleFeatInternal demo lift liftAttempt) ->
                 serializeDemographic demo
                     ++ [ ( "lift"
                          , E.string <|
@@ -82,7 +236,7 @@ serialize feat =
                        ]
                     ++ serializeLiftAttempt liftAttempt
 
-            Sum demo { squat, bench, deadlift } ->
+            Sum (SumFeatInternal demo { squat, bench, deadlift }) ->
                 serializeDemographic demo
                     ++ [ ( "type", E.string "sum" )
                        , ( "squat", E.object <| serializeLiftAttempt squat )
@@ -189,15 +343,16 @@ buildSingle :
     -> String
     -> Feat
 buildSingle bodyMass liftedMass gender lift age equipment note =
-    Single
-        { bodyMass = bodyMass
-        , gender = gender
-        , age = age
-        , note = note
-        }
-        lift
-    <|
-        LiftAttempt liftedMass equipment
+    Single <|
+        SingleFeatInternal
+            { bodyMass = bodyMass
+            , gender = gender
+            , age = age
+            , note = note
+            }
+            lift
+        <|
+            LiftAttempt liftedMass equipment
 
 
 buildSum :
@@ -210,16 +365,17 @@ buildSum :
     -> LiftAttempt
     -> Feat
 buildSum bodyMass gender age note squat bench deadlift =
-    Sum
-        { bodyMass = bodyMass
-        , gender = gender
-        , age = age
-        , note = note
-        }
-        { squat = squat
-        , bench = bench
-        , deadlift = deadlift
-        }
+    Sum <|
+        SumFeatInternal
+            { bodyMass = bodyMass
+            , gender = gender
+            , age = age
+            , note = note
+            }
+            { squat = squat
+            , bench = bench
+            , deadlift = deadlift
+            }
 
 
 decodeLiftAttempt : D.Decoder LiftAttempt

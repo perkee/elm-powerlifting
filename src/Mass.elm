@@ -5,10 +5,12 @@ module Mass exposing
     , fromUnitAndFloat
     , max
     , serialize
+    , sum
     , toKilos
     , toPounds
     , toUnitAndFloat
     , toggleMassUnit
+    , zero
     )
 
 import Json.Decode as D
@@ -18,28 +20,66 @@ import Json.Encode as E
 type MassUnit
     = KG
     | LBM
+    | Zero
 
 
 type Mass
     = KgMass Float
     | LbmMass Float
+    | ZeroMass
 
 
-serialize : Mass -> E.Value
-serialize m =
-    let
-        ( unit, number ) =
-            case m of
-                KgMass f ->
-                    ( "KG", f )
+zero : Mass
+zero =
+    ZeroMass
 
-                LbmMass f ->
-                    ( "LBM", f )
-    in
+
+add : Mass -> Mass -> Mass
+add a b =
+    case ( a, b ) of
+        ( ZeroMass, bb ) ->
+            bb
+
+        ( aa, ZeroMass ) ->
+            aa
+
+        ( KgMass aa, KgMass bb ) ->
+            KgMass <| aa + bb
+
+        ( LbmMass aa, LbmMass bb ) ->
+            LbmMass <| aa + bb
+
+        ( LbmMass _, KgMass bb ) ->
+            KgMass (bb + toKilos a)
+
+        ( KgMass aa, LbmMass _ ) ->
+            KgMass (aa + toKilos b)
+
+
+sum : List Mass -> Mass
+sum =
+    List.foldl add ZeroMass
+
+
+serializeStringAndFloat : ( String, Float ) -> E.Value
+serializeStringAndFloat ( unit, number ) =
     E.object
         [ ( "number", E.float number )
         , ( "unit", E.string unit )
         ]
+
+
+serialize : Mass -> E.Value
+serialize m =
+    case m of
+        KgMass f ->
+            serializeStringAndFloat ( "KG", f )
+
+        LbmMass f ->
+            serializeStringAndFloat ( "LBM", f )
+
+        ZeroMass ->
+            serializeStringAndFloat ( "Z", 0.0 )
 
 
 decode : D.Decoder Mass
@@ -57,6 +97,9 @@ stringToMaybeUnit s =
 
         "LBM" ->
             D.succeed LBM
+
+        "Z" ->
+            D.succeed Zero
 
         _ ->
             D.fail ("unknown MassUnit " ++ s)
@@ -76,6 +119,9 @@ toKilos m =
         LbmMass f ->
             f * poundsPerKilo
 
+        ZeroMass ->
+            0
+
 
 toPounds : Mass -> Float
 toPounds m =
@@ -86,10 +132,16 @@ toPounds m =
         LbmMass f ->
             f
 
+        ZeroMass ->
+            0
+
 
 fromUnitAndFloat : MassUnit -> Float -> Mass
 fromUnitAndFloat u f =
     case u of
+        Zero ->
+            ZeroMass
+
         KG ->
             KgMass f
 
@@ -105,6 +157,9 @@ toUnitAndFloat mass =
 
         LbmMass f ->
             ( LBM, f )
+
+        ZeroMass ->
+            ( Zero, 0 )
 
 
 compare : Mass -> Mass -> Order
@@ -138,3 +193,6 @@ toggleMassUnit unit =
 
         LBM ->
             KG
+
+        Zero ->
+            Zero

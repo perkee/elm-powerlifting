@@ -9,6 +9,15 @@ import Mass exposing (..)
 import Test exposing (..)
 
 
+serializeThenDecode : Feat -> Expectation
+serializeThenDecode feat =
+    feat
+        |> Feat.serialize
+        |> D.decodeValue Feat.decode
+        |> Expect.equal
+            (Ok <| feat)
+
+
 suite : Test
 suite =
     describe "Feat"
@@ -288,71 +297,57 @@ suite =
                                 )
                 , test "symmetric sum start with encode" <|
                     \_ ->
-                        let
-                            feat =
-                                Sum
-                                    { bodyMass =
-                                        Mass.fromUnitAndFloat
-                                            KG
-                                            123.21
-                                    , gender = Male
-                                    , age = Just 22.22
-                                    , note = "the note"
-                                    }
-                                    { squat =
-                                        { equipment = Raw
-                                        , liftedMass =
-                                            Mass.fromUnitAndFloat
-                                                KG
-                                                111.11
-                                        }
-                                    , bench =
-                                        { equipment = Raw
-                                        , liftedMass =
-                                            Mass.fromUnitAndFloat
-                                                LBM
-                                                222.22
-                                        }
-                                    , deadlift =
-                                        { equipment = SinglePly
-                                        , liftedMass =
-                                            Mass.fromUnitAndFloat
-                                                KG
-                                                333.33
-                                        }
-                                    }
-                        in
-                        feat
-                            |> Feat.serialize
-                            |> D.decodeValue Feat.decode
-                            |> Expect.equal
-                                (Ok <| feat)
-                , test "symmetric single start with encode" <|
+                        Sum
+                            { bodyMass =
+                                Mass.fromUnitAndFloat
+                                    KG
+                                    123.21
+                            , gender = Male
+                            , age = Just 22.22
+                            , note = "the note"
+                            }
+                            { squat =
+                                { equipment = Raw
+                                , liftedMass =
+                                    Mass.fromUnitAndFloat
+                                        KG
+                                        111.11
+                                }
+                            , bench =
+                                { equipment = Raw
+                                , liftedMass =
+                                    Mass.fromUnitAndFloat
+                                        LBM
+                                        222.22
+                                }
+                            , deadlift =
+                                { equipment = SinglePly
+                                , liftedMass =
+                                    Mass.fromUnitAndFloat
+                                        KG
+                                        333.33
+                                }
+                            }
+                            |> serializeThenDecode
+                , test "symmetric single start with serialize" <|
                     \_ ->
-                        let
-                            feat =
-                                Single
-                                    { bodyMass =
-                                        Mass.fromUnitAndFloat
-                                            KG
-                                            123.21
-                                    , gender = Male
-                                    , age = Just 22.22
-                                    , note = "the note"
-                                    }
-                                    Squat
-                                    { equipment = Raw
-                                    , liftedMass =
-                                        Mass.fromUnitAndFloat
-                                            LBM
-                                            321.23
-                                    }
-                        in
-                        feat
-                            |> Feat.serialize
-                            |> D.decodeValue Feat.decode
-                            |> Expect.equal
-                                (Ok <| feat)
+                        Single
+                            { bodyMass =
+                                Mass.fromUnitAndFloat
+                                    KG
+                                    123.21
+                            , gender = Male
+                            , age = Just 22.22
+                            , note = "the note"
+                            }
+                            Squat
+                            { equipment = Raw
+                            , liftedMass =
+                                Mass.fromUnitAndFloat
+                                    LBM
+                                    321.23
+                            }
+                            |> serializeThenDecode
                 ]
             ]
         ]

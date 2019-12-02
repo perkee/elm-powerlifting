@@ -7,6 +7,7 @@ module Library exposing
     , isStringPositiveFloat
     , maybeListHead
     , maybeListMember
+    , maybeMax
     , maybeSnocnu
     , pam
     , pct
@@ -188,3 +189,16 @@ toDouble a =
 pct : Float -> Float -> Css.Pct
 pct val max =
     val / max * 100 |> Css.pct
+
+
+maybeMax : Maybe Float -> Maybe Float -> Maybe Float
+maybeMax current new =
+    case ( current, new ) of
+        ( Just c, Just n ) ->
+            Just (max c n)
+
+        ( Nothing, Just n ) ->
+            Just n
+
+        ( x, Nothing ) ->
+            x
