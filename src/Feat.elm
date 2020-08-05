@@ -182,7 +182,7 @@ stringToLiftDecoder s =
 type Gender
     = Male
     | Female
-    | GNC
+    | GNC -- non compliant! https://tempest-caller.tumblr.com/post/189269177767
 
 
 type Equipment
