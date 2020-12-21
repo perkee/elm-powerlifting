@@ -1,10 +1,12 @@
 module Mass exposing
     ( Mass
     , MassUnit(..)
+    , add
+    , decode
     , fromUnitAndFloat
     , max
     , serialize
-    , decode
+    , sum
     , toKilos
     , toPounds
     , toUnitAndFloat
@@ -23,6 +25,7 @@ type MassUnit
 type Mass
     = KgMass Float
     | LbmMass Float
+    | Zero
 
 
 serialize : Mass -> E.Value
@@ -35,6 +38,9 @@ serialize m =
 
                 LbmMass f ->
                     ( "LBM", f )
+
+                Zero ->
+                    ( "Kg", 0 )
     in
     E.object
         [ ( "number", E.float number )
@@ -76,6 +82,9 @@ toKilos m =
         LbmMass f ->
             f * poundsPerKilo
 
+        Zero ->
+            0
+
 
 toPounds : Mass -> Float
 toPounds m =
@@ -85,6 +94,9 @@ toPounds m =
 
         LbmMass f ->
             f
+
+        Zero ->
+            0
 
 
 fromUnitAndFloat : MassUnit -> Float -> Mass
@@ -105,6 +117,9 @@ toUnitAndFloat mass =
 
         LbmMass f ->
             ( LBM, f )
+
+        Zero ->
+            ( KG, 0 )
 
 
 compare : Mass -> Mass -> Order
@@ -138,3 +153,30 @@ toggleMassUnit unit =
 
         LBM ->
             KG
+
+
+add : Mass -> Mass -> Mass
+add left right =
+    case ( left, right ) of
+        ( KgMass l, KgMass r ) ->
+            KgMass (l + r)
+
+        ( LbmMass l, LbmMass r ) ->
+            LbmMass (l + r)
+
+        ( KgMass l, _ ) ->
+            l + toKilos right |> KgMass
+
+        ( _, KgMass r ) ->
+            r + toKilos left |> KgMass
+
+        ( Zero, _ ) ->
+            right
+
+        ( _, Zero ) ->
+            right
+
+
+sum : List Mass -> Mass
+sum =
+    List.foldl add Zero

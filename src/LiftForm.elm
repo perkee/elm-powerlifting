@@ -41,12 +41,15 @@ type State
 
 
 type alias FieldsState =
-    { liftedMass : String
-    , liftedUnit : Mass.MassUnit
+    { squatMass : String
+    , squatUnit : Mass.MassUnit
+    , benchMass : String
+    , benchUnit : Mass.MassUnit
+    , deadliftMass : String
+    , deadliftUnit : Mass.MassUnit
     , bodyMass : String
     , bodyUnit : Mass.MassUnit
     , gender : Gender
-    , lift : Lift
     , age : String
     , equipment : Equipment
     , note : String
@@ -138,15 +141,59 @@ fieldsToFeat : FieldsState -> Maybe Feat
 fieldsToFeat state =
     case
         ( String.toFloat state.bodyMass
-        , String.toFloat state.liftedMass
+        , ( String.toFloat state.squatMass
+          , String.toFloat state.benchMass
+          , String.toFloat state.deadliftMass
+          )
         )
     of
-        ( Just bodyMass, Just liftedMass ) ->
+        ( Just bodyMass, ( Just squatMass, Just benchMass, Just deadliftMass ) ) ->
             Just
                 { bodyMass = Mass.fromUnitAndFloat state.bodyUnit bodyMass
-                , liftedMass = Mass.fromUnitAndFloat state.liftedUnit liftedMass
+                , liftedMass =
+                    Mass.sum
+                        [ Mass.fromUnitAndFloat state.squatUnit squatMass
+                        , Mass.fromUnitAndFloat state.benchUnit benchMass
+                        , Mass.fromUnitAndFloat state.deadliftUnit deadliftMass
+                        ]
                 , gender = state.gender
-                , lift = state.lift
+                , lift = Total
+                , age = String.toFloat state.age
+                , equipment = state.equipment
+                , note = state.note
+                }
+
+        ( Just bodyMass, ( Just squatMass, Nothing, Nothing ) ) ->
+            Just
+                { bodyMass = Mass.fromUnitAndFloat state.bodyUnit bodyMass
+                , liftedMass =
+                    Mass.fromUnitAndFloat state.squatUnit squatMass
+                , gender = state.gender
+                , lift = Squat
+                , age = String.toFloat state.age
+                , equipment = state.equipment
+                , note = state.note
+                }
+
+        ( Just bodyMass, ( Nothing, Just benchMass, Nothing ) ) ->
+            Just
+                { bodyMass = Mass.fromUnitAndFloat state.bodyUnit bodyMass
+                , liftedMass =
+                    Mass.fromUnitAndFloat state.benchUnit benchMass
+                , gender = state.gender
+                , lift = Bench
+                , age = String.toFloat state.age
+                , equipment = state.equipment
+                , note = state.note
+                }
+
+        ( Just bodyMass, ( Nothing, Nothing, Just deadliftMass ) ) ->
+            Just
+                { bodyMass = Mass.fromUnitAndFloat state.bodyUnit bodyMass
+                , liftedMass =
+                    Mass.fromUnitAndFloat state.deadliftUnit deadliftMass
+                , gender = state.gender
+                , lift = Deadlift
                 , age = String.toFloat state.age
                 , equipment = state.equipment
                 , note = state.note
@@ -165,22 +212,39 @@ fromFeat feat =
         ( bodyUnit, bodyFloat ) =
             Mass.toUnitAndFloat feat.bodyMass
     in
-    { liftedMass = String.fromFloat liftFloat
-    , liftedUnit = liftUnit
-    , bodyMass = String.fromFloat bodyFloat
-    , bodyUnit = bodyUnit
-    , gender = feat.gender
-    , lift = feat.lift
-    , age =
-        case feat.age of
-            Just age ->
-                String.fromFloat age
+    case feat.lift of
+        Squat ->
+            { squatMass = ""
+            , squatUnit = liftUnit
+            , benchMass = ""
+            , benchUnit = Mass.KG
+            , deadliftMass = ""
+            , deadliftUnit = Mass.KG
+            , bodyMass = ""
+            , bodyUnit = Mass.KG
+            , gender = GNC
+            , lift = Total
+            , age = ""
+            , equipment = Raw
+            , note = ""
+            }
+                { squatMass = String.fromFloat liftFloat
+                , squatUnit =
+                    liftUnit
+                , bodyMass = String.fromFloat bodyFloat
+                , bodyUnit = bodyUnit
+                , gender = feat.gender
+                , lift = feat.lift
+                , age =
+                    case feat.age of
+                        Just age ->
+                            String.fromFloat age
 
-            Nothing ->
-                ""
-    , equipment = feat.equipment
-    , note = feat.note
-    }
+                        Nothing ->
+                            ""
+                , equipment = feat.equipment
+                , note = feat.note
+                }
 
 
 updateFieldsState : State -> FieldsState -> State
@@ -199,8 +263,12 @@ updateFieldsState state fields =
 
 init : State
 init =
-    { liftedMass = ""
-    , liftedUnit = Mass.KG
+    { squatMass = ""
+    , squatUnit = Mass.KG
+    , benchMass = ""
+    , benchUnit = Mass.KG
+    , deadliftMass = ""
+    , deadliftUnit = Mass.KG
     , bodyMass = ""
     , bodyUnit = Mass.KG
     , gender = GNC
@@ -280,10 +348,14 @@ updateNote state updateMsg note =
 
 type Field
     = BodyMass
-    | LiftedMass
+    | SquatMass
+    | BenchMass
+    | DeadliftMass
     | Age
     | BodyUnit
-    | LiftedUnit
+    | SquatUnit
+    | BenchUnit
+    | DeadliftUnit
 
 
 updateNumeric : State -> (State -> msg) -> Field -> String -> msg
@@ -298,8 +370,16 @@ updateNumeric state updateMsg field val =
                 { fields | bodyMass = val }
                     |> updateFieldsState state
 
-            LiftedMass ->
-                { fields | liftedMass = val }
+            SquatMass ->
+                { fields | squatMass = val }
+                    |> updateFieldsState state
+
+            BenchMass ->
+                { fields | benchMass = val }
+                    |> updateFieldsState state
+
+            DeadliftMass ->
+                { fields | deadliftMass = val }
                     |> updateFieldsState state
 
             Age ->
@@ -326,8 +406,16 @@ updateUnit state updateMsg field unit =
             { fields | bodyUnit = unit }
                 |> updateFieldsState state
 
-        LiftedUnit ->
-            { fields | liftedUnit = unit }
+        SquatUnit ->
+            { fields | squatUnit = unit }
+                |> updateFieldsState state
+
+        BenchUnit ->
+            { fields | benchUnit = unit }
+                |> updateFieldsState state
+
+        DeadliftUnit ->
+            { fields | deadliftUnit = unit }
                 |> updateFieldsState state
 
         _ ->
@@ -410,11 +498,25 @@ middleRow state updateMsg =
     in
     Form.row [ Row.attrs [ HA.class " mb-0" ] ]
         [ massInput
-            { title = "Lifted weight"
-            , numeric = fields.liftedMass
-            , updateNumeric = updateNumeric_ LiftedMass
-            , unit = fields.liftedUnit
-            , updateUnit = updateUnit_ LiftedUnit
+            { title = "Squatted weight"
+            , numeric = fields.squatMass
+            , updateNumeric = updateNumeric_ SquatMass
+            , unit = fields.squatUnit
+            , updateUnit = updateUnit_ SquatUnit
+            }
+        , massInput
+            { title = "Bench weight"
+            , numeric = fields.benchMass
+            , updateNumeric = updateNumeric_ BenchMass
+            , unit = fields.benchUnit
+            , updateUnit = updateUnit_ BenchUnit
+            }
+        , massInput
+            { title = "Deadlift weight"
+            , numeric = fields.deadliftMass
+            , updateNumeric = updateNumeric_ DeadliftMass
+            , unit = fields.deadliftUnit
+            , updateUnit = updateUnit_ DeadliftUnit
             }
         , massInput
             { title = "Bodyweight"

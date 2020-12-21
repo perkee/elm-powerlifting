@@ -3,6 +3,7 @@ module Feat exposing
     , Feat
     , Gender(..)
     , Lift(..)
+    , RecordedLift
     , decode
     , equipmentToString
     , genderToString
@@ -19,6 +20,12 @@ import Dict
 import Json.Decode as D
 import Json.Encode as E
 import Mass exposing (Mass, MassUnit(..))
+
+
+type alias RecordedLift =
+    { lift : Lift
+    , mass : Mass
+    }
 
 
 type Lift

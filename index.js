@@ -1,6 +1,6 @@
 import { Elm } from './src/Main.elm';
 function blastoff () {
-  Sentry && Sentry.init({
+  if(Sentry) Sentry.init({
     dsn: 'https://492e705e05e54021b4b22cb193874db6@sentry.io/1777628',
     environment: process.env.NODE_ENV
   });
@@ -14,7 +14,7 @@ function blastoff () {
 
   app.ports.log && app.ports.log.subscribe(function(data) {
     console[data.level || 'error']('log', data);
-    Sentry && Sentry.captureException(new Error(JSON.stringify(data)));
+    if(Sentry) Sentry.captureException(new Error(JSON.stringify(data)));
   });
 
   app.ports.setPath && app.ports.setPath.subscribe(function(p) {
@@ -24,7 +24,7 @@ function blastoff () {
     localStorage.setItem('key', path);
   });
 
-  Sentry && Sentry.captureMessage("load", "debug");
+  if(Sentry) Sentry.captureMessage("load", "debug");
 }
 
 window.addEventListener('DOMContentLoaded', blastoff);
