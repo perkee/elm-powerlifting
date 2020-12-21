@@ -1,8 +1,10 @@
 module Feat exposing
-    ( Equipment(..)
+    ( Demographic
+    , Equipment(..)
     , Feat(..)
     , Gender(..)
     , Lift(..)
+    , LiftAttempt
     , decode
     ,  decodeEquipment
        -- test
@@ -42,13 +44,14 @@ type alias Demographic =
 
 
 type alias LiftAttempt =
-    { liftedMass : Mass
+    { lift : Lift
+    , liftedMass : Mass
     , equipment : Equipment
     }
 
 
 type Feat
-    = Single Demographic Lift LiftAttempt
+    = Single Demographic LiftAttempt
     | Sum
         Demographic
         { squat : LiftAttempt
@@ -61,11 +64,11 @@ serialize : Feat -> E.Value
 serialize feat =
     E.object <|
         case feat of
-            Single demo lift liftAttempt ->
+            Single demo liftAttempt ->
                 serializeDemographic demo
                     ++ [ ( "lift"
                          , E.string <|
-                            case lift of
+                            case liftAttempt.lift of
                                 Squat ->
                                     "S"
 
@@ -195,9 +198,8 @@ buildSingle bodyMass liftedMass gender lift age equipment note =
         , age = age
         , note = note
         }
-        lift
     <|
-        LiftAttempt liftedMass equipment
+        LiftAttempt lift liftedMass equipment
 
 
 buildSum :
@@ -224,8 +226,9 @@ buildSum bodyMass gender age note squat bench deadlift =
 
 decodeLiftAttempt : D.Decoder LiftAttempt
 decodeLiftAttempt =
-    D.map2 LiftAttempt
+    D.map3 LiftAttempt
         (D.field "liftedMass" Mass.decode)
+        (D.field "equipment" decodeEquipment)
         (D.field "equipment" decodeEquipment)
 
 

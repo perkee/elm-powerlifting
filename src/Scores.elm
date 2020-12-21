@@ -32,9 +32,8 @@ type Score
     | NoScore
 
 
-type alias Record =
-    { feat : Feat
-    , wilks : Maybe Float
+type alias Scores =
+    { wilks : Maybe Float
     , scaledAllometricIpf : Maybe Float
     , scaledAllometricAtr : Maybe Float
     , allometric : Maybe Float
@@ -43,8 +42,33 @@ type alias Record =
     }
 
 
+type alias PartialFeat =
+    { demo : Feat.Demographic
+    , lift : Feat.Lift
+    , liftedMass : Mass.Mass
+    , equipment : Mass.Mass
+    }
+
+
+type Record
+    = Single PartialFeat Scores
+    | Sum
+        (List
+            { feat : PartialFeat
+            , scores : Scores
+            }
+        )
+
+
 featToRecord : Feat -> Record
 featToRecord feat =
+    case feat of
+        Single demo lift attempt ->
+
+
+        Sum demo { squat bench deadlift } ->
+
+
     feat
         |> featToScores
         |> List.foldr

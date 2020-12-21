@@ -369,7 +369,7 @@ topRow state updateMsg =
                     [ typedSelect [ Select.small ]
                         [ Option Male "Male" "M"
                         , Option Female "Female" "F"
-                        , Option GNC "—" "GNC"
+                        , Option GNC "Non-binary" "GNC"
                         ]
                         fields.gender
                       <|
