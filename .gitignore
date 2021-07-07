@@ -8,3 +8,4 @@ npm-debug.log*
 repl-temp-*
 cypress/screenshots/*
 cypress/videos/*
+.coverage

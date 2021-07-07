@@ -410,14 +410,14 @@ middleRow state updateMsg =
     in
     Form.row [ Row.attrs [ HA.class " mb-0" ] ]
         [ massInput
-            { title = "Lifted weight"
+            { title = "Lifted wt."
             , numeric = fields.liftedMass
             , updateNumeric = updateNumeric_ LiftedMass
             , unit = fields.liftedUnit
             , updateUnit = updateUnit_ LiftedUnit
             }
         , massInput
-            { title = "Bodyweight"
+            { title = "Bodywt."
             , numeric = fields.bodyMass
             , updateNumeric = updateNumeric_ BodyMass
             , unit = fields.bodyUnit
@@ -437,7 +437,12 @@ massInput :
 massInput input =
     Form.col [ Col.xs12, Col.md6 ]
         [ Form.row []
-            [ Form.colLabel [ Col.xs4, Col.sm3 ] [ H.text input.title ]
+            [ Form.colLabel
+                [ Col.xs4
+                , Col.sm3
+                , Col.attrs [ HA.style "white-space" "nowrap" ]
+                ]
+                [ H.text input.title ]
             , Form.col [ Col.xs8, Col.sm9 ]
                 [ input.updateNumeric
                     |> numericInputOpts
@@ -454,6 +459,9 @@ massInput input =
                             [ H.text <|
                                 case input.unit of
                                     Mass.KG ->
+                                        "Kilos"
+
+                                    Mass.Zero ->
                                         "Kilos"
 
                                     Mass.LBM ->
@@ -491,8 +499,22 @@ thirdRow state updateMsg =
                     [ Input.text
                         [ Input.onInput <| updateNote state updateMsg
                         , Input.value fields.note
+                        , Input.small
                         ]
                     ]
+                ]
+            ]
+        , Form.col [ Col.xs12, Col.md6 ]
+            [ Form.row []
+                [ Form.colLabel [ Col.xs4, Col.sm3 ] [ H.text "Equipment" ]
+                , updateEquipment state updateMsg
+                    |> typedSelect [ Select.small ]
+                        [ Option Raw "raw" "R"
+                        , Option SinglePly "single ply" "SP"
+                        ]
+                        fields.equipment
+                    |> List.singleton
+                    |> Form.col [ Col.xs8, Col.sm9 ]
                 ]
             ]
         ]
@@ -507,98 +529,85 @@ bottomRow state msg =
         stateMsg =
             State >> msg
     in
-    Form.row [ Row.attrs [ HA.class " mb-0" ] ]
+    Form.row []
         [ Form.col [ Col.xs12, Col.md6 ]
             [ Form.row []
-                [ Form.colLabel [ Col.xs4, Col.sm3 ] [ H.text "Equipment" ]
-                , updateEquipment state stateMsg
-                    |> typedSelect [ Select.small ]
-                        [ Option Raw "raw" "R"
-                        , Option SinglePly "single ply" "SP"
-                        ]
-                        fields.equipment
-                    |> List.singleton
-                    |> Form.col [ Col.xs8, Col.sm9 ]
-                ]
-            ]
-        , Form.col [ Col.xs12, Col.md6 ]
-            [ Form.row []
-                [ Form.col [ Col.xs7, Col.sm7 ]
-                    [ Form.row []
-                        [ Form.colLabel [ Col.xs7, Col.sm5 ] [ H.text "Age" ]
-                        , updateNumeric state stateMsg Age
+                [ Form.colLabel [ Col.xs4, Col.sm3 ] [ H.text "Age" ]
+                , Form.col [ Col.xs8, Col.sm9, Col.attrs [ HA.class "testing" ] ]
+                    [ Form.row [ Row.attrs [ HA.class "mb-0" ] ]
+                        [ updateNumeric state stateMsg Age
                             |> numericInputOpts
                                 fields.age
                             |> Input.text
                             |> List.singleton
-                            |> Form.col [ Col.xs5, Col.sm7 ]
+                            |> Form.col [ Col.xs12, Col.sm12 ]
                         ]
                     ]
-                , (case toResult state of
-                    CannotUpdateSavedFeat savedFeat ->
-                        [ Button.button
-                            [ Button.block
-                            , Button.small
-                            , Button.outlineDanger
-                            , Update
-                                (popState state)
-                                savedFeat
-                                |> msg
-                                |> Button.onClick
-                            ]
-                            [ H.text "Cancel update"
-                            ]
-                        ]
-
-                    UpdateSavedFeat savedFeat backupState ->
-                        [ Button.button
-                            [ Button.block
-                            , Button.small
-                            , Button.outlineDanger
-                            , backupState
-                                |> stateMsg
-                                |> Button.onClick
-                            ]
-                            [ H.text "Reset Changes"
-                            ]
-                        , Button.button
-                            [ Button.block
-                            , Button.small
-                            , Button.success
-                            , Update (popState state) savedFeat
-                                |> msg
-                                |> Button.onClick
-                            ]
-                            [ H.text "Update"
-                            ]
-                        ]
-
-                    NewFeat feat ->
-                        Button.button
-                            [ Button.block
-                            , Button.small
-                            , Button.success
-                            , Create state feat
-                                |> msg
-                                |> Button.onClick
-                            ]
-                            [ H.text "Add to table"
-                            ]
-                            |> List.singleton
-
-                    Incomplete ->
-                        Button.button
-                            [ Button.block
-                            , Button.small
-                            , Button.disabled True
-                            , Button.small
-                            , Button.secondary
-                            ]
-                            [ H.text "more info"
-                            ]
-                            |> List.singleton
-                  )
-                    |> Form.col [ Col.xs5, Col.sm5 ]
                 ]
             ]
+        , (case toResult state of
+            CannotUpdateSavedFeat savedFeat ->
+                [ Button.button
+                    [ Button.block
+                    , Button.small
+                    , Button.outlineDanger
+                    , Update
+                        (popState state)
+                        savedFeat
+                        |> msg
+                        |> Button.onClick
+                    ]
+                    [ H.text "Cancel update"
+                    ]
+                ]
+
+            UpdateSavedFeat savedFeat backupState ->
+                [ Button.button
+                    [ Button.block
+                    , Button.small
+                    , Button.outlineDanger
+                    , backupState
+                        |> stateMsg
+                        |> Button.onClick
+                    ]
+                    [ H.text "Reset Changes"
+                    ]
+                , Button.button
+                    [ Button.block
+                    , Button.small
+                    , Button.success
+                    , Update (popState state) savedFeat
+                        |> msg
+                        |> Button.onClick
+                    ]
+                    [ H.text "Update"
+                    ]
+                ]
+
+            NewFeat feat ->
+                Button.button
+                    [ Button.block
+                    , Button.small
+                    , Button.success
+                    , Create state feat
+                        |> msg
+                        |> Button.onClick
+                    ]
+                    [ H.text "Add to table"
+                    ]
+                    |> List.singleton
+
+            Incomplete ->
+                Button.button
+                    [ Button.block
+                    , Button.small
+                    , Button.disabled True
+                    , Button.small
+                    , Button.secondary
+                    ]
+                    [ H.text "More Info Needed to Save"
+                    ]
+                    |> List.singleton
+          )
+            |> Form.col [ Col.xs12, Col.md6 ]
         ]

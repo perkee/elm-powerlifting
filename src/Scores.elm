@@ -1,9 +1,8 @@
 module Scores exposing
-    ( Record
+    ( ExtremeRecord
+    , Record
     , featToRecord
-    , featToScores
-    , maxRecord
-    , maybeMax
+    , max
     )
 
 import Array
@@ -14,8 +13,62 @@ import Feat
         , Gender(..)
         , Lift(..)
         )
-import Library exposing (thrush)
+import Library as L
 import Mass
+
+
+type alias ByMasses a =
+    { a
+        | bodyMass : Mass.Mass
+        , liftedMass : Mass.Mass
+    }
+
+
+type alias ByGender a =
+    { a | gender : Gender }
+
+
+type alias ByEquipment a =
+    { a | equipment : Equipment }
+
+
+type alias ByLift a =
+    { a | lift : Lift }
+
+
+type alias ByAge a =
+    { a | age : Maybe Float }
+
+
+type alias AllometricInput a =
+    ByMasses a
+
+
+type alias WilksInput a =
+    ByGender (AllometricInput a)
+
+
+type alias McInput a =
+    ByAge (WilksInput a)
+
+
+type alias IpfInput a =
+    ByEquipment (ByLift (WilksInput a))
+
+
+type alias EnoughInput a =
+    ByAge (IpfInput a)
+
+
+type Input a
+    = SingleInput (EnoughInput a) Feat.SingleExtremeFeatInternal
+    | SumInput
+        { squat : EnoughInput a
+        , bench : EnoughInput a
+        , deadlift : EnoughInput a
+        , total : EnoughInput a
+        }
+        Feat.SumExtremeFeatInternal
 
 
 
@@ -32,9 +85,8 @@ type Score
     | NoScore
 
 
-type alias Record =
-    { feat : Feat
-    , wilks : Maybe Float
+type alias SingleRecordScores =
+    { wilks : Maybe Float
     , scaledAllometricIpf : Maybe Float
     , scaledAllometricAtr : Maybe Float
     , allometric : Maybe Float
@@ -43,106 +95,244 @@ type alias Record =
     }
 
 
-featToRecord : Feat -> Record
-featToRecord feat =
-    feat
-        |> featToScores
-        |> List.foldr
-            scoreToRecord
-            { feat = feat
-            , wilks = Nothing
-            , scaledAllometricIpf = Nothing
-            , scaledAllometricAtr = Nothing
-            , allometric = Nothing
-            , ipf = Nothing
-            , mcCulloch = Nothing
-            }
-
-
-scoreToRecord : Score -> Record -> Record
-scoreToRecord score record =
-    case score of
-        Wilks s ->
-            { record | wilks = Just s }
-
-        ScaledAllometricIpf s ->
-            { record | scaledAllometricIpf = Just s }
-
-        ScaledAllometricAtr s ->
-            { record | scaledAllometricAtr = Just s }
-
-        Allometric s ->
-            { record | allometric = Just s }
-
-        Ipf s ->
-            { record | ipf = Just s }
-
-        McCulloch s ->
-            { record | mcCulloch = Just s }
-
-        NoScore ->
-            record
-
-
-featToScores : Feat -> List Score
-featToScores feat =
-    [ wilks
-    , scaledAllometricIpf
-    , scaledAllometricAtr
-    , allometric
-    , ipf
-    , mcCulloch
-    ]
-        |> List.map (thrush feat)
-
-
-maybeMax : Maybe Float -> Maybe Float -> Maybe Float
-maybeMax current new =
-    case ( current, new ) of
-        ( Just c, Just n ) ->
-            Just (max c n)
-
-        ( Nothing, Just n ) ->
-            Just n
-
-        ( x, Nothing ) ->
-            x
-
-
-maxFeat : Feat -> Feat -> Feat
-maxFeat current new =
-    { bodyMass = Mass.max current.bodyMass new.bodyMass
-    , liftedMass = Mass.max current.liftedMass new.liftedMass
-    , gender = GNC
-    , lift = Total
-    , age = maybeMax current.age new.age
-    , equipment = Raw
-    , note = ""
+maxSingleRecordScores : SingleRecordScores -> SingleRecordScores -> SingleRecordScores
+maxSingleRecordScores a b =
+    { wilks = L.maybeMax a.wilks b.wilks
+    , scaledAllometricIpf = L.maybeMax a.scaledAllometricIpf b.scaledAllometricIpf
+    , scaledAllometricAtr = L.maybeMax a.scaledAllometricAtr b.scaledAllometricAtr
+    , allometric = L.maybeMax a.allometric b.allometric
+    , ipf = L.maybeMax a.ipf b.ipf
+    , mcCulloch = L.maybeMax a.mcCulloch b.mcCulloch
     }
 
 
-maxRecord : List Record -> Maybe Record
-maxRecord records =
-    case records of
-        r :: rs ->
-            List.foldl
-                (\maxes record ->
-                    { maxes
-                        | wilks = maybeMax maxes.wilks record.wilks
-                        , scaledAllometricIpf = maybeMax maxes.scaledAllometricIpf record.scaledAllometricIpf
-                        , scaledAllometricAtr = maybeMax maxes.scaledAllometricAtr record.scaledAllometricAtr
-                        , allometric = maybeMax maxes.allometric record.allometric
-                        , ipf = maybeMax maxes.ipf record.ipf
-                        , mcCulloch = maybeMax maxes.mcCulloch record.mcCulloch
-                        , feat = maxFeat maxes.feat record.feat
-                    }
-                )
-                r
-                rs
-                |> Just
+emptySingleRecordScores : SingleRecordScores
+emptySingleRecordScores =
+    { wilks = Nothing
+    , scaledAllometricIpf = Nothing
+    , scaledAllometricAtr = Nothing
+    , allometric = Nothing
+    , ipf = Nothing
+    , mcCulloch = Nothing
+    }
 
-        [] ->
-            Nothing
+
+type alias SumRecordScores =
+    { squat : SingleRecordScores
+    , bench : SingleRecordScores
+    , deadlift : SingleRecordScores
+    , total : SingleRecordScores
+    }
+
+
+emptySumRecordScores : SumRecordScores
+emptySumRecordScores =
+    { squat = emptySingleRecordScores
+    , bench = emptySingleRecordScores
+    , deadlift = emptySingleRecordScores
+    , total = emptySingleRecordScores
+    }
+
+
+type Record
+    = Single Feat.SingleExtremeFeatInternal SingleRecordScores
+    | Sum Feat.SumExtremeFeatInternal SumRecordScores
+
+
+type ExtremeRecord
+    = ExtremeRecord Feat.SumExtremeFeatInternal SumRecordScores
+
+
+max : List Record -> ExtremeRecord
+max records =
+    ExtremeRecord
+        (List.map recordToLastFeat records |> Feat.max)
+        (List.foldl maxScores emptySumRecordScores records)
+
+
+maxScores : Record -> SumRecordScores -> SumRecordScores
+maxScores new currentScores =
+    case new of
+        Single (Feat.SingleExtremeFeatInternal lift _ _) newSingleScores ->
+            case lift of
+                Squat ->
+                    { squat = maxSingleRecordScores currentScores.squat newSingleScores
+                    , bench = currentScores.bench
+                    , deadlift = currentScores.deadlift
+                    , total = currentScores.total
+                    }
+
+                Bench ->
+                    { bench = maxSingleRecordScores currentScores.bench newSingleScores
+                    , squat = currentScores.squat
+                    , deadlift = currentScores.deadlift
+                    , total = currentScores.total
+                    }
+
+                Deadlift ->
+                    { deadlift = maxSingleRecordScores currentScores.deadlift newSingleScores
+                    , squat = currentScores.squat
+                    , bench = currentScores.bench
+                    , total = currentScores.total
+                    }
+
+                Total ->
+                    { total = maxSingleRecordScores currentScores.total newSingleScores
+                    , squat = currentScores.squat
+                    , bench = currentScores.bench
+                    , deadlift = currentScores.deadlift
+                    }
+
+        Sum _ newSumScores ->
+            { squat = maxSingleRecordScores currentScores.squat newSumScores.squat
+            , bench = maxSingleRecordScores currentScores.bench newSumScores.bench
+            , deadlift = maxSingleRecordScores currentScores.deadlift newSumScores.deadlift
+            , total = maxSingleRecordScores currentScores.total newSumScores.total
+            }
+
+
+recordToLastFeat : Record -> Feat.LastFeatPromise
+recordToLastFeat r =
+    case r of
+        Single internal _ ->
+            -- internal : Feat.SingleExtremeFeatInternal
+            Feat.SingleLast internal
+
+        Sum internal _ ->
+            -- internal : Feat.SumExtremeFeatInternal
+            Feat.SumLast internal
+
+
+featToInput : Feat -> Input {}
+featToInput feat =
+    case Feat.toExtreme feat of
+        Feat.SingleExtremeFeat demo lift result internal ->
+            SingleInput
+                { age = demo.age
+                , bodyMass = demo.bodyMass
+                , gender = demo.gender
+                , liftedMass = result.liftedMass
+                , equipment = result.equipment
+                , lift = lift
+                }
+                internal
+
+        Feat.SumExtremeFeat demo { squat, bench, deadlift } internal ->
+            SumInput
+                { squat =
+                    { bodyMass = demo.bodyMass
+                    , age = demo.age
+                    , gender = demo.gender
+                    , liftedMass = squat.liftedMass
+                    , equipment = squat.equipment
+                    , lift = Squat
+                    }
+                , bench =
+                    { bodyMass = demo.bodyMass
+                    , age = demo.age
+                    , gender = demo.gender
+                    , liftedMass = bench.liftedMass
+                    , equipment = bench.equipment
+                    , lift = Bench
+                    }
+                , deadlift =
+                    { bodyMass = demo.bodyMass
+                    , age = demo.age
+                    , gender = demo.gender
+                    , liftedMass = deadlift.liftedMass
+                    , equipment = deadlift.equipment
+                    , lift = Deadlift
+                    }
+                , total =
+                    { bodyMass = demo.bodyMass
+                    , age = demo.age
+                    , gender = demo.gender
+                    , liftedMass =
+                        Mass.sum
+                            [ squat.liftedMass
+                            , bench.liftedMass
+                            , deadlift.liftedMass
+                            ]
+                    , equipment = deadlift.equipment
+                    , lift = Deadlift
+                    }
+                }
+                internal
+
+
+featToRecord : Feat -> Record
+featToRecord feat =
+    case featToInput feat of
+        SingleInput input featInternal ->
+            Single featInternal
+                { wilks = wilks input
+                , scaledAllometricIpf =
+                    scaledAllometricIpf input
+                , scaledAllometricAtr =
+                    scaledAllometricAtr input
+                , allometric =
+                    allometric input
+                , ipf =
+                    ipf input
+                , mcCulloch =
+                    mcCulloch input
+                }
+
+        SumInput { squat, bench, deadlift, total } featInternal ->
+            Sum featInternal
+                { squat =
+                    { wilks = wilks squat
+                    , scaledAllometricIpf =
+                        scaledAllometricIpf squat
+                    , scaledAllometricAtr =
+                        scaledAllometricAtr squat
+                    , allometric =
+                        allometric squat
+                    , ipf =
+                        ipf squat
+                    , mcCulloch =
+                        mcCulloch squat
+                    }
+                , bench =
+                    { wilks = wilks bench
+                    , scaledAllometricIpf =
+                        scaledAllometricIpf bench
+                    , scaledAllometricAtr =
+                        scaledAllometricAtr bench
+                    , allometric =
+                        allometric bench
+                    , ipf =
+                        ipf bench
+                    , mcCulloch =
+                        mcCulloch bench
+                    }
+                , deadlift =
+                    { wilks = wilks deadlift
+                    , scaledAllometricIpf =
+                        scaledAllometricIpf deadlift
+                    , scaledAllometricAtr =
+                        scaledAllometricAtr deadlift
+                    , allometric =
+                        allometric deadlift
+                    , ipf =
+                        ipf deadlift
+                    , mcCulloch =
+                        mcCulloch deadlift
+                    }
+                , total =
+                    { wilks = wilks total
+                    , scaledAllometricIpf =
+                        scaledAllometricIpf total
+                    , scaledAllometricAtr =
+                        scaledAllometricAtr total
+                    , allometric =
+                        allometric total
+                    , ipf =
+                        ipf total
+                    , mcCulloch =
+                        mcCulloch total
+                    }
+                }
 
 
 
@@ -150,12 +340,12 @@ maxRecord records =
 -- Unscaled Allometric
 
 
-allometric : Feat -> Score
+allometric : AllometricInput a -> Maybe Float
 allometric m =
     Mass.toKilos m.bodyMass
         ^ (-2 / 3)
         * Mass.toKilos m.liftedMass
-        |> Allometric
+        |> Just
 
 
 
@@ -167,7 +357,7 @@ type NuckolsFed
     | AllTimeRaw
 
 
-allometricCoefficient : NuckolsFed -> Feat -> Maybe Float
+allometricCoefficient : NuckolsFed -> IpfInput a -> Maybe Float
 allometricCoefficient fed feat =
     case fed of
         AllTimeRaw ->
@@ -256,38 +446,38 @@ allometricCoefficient fed feat =
                     Just 3.195981761
 
 
-scaledAllometricIpf : Feat -> Score
+scaledAllometricIpf : IpfInput a -> Maybe Float
 scaledAllometricIpf feat =
     case ( allometricCoefficient IPF feat, allometric feat ) of
-        ( Just coefficient, Allometric unscaled ) ->
+        ( Just coefficient, Just unscaled ) ->
             unscaled
                 * coefficient
-                |> ScaledAllometricIpf
+                |> Just
 
         ( _, _ ) ->
-            NoScore
+            Nothing
 
 
-scaledAllometricAtr : Feat -> Score
+scaledAllometricAtr : IpfInput a -> Maybe Float
 scaledAllometricAtr feat =
     case ( allometricCoefficient AllTimeRaw feat, allometric feat ) of
-        ( Just coefficient, Allometric unscaled ) ->
+        ( Just coefficient, Just unscaled ) ->
             unscaled
                 * coefficient
-                |> ScaledAllometricAtr
+                |> Just
 
         ( _, _ ) ->
-            NoScore
+            Nothing
 
 
 
 -- IPF
 
 
-ipf : Feat -> Score
+ipf : IpfInput a -> Maybe Float
 ipf m =
     if abs (Mass.toKilos m.liftedMass) < 0.25 then
-        Ipf 0
+        Just 0
 
     else
         let
@@ -300,14 +490,14 @@ ipf m =
                     + 100
                     * (Mass.toKilos m.liftedMass - (scale cs.c1 - cs.c2))
                     / (scale cs.c3 - cs.c4)
-                    |> Ipf
+                    |> Just
 
             Nothing ->
-                NoScore
+                Nothing
 
 
 ipfCoefficients :
-    Feat
+    IpfInput a
     ->
         Maybe
             { c1 : Float
@@ -373,9 +563,9 @@ ipfCoefficients m =
 -- Wilks
 
 
-wilksCoefficients : Feat -> Maybe (List Float)
-wilksCoefficients m =
-    case m.gender of
+wilksCoefficients : ByGender a -> Maybe (List Float)
+wilksCoefficients f =
+    case f.gender of
         Male ->
             Just
                 [ -216.0475144
@@ -400,37 +590,37 @@ wilksCoefficients m =
             Nothing
 
 
-polynomialMultiply : Feat -> Int -> Float -> Float
-polynomialMultiply m index const =
-    const * Mass.toKilos m.bodyMass ^ toFloat index
+polynomialMultiply : ByMasses a -> Int -> Float -> Float
+polynomialMultiply f index const =
+    const * Mass.toKilos f.bodyMass ^ toFloat index
 
 
-wilks : Feat -> Score
-wilks m =
-    case wilksCoefficients m of
+wilks : WilksInput a -> Maybe Float
+wilks f =
+    case wilksCoefficients f of
         Just coefficients ->
             coefficients
-                |> List.indexedMap (polynomialMultiply m)
+                |> List.indexedMap (polynomialMultiply f)
                 |> List.foldl (+) 0
-                |> (/) (Mass.toKilos m.liftedMass * 500)
-                |> Wilks
+                |> (/) (Mass.toKilos f.liftedMass * 500)
+                |> Just
 
         Nothing ->
-            NoScore
+            Nothing
 
 
 
 -- McCulloch
 
 
-mcCulloch : Feat -> Score
-mcCulloch feat =
-    case ( Maybe.map mcCullochFactor feat.age, wilks feat ) of
-        ( Just scale, Wilks score ) ->
-            score * scale |> McCulloch
+mcCulloch : McInput a -> Maybe Float
+mcCulloch f =
+    case ( Maybe.map mcCullochFactor f.age, wilks f ) of
+        ( Just scale, Just score ) ->
+            score * scale |> Just
 
         ( _, _ ) ->
-            NoScore
+            Nothing
 
 
 mcCullochFactor : Float -> Float
